@@ -1,6 +1,8 @@
 # Plano da Fase 1 — Fundação
 
-Status: **proposta revisada, aguardando ok** (2026-10-07)
+Status: **implementado, aguardando validação no Supabase real** (2026-10-07)
+
+O que já está no repositório: Etapas 0 a 4 completas (esqueleto, banco com 59 testes pgTAP, login e organização, telas de Configurações, testes e docs). O que falta: aplicar as migrations no projeto Supabase (`pnpm db:push`), criar o primeiro usuário e executar o roteiro de aceite. Veja `docs/setup.md`.
 
 Revisão 1: produtos e ofertas **não** são cadastrados à mão. Eles chegam pela API da Greenn na Fase 2. A Fase 1 cria as tabelas, mas não as telas de produtos e ofertas.
 

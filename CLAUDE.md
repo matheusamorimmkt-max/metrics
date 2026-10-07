@@ -115,6 +115,11 @@ Cada fase termina com algo funcionando e conferível. Não antecipar trabalho de
 
 ## Como trabalhar neste repositório
 
+- Comandos: `pnpm lint`, `pnpm typecheck`, `pnpm test` (Vitest), `pnpm db:test` (migrations + pgTAP num Postgres local; na sessão de desenvolvimento rodar como usuário `postgres`: `su postgres -c "cd $PWD && bash supabase/tests/run-local.sh"`), `pnpm build`.
+- Toda rota autenticada usa `obterContexto()` de `src/servidor/sessao.ts` e filtra por `organizacao.id` além do RLS (um usuário pode ter mais de uma organização).
+- Server Actions devolvem `Resultado` (`src/servidor/acoes/resultado.ts`) e validam com Zod no servidor; formulários usam `useActionState`.
+- Percentuais entram e saem das telas por `src/dominio/percentual.ts` (texto "12,15" ↔ fração 0.1215).
+
 - Antes de implementar algo que o PRD deixa aberto, registrar a decisão aqui (seção "Decisões tomadas durante a construção") e seguir.
 - Cada fase tem um plano em `docs/` revisado pelo usuário antes do código.
 - Commits pequenos e descritivos, em português.
