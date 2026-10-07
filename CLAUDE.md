@@ -96,8 +96,8 @@ Calculado sobre **ontem e anteontem**, independente do período selecionado. Ver
 
 ## Fases de construção
 
-1. **Fundação** (atual): Supabase, tabelas, login, organização, RLS, telas de configuração de categorias, funis, produtos, ofertas e taxa sobre anúncios. Pronto quando dá para cadastrar a estrutura completa do negócio.
-2. **Conector Greenn**: importação retroativa, busca a cada 15 min, reconsulta diária, transações e recompra, sugestão de bumps e upsells. Pronto quando o faturamento de um mês bate com a Greenn.
+1. **Fundação** (atual): Supabase, tabelas, login, organização, RLS, telas de configuração gerais, categorias e funis. Produtos e ofertas **não** são cadastrados à mão: as tabelas existem, mas as telas ficam para a Fase 2. Pronto quando dá para entrar, criar a organização, convidar diretores e cadastrar categorias e funis.
+2. **Conector Greenn**: importação retroativa de produtos, ofertas e vendas, telas de produtos (alíquota e base) e ofertas, vínculo de ofertas aos funis por papel, busca a cada 15 min, reconsulta diária, transações e recompra, sugestão de bumps e upsells. Pronto quando o faturamento de um mês bate com a Greenn.
 3. **Conector Meta**: contas, campanhas, métricas diárias, vínculo campanha→funil, ciclo unificado. Pronto quando o gasto de um mês bate com o gerenciador.
 4. **Home e Funis**: cards, pizza, linha do tempo, tabela por categoria/funil, semáforo, etapas do funil.
 5. **Abas secundárias**: Tráfego, Vendas, Clientes.
@@ -121,4 +121,4 @@ Cada fase termina com algo funcionando e conferível. Não antecipar trabalho de
 
 ## Decisões tomadas durante a construção
 
-_(registrar aqui, com data, as decisões que o PRD não cobria)_
+- **2026-10-07 — Produtos e ofertas só via API.** O usuário decidiu que produtos e ofertas nunca são cadastrados à mão. Eles entram pelo conector da Greenn (Fase 2) e, no futuro, por outros gateways. O usuário só edita o que a API não traz: alíquota e base do imposto do produto, e o papel de cada oferta no funil. Consequência: as telas de Produtos e Ofertas e o editor de ofertas do funil saem da Fase 1 e entram na Fase 2; as tabelas continuam sendo criadas na Fase 1.

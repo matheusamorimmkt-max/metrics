@@ -1,12 +1,16 @@
 # Plano da Fase 1 — Fundação
 
-Status: **proposta, aguardando revisão** (2026-10-07)
+Status: **proposta revisada, aguardando ok** (2026-10-07)
+
+Revisão 1: produtos e ofertas **não** são cadastrados à mão. Eles chegam pela API da Greenn na Fase 2. A Fase 1 cria as tabelas, mas não as telas de produtos e ofertas.
 
 ## Objetivo
 
-Sair do zero para um sistema em que um diretor faz login, cria a organização e cadastra a estrutura completa do negócio: categorias, funis, produtos (alíquota e base do imposto), ofertas e papéis das ofertas em cada funil, além da taxa sobre anúncios e da janela de transação.
+Sair do zero para um sistema em que um diretor faz login, cria a organização, convida os outros diretores e cadastra a parte da estrutura que não depende de nenhuma API: categorias, funis (nome, categoria, tipo, meta de ROI, datas de lançamento), taxa sobre anúncios e janela de transação.
 
-**Pronto quando:** dá para cadastrar a estrutura completa do seu negócio, com duas organizações isoladas entre si por RLS, e um segundo diretor convidado vê os mesmos dados da sua organização.
+Produtos e ofertas chegam pela API da Greenn na Fase 2. Só então o usuário informa a alíquota e a base do imposto de cada produto e vincula as ofertas aos funis por papel. As tabelas para isso já nascem na Fase 1, para a Fase 2 não precisar mexer na estrutura.
+
+**Pronto quando:** dá para entrar, criar a organização, convidar um segundo diretor, ajustar as configurações gerais e cadastrar categorias e funis, com duas organizações isoladas entre si por RLS.
 
 ## O que fica fora da Fase 1
 
@@ -14,18 +18,19 @@ Sair do zero para um sistema em que um diretor faz login, cria a organização e
 - Visões agregadas, Home real, seletor de período e filtro (fase 4). A Home será só um placeholder.
 - Cadastro self-service, cobrança, webhook (fase 7).
 - Tela de Integrações mostra apenas um estado "em breve".
+- **Telas de Produtos e Ofertas** e o **editor de ofertas por papel** dentro do funil: ficam para a Fase 2, depois que a Greenn importar produtos e ofertas. Idem a pergunta sobre mudança de alíquota.
 
 ## Decisões propostas (confirmar antes do código)
 
 | # | Tema | Proposta | Alternativa |
 | --- | --- | --- | --- |
 | 1 | Login | E-mail + senha via Supabase Auth. Sem cadastro aberto: o primeiro diretor cria a organização no primeiro acesso; os demais entram por convite por e-mail enviado pela tela de Usuários. | Magic link (sem senha) ou Google. Fácil de trocar depois. |
-| 2 | Produtos e ofertas na Fase 1 | Cadastro manual, informando o ID da oferta na Greenn. Na Fase 2 o conector reconcilia pelo `id_externo` e preenche o que faltar. | Esperar a Fase 2 e importar tudo. Atrasa o critério de pronto. |
+| 2 | Produtos e ofertas na Fase 1 | **Decidido pelo usuário:** nada de cadastro manual. Produtos e ofertas vêm da API da Greenn na Fase 2. A Fase 1 cria só as tabelas. | ~~Cadastro manual pelo ID da oferta.~~ |
 | 3 | Pilha web | Next.js 15 (App Router) + TypeScript estrito + Tailwind + shadcn/ui + Zod + pnpm. Gráficos com Recharts a partir da Fase 4. | Qualquer outra lib de UI; a escolha não afeta banco nem cálculos. |
 | 4 | Nomes no código | Domínio em português, igual ao banco (`funis`, `funil_ofertas`). Técnico em inglês (`created_at`). | Tudo em inglês. Dificulta ler o PRD lado a lado. |
 | 5 | Testes de RLS | pgTAP em `supabase/tests/`, rodado com `supabase test db`. | Script Node com dois usuários contra o projeto remoto. Fallback se não houver Docker. |
 | 6 | Tabela `integracoes` | Criada já na Fase 1 (só schema, sem UI), com credenciais referenciando o Vault, para a Fase 2 não refazer estrutura. | Deixar para a Fase 2. |
-| 7 | Mudança de alíquota | Já na Fase 1 a tela pergunta "só daqui para frente" ou "recalcular histórico" e grava a vigência em `historico_aliquotas`. O recálculo em si só existe na Fase 2, quando houver vendas. | Perguntar só a partir da Fase 2. |
+| 7 | Mudança de alíquota | Movido para a Fase 2, junto com a tela de Produtos. A tabela `historico_aliquotas` é criada na Fase 1. | — |
 
 ## Etapas
 
@@ -66,14 +71,13 @@ Todas com validação Zod no servidor, mensagens em português e estados vazios 
 | --- | --- |
 | Geral | nome, taxa sobre anúncios (padrão 12,15%), janela de transação (padrão 5 min), fuso horário, moeda |
 | Categorias | listar, criar, renomear, reordenar, ativar/desativar semáforo, excluir (bloqueado se houver funis) |
-| Produtos | listar, criar, editar nome, alíquota e base (`bruto`/`liquido`); ao mudar alíquota, modal "só daqui para frente" ou "recalcular histórico", gravando `historico_aliquotas` |
-| Ofertas | listar, criar, editar: `id_externo` (ID na Greenn), produto, nome, preço; coluna "funil" e destaque para **ofertas não vinculadas** |
-| Funis | listar agrupado por categoria; criar/editar: categoria, nome, tipo, meta de ROI (padrão 20%), datas quando `lancamento`; editor de ofertas por papel (front obrigatório ≥ 1; bumps, upsells, downsells opcionais) |
-| Conflito de oferta | ao vincular oferta já usada em outro funil, aviso com o nome do funil atual e opção de mover |
+| Funis | listar agrupado por categoria; criar/editar: categoria, nome, tipo, meta de ROI (padrão 20%), datas quando `lancamento`. A seção "Ofertas do funil" aparece vazia com o aviso "as ofertas serão importadas da Greenn na próxima fase" |
+| Produtos e Ofertas | **não existem na Fase 1.** Entram na Fase 2 com os dados importados da Greenn, incluindo alíquota, base, vínculo por papel e aviso de conflito |
 | Usuários | listar membros, convidar por e-mail, remover (não pode remover a si mesmo se for o último) |
 | Integrações | placeholder "disponível nas Fases 2 e 3" |
 
 - **Confere:** roteiro de aceite abaixo executado manualmente e por um teste Playwright de fumaça.
+- A regra "funil precisa de pelo menos um front" só passa a valer na Fase 2, quando existirem ofertas. Na Fase 1 um funil pode ser salvo sem ofertas.
 
 ### Etapa 4 — Qualidade e entrega
 
@@ -126,15 +130,14 @@ Convenções: `id uuid default gen_random_uuid()`, `organizacao_id uuid not null
 
 1. Login com usuário novo, criar organização "Empresa A"; ver as 4 categorias padrão, Front-end com semáforo ligado.
 2. Em Geral, alterar taxa sobre anúncios para 10% e janela para 7 min; recarregar e confirmar.
-3. Criar produto "Curso X" com alíquota 6% sobre base líquida.
-4. Criar ofertas 123 (Curso X, R$ 27), 124 (Curso X, R$ 37), 456 (Checklist, R$ 17); ver as três como "não vinculadas".
-5. Criar funil "Funil Desafio" em Front-end com fronts 123 e 124 e bump 456; as três somem de "não vinculadas".
-6. Criar funil B e tentar usar a oferta 456 como front: ver aviso de conflito citando "Funil Desafio"; mover; confirmar que saiu do Funil Desafio.
-7. Tentar salvar funil sem front: bloqueado com mensagem.
-8. Criar funil tipo lançamento sem datas: bloqueado; com datas: salvo.
-9. Alterar alíquota do Curso X para 8%: ver a pergunta; escolher "só daqui para frente"; `historico_aliquotas` tem duas linhas com vigências encadeadas.
-10. Convidar segundo usuário; ele entra e vê tudo igual.
-11. Terceiro usuário cria "Empresa B": não vê nada da Empresa A; testes pgTAP confirmam o mesmo pelo banco.
+3. Renomear "Back-end" para "Produtos avançados", criar categoria "Eventos", reordenar; tentar excluir uma categoria com funil: bloqueado.
+4. Criar funil "Funil Desafio" em Front-end, tipo venda direta, meta de ROI 25%.
+5. Criar funil tipo lançamento sem datas: bloqueado; com datas: salvo.
+6. Abrir o funil e ver a seção de ofertas vazia com o aviso de que virão da Greenn.
+7. Convidar segundo usuário; ele entra e vê tudo igual.
+8. Terceiro usuário cria "Empresa B": não vê nada da Empresa A; testes pgTAP confirmam o mesmo pelo banco.
+
+Os passos sobre produtos, ofertas, conflito de oferta e mudança de alíquota passam para o roteiro da Fase 2.
 
 ## O que preciso de você
 
