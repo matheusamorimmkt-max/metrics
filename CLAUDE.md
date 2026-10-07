@@ -46,6 +46,7 @@ Lucro por transação = Lucro / número de transações
 ```
 
 Base do imposto, por produto:
+
 - `bruto`: alíquota × (faturamento bruto − reembolsos)
 - `liquido`: alíquota × (faturamento bruto − reembolsos − taxas do gateway − parceiros)
 
@@ -121,4 +122,8 @@ Cada fase termina com algo funcionando e conferível. Não antecipar trabalho de
 
 ## Decisões tomadas durante a construção
 
+- **2026-10-07 — Next.js 16 sem Cache Components.** O scaffold veio com `cacheComponents: true`, que exige Suspense em volta de toda leitura de cookie e pré-renderiza uma casca estática. Como todo o app é autenticado e filtrado por organização, isso só adiciona complexidade. Fica `cacheComponents: false`. O middleware de autenticação em Next 16 chama-se `src/proxy.ts` (função `proxy`), não `middleware.ts`. Antes de usar uma API do Next, consultar `node_modules/next/dist/docs/` (esta versão tem mudanças em relação ao conhecimento prévio).
+- **2026-10-07 — shadcn/ui estilo `base-nova`, cor base neutra, ícones lucide.** Componentes em `src/components/ui` não são editados à mão; para customizar, envolver em componente próprio.
+- **2026-10-07 — Primeiro usuário e cadastro.** Cadastro aberto fica desligado no Supabase Auth. O primeiro diretor é criado pelo administrador no painel do Supabase (Authentication > Users > Add user). Os demais entram por convite enviado pela tela de Usuários. No primeiro acesso, quem não tem organização vê a tela "Criar organização".
+- **2026-10-07 — Testes de banco no Postgres local com pgTAP.** Sem Docker na sessão de desenvolvimento, `supabase start` não roda. O script `supabase/tests/run-local.sh` cria um banco descartável num Postgres local (16 ou 17), emula o schema `auth` do Supabase (`auth.users`, `auth.uid()`), aplica as migrations e roda os testes pgTAP. O mesmo script roda no CI. O Supabase hospedado usa Postgres 17: escrever SQL compatível com 16 e 17.
 - **2026-10-07 — Produtos e ofertas só via API.** O usuário decidiu que produtos e ofertas nunca são cadastrados à mão. Eles entram pelo conector da Greenn (Fase 2) e, no futuro, por outros gateways. O usuário só edita o que a API não traz: alíquota e base do imposto do produto, e o papel de cada oferta no funil. Consequência: as telas de Produtos e Ofertas e o editor de ofertas do funil saem da Fase 1 e entram na Fase 2; as tabelas continuam sendo criadas na Fase 1.

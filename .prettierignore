@@ -1,0 +1,6 @@
+node_modules
+.next
+pnpm-lock.yaml
+src/components/ui
+supabase/.temp
+docs/PRD.md

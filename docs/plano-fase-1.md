@@ -22,15 +22,15 @@ Produtos e ofertas chegam pela API da Greenn na Fase 2. Só então o usuário in
 
 ## Decisões propostas (confirmar antes do código)
 
-| # | Tema | Proposta | Alternativa |
-| --- | --- | --- | --- |
-| 1 | Login | E-mail + senha via Supabase Auth. Sem cadastro aberto: o primeiro diretor cria a organização no primeiro acesso; os demais entram por convite por e-mail enviado pela tela de Usuários. | Magic link (sem senha) ou Google. Fácil de trocar depois. |
-| 2 | Produtos e ofertas na Fase 1 | **Decidido pelo usuário:** nada de cadastro manual. Produtos e ofertas vêm da API da Greenn na Fase 2. A Fase 1 cria só as tabelas. | ~~Cadastro manual pelo ID da oferta.~~ |
-| 3 | Pilha web | Next.js 15 (App Router) + TypeScript estrito + Tailwind + shadcn/ui + Zod + pnpm. Gráficos com Recharts a partir da Fase 4. | Qualquer outra lib de UI; a escolha não afeta banco nem cálculos. |
-| 4 | Nomes no código | Domínio em português, igual ao banco (`funis`, `funil_ofertas`). Técnico em inglês (`created_at`). | Tudo em inglês. Dificulta ler o PRD lado a lado. |
-| 5 | Testes de RLS | pgTAP em `supabase/tests/`, rodado com `supabase test db`. | Script Node com dois usuários contra o projeto remoto. Fallback se não houver Docker. |
-| 6 | Tabela `integracoes` | Criada já na Fase 1 (só schema, sem UI), com credenciais referenciando o Vault, para a Fase 2 não refazer estrutura. | Deixar para a Fase 2. |
-| 7 | Mudança de alíquota | Movido para a Fase 2, junto com a tela de Produtos. A tabela `historico_aliquotas` é criada na Fase 1. | — |
+| #   | Tema                         | Proposta                                                                                                                                                                                | Alternativa                                                                           |
+| --- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 1   | Login                        | E-mail + senha via Supabase Auth. Sem cadastro aberto: o primeiro diretor cria a organização no primeiro acesso; os demais entram por convite por e-mail enviado pela tela de Usuários. | Magic link (sem senha) ou Google. Fácil de trocar depois.                             |
+| 2   | Produtos e ofertas na Fase 1 | **Decidido pelo usuário:** nada de cadastro manual. Produtos e ofertas vêm da API da Greenn na Fase 2. A Fase 1 cria só as tabelas.                                                     | ~~Cadastro manual pelo ID da oferta.~~                                                |
+| 3   | Pilha web                    | Next.js 15 (App Router) + TypeScript estrito + Tailwind + shadcn/ui + Zod + pnpm. Gráficos com Recharts a partir da Fase 4.                                                             | Qualquer outra lib de UI; a escolha não afeta banco nem cálculos.                     |
+| 4   | Nomes no código              | Domínio em português, igual ao banco (`funis`, `funil_ofertas`). Técnico em inglês (`created_at`).                                                                                      | Tudo em inglês. Dificulta ler o PRD lado a lado.                                      |
+| 5   | Testes de RLS                | pgTAP em `supabase/tests/`, rodado com `supabase test db`.                                                                                                                              | Script Node com dois usuários contra o projeto remoto. Fallback se não houver Docker. |
+| 6   | Tabela `integracoes`         | Criada já na Fase 1 (só schema, sem UI), com credenciais referenciando o Vault, para a Fase 2 não refazer estrutura.                                                                    | Deixar para a Fase 2.                                                                 |
+| 7   | Mudança de alíquota          | Movido para a Fase 2, junto com a tela de Produtos. A tabela `historico_aliquotas` é criada na Fase 1.                                                                                  | —                                                                                     |
 
 ## Etapas
 
@@ -67,14 +67,14 @@ Migrations em `supabase/migrations/`, nesta ordem:
 
 Todas com validação Zod no servidor, mensagens em português e estados vazios explicativos.
 
-| Tela | Funções |
-| --- | --- |
-| Geral | nome, taxa sobre anúncios (padrão 12,15%), janela de transação (padrão 5 min), fuso horário, moeda |
-| Categorias | listar, criar, renomear, reordenar, ativar/desativar semáforo, excluir (bloqueado se houver funis) |
-| Funis | listar agrupado por categoria; criar/editar: categoria, nome, tipo, meta de ROI (padrão 20%), datas quando `lancamento`. A seção "Ofertas do funil" aparece vazia com o aviso "as ofertas serão importadas da Greenn na próxima fase" |
-| Produtos e Ofertas | **não existem na Fase 1.** Entram na Fase 2 com os dados importados da Greenn, incluindo alíquota, base, vínculo por papel e aviso de conflito |
-| Usuários | listar membros, convidar por e-mail, remover (não pode remover a si mesmo se for o último) |
-| Integrações | placeholder "disponível nas Fases 2 e 3" |
+| Tela               | Funções                                                                                                                                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Geral              | nome, taxa sobre anúncios (padrão 12,15%), janela de transação (padrão 5 min), fuso horário, moeda                                                                                                                                    |
+| Categorias         | listar, criar, renomear, reordenar, ativar/desativar semáforo, excluir (bloqueado se houver funis)                                                                                                                                    |
+| Funis              | listar agrupado por categoria; criar/editar: categoria, nome, tipo, meta de ROI (padrão 20%), datas quando `lancamento`. A seção "Ofertas do funil" aparece vazia com o aviso "as ofertas serão importadas da Greenn na próxima fase" |
+| Produtos e Ofertas | **não existem na Fase 1.** Entram na Fase 2 com os dados importados da Greenn, incluindo alíquota, base, vínculo por papel e aviso de conflito                                                                                        |
+| Usuários           | listar membros, convidar por e-mail, remover (não pode remover a si mesmo se for o último)                                                                                                                                            |
+| Integrações        | placeholder "disponível nas Fases 2 e 3"                                                                                                                                                                                              |
 
 - **Confere:** roteiro de aceite abaixo executado manualmente e por um teste Playwright de fumaça.
 - A regra "funil precisa de pelo menos um front" só passa a valer na Fase 2, quando existirem ofertas. Na Fase 1 um funil pode ser salvo sem ofertas.
@@ -89,17 +89,17 @@ Todas com validação Zod no servidor, mensagens em português e estados vazios 
 
 Convenções: `id uuid default gen_random_uuid()`, `organizacao_id uuid not null references organizacoes`, `created_at`/`updated_at timestamptz`. Dinheiro `numeric(14,2)`. Percentuais como fração (`0.1215`). Índice em `organizacao_id` em toda tabela.
 
-| Tabela | Colunas além das convenções | Restrições e índices |
-| --- | --- | --- |
-| `organizacoes` | `nome text`, `taxa_anuncios numeric(6,4) default 0.1215`, `janela_transacao_min int default 5`, `fuso_horario text default 'America/Sao_Paulo'`, `moeda char(3) default 'BRL'` | `taxa_anuncios >= 0`, `janela_transacao_min > 0` |
-| `membros` | `user_id uuid references auth.users`, `papel text default 'diretor'` | único `(organizacao_id, user_id)`; índice em `user_id` |
-| `integracoes` | `tipo text` (`meta`, `greenn`, `crm`), `status text`, `credenciais_secret_id uuid` (referência ao Vault), `ultima_sincronizacao timestamptz`, `config jsonb` | único `(organizacao_id, tipo)` |
-| `categorias` | `nome text`, `ordem int`, `tem_semaforo bool default false` | único `(organizacao_id, nome)` |
-| `produtos` | `plataforma text` (`greenn`, `manual`), `id_externo text`, `nome text`, `aliquota_imposto numeric(6,4)`, `base_imposto text` (`bruto`/`liquido`) | único `(organizacao_id, plataforma, id_externo)` quando `id_externo` não nulo; `aliquota_imposto between 0 and 1` |
-| `historico_aliquotas` | `produto_id`, `aliquota numeric(6,4)`, `base text`, `vigencia_inicio timestamptz`, `vigencia_fim timestamptz null` | índice `(produto_id, vigencia_inicio desc)`; sem sobreposição de vigências |
-| `ofertas` | `plataforma text`, `id_externo text`, `produto_id`, `nome text`, `preco numeric(14,2)` | único `(organizacao_id, plataforma, id_externo)`; índice em `produto_id` |
-| `funis` | `categoria_id`, `nome text`, `tipo text` (`venda_direta`, `lancamento`, `closer`, `isca`), `data_inicio date null`, `data_fim date null`, `meta_roi numeric(6,4) default 0.20`, `ativo bool default true` | datas obrigatórias quando `tipo = 'lancamento'`; índice em `categoria_id` |
-| `funil_ofertas` | `funil_id`, `oferta_id`, `papel text` (`front`, `bump`, `upsell`, `downsell`), `status text` (`sugerido`, `confirmado`), `ordem int` | **único `oferta_id`** (uma oferta, um funil); índice em `funil_id` |
+| Tabela                | Colunas além das convenções                                                                                                                                                                               | Restrições e índices                                                                                              |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `organizacoes`        | `nome text`, `taxa_anuncios numeric(6,4) default 0.1215`, `janela_transacao_min int default 5`, `fuso_horario text default 'America/Sao_Paulo'`, `moeda char(3) default 'BRL'`                            | `taxa_anuncios >= 0`, `janela_transacao_min > 0`                                                                  |
+| `membros`             | `user_id uuid references auth.users`, `papel text default 'diretor'`                                                                                                                                      | único `(organizacao_id, user_id)`; índice em `user_id`                                                            |
+| `integracoes`         | `tipo text` (`meta`, `greenn`, `crm`), `status text`, `credenciais_secret_id uuid` (referência ao Vault), `ultima_sincronizacao timestamptz`, `config jsonb`                                              | único `(organizacao_id, tipo)`                                                                                    |
+| `categorias`          | `nome text`, `ordem int`, `tem_semaforo bool default false`                                                                                                                                               | único `(organizacao_id, nome)`                                                                                    |
+| `produtos`            | `plataforma text` (`greenn`, `manual`), `id_externo text`, `nome text`, `aliquota_imposto numeric(6,4)`, `base_imposto text` (`bruto`/`liquido`)                                                          | único `(organizacao_id, plataforma, id_externo)` quando `id_externo` não nulo; `aliquota_imposto between 0 and 1` |
+| `historico_aliquotas` | `produto_id`, `aliquota numeric(6,4)`, `base text`, `vigencia_inicio timestamptz`, `vigencia_fim timestamptz null`                                                                                        | índice `(produto_id, vigencia_inicio desc)`; sem sobreposição de vigências                                        |
+| `ofertas`             | `plataforma text`, `id_externo text`, `produto_id`, `nome text`, `preco numeric(14,2)`                                                                                                                    | único `(organizacao_id, plataforma, id_externo)`; índice em `produto_id`                                          |
+| `funis`               | `categoria_id`, `nome text`, `tipo text` (`venda_direta`, `lancamento`, `closer`, `isca`), `data_inicio date null`, `data_fim date null`, `meta_roi numeric(6,4) default 0.20`, `ativo bool default true` | datas obrigatórias quando `tipo = 'lancamento'`; índice em `categoria_id`                                         |
+| `funil_ofertas`       | `funil_id`, `oferta_id`, `papel text` (`front`, `bump`, `upsell`, `downsell`), `status text` (`sugerido`, `confirmado`), `ordem int`                                                                      | **único `oferta_id`** (uma oferta, um funil); índice em `funil_id`                                                |
 
 `organizacao_id` é redundante em `funil_ofertas` e `historico_aliquotas` (derivável pela FK), mas fica explícito para a política RLS ser uniforme e barata.
 
