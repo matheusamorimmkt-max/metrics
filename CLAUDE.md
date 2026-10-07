@@ -109,8 +109,7 @@ Cada fase termina com algo funcionando e conferível. Não antecipar trabalho de
 
 ## Pendências que afetam decisões técnicas
 
-- Confirmar na documentação da Greenn que a API entrega, por venda: ID da oferta, taxa do gateway, comissões por parceiro e data de reembolso.
-- Confirmar limites de chamadas da API da Greenn.
+- **API da Greenn (conferido em 2026-10-07 na documentação oficial, `https://apiadm.greenn.com.br/docs/api`, OpenAPI 3.1):** REST v1 em `https://apiadm.greenn.com.br/api/v1`, token pessoal `grn_live_…` no header `Authorization: Bearer`, escopos `sales:read`, `products:read`, `offers:read`. Limite: **100 requisições por minuto por token**; respostas trazem `X-RateLimit-Limit` e `X-RateLimit-Remaining`; ao estourar, `429` com `Retry-After` em segundos (obrigatório esperar esse valor; não chamar em paralelo). `GET /sales` é paginado (`per_page` até 100) com filtros `created_after/before`, `paid_after/before`, `refunded_after/before`, `status`, `offer_id`, e devolve por venda: `id`, `status` (`paid`, `refused`, `refunded`, `chargedback`, `waiting_payment`, `unpaid`), `amount`, `total`, `currency`, `method`, `installments`, `type`, `created_at`, `paid_at`, `refunded_at`, `product_id`, `client_id`, **`offer_id`**, `affiliate_id`, `transaction_id`, cupom e `participants_count`. `GET /sales/{id}` acrescenta produto, cliente, oferta, afiliado e participantes. **Não documentados no REST:** taxa do gateway e valor das comissões por parceiro (o webhook `saleUpdated` traz `fee` e `seller_balance`, mas não o id da oferta). A unidade de `amount` no REST (centavos ou reais) também não está clara. A Etapa 0 da Fase 2 confirma isso com o token real antes de fechar o modelo (ver `docs/plano-fase-2.md`).
 - CRM ainda não escolhido; a aba Comercial fica oculta até existir conector.
 
 ## Como trabalhar neste repositório
