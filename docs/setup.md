@@ -42,6 +42,8 @@ Para conferir as migrations sem tocar no projeto real (precisa de um Postgres lo
 pnpm db:test
 ```
 
+Sem a senha do banco (o `db push` precisa dela), as migrations também podem ser aplicadas pelo **SQL Editor** do painel ou pela Management API (`POST /v1/projects/<project-id>/database/query` com o token pessoal), uma a uma e em ordem. Nesse caso registre cada uma em `supabase_migrations.schema_migrations` (`version`, `name`, `statements`) para o CLI saber que já foram aplicadas e o próximo `pnpm db:push` não repeti-las.
+
 ## 4. Primeiro usuário
 
 No painel do Supabase: **Authentication → Users → Add user → Create new user**. Informe e-mail e senha e marque **Auto Confirm User**. Esse é o primeiro diretor. Ao entrar no app ele verá a tela "Criar organização".
@@ -73,5 +75,6 @@ Em produção, troque o SMTP padrão do Supabase (limite baixo de e-mails) por u
 
 - **"Variáveis de ambiente do Supabase ausentes"**: faltou alguma chave em `.env.local` ou no ambiente. Reinicie o `pnpm dev` depois de editar.
 - **Login dá "E-mail ou senha incorretos" para um usuário que existe**: confira se o usuário está confirmado (Auto Confirm) e se a senha tem 8+ caracteres.
+- **Convite falha com "User not allowed" (`not_admin`)**: a `SUPABASE_SERVICE_ROLE_KEY` está com a chave anon/publishable em vez da service_role/secret. Confira em Project Settings → API; a service_role é a que o painel esconde por padrão. Para checar, decodifique o JWT: o campo `role` precisa ser `service_role`.
 - **Convite não chega**: veja Authentication → Logs no Supabase; o SMTP padrão tem limite por hora.
 - **Página em branco após o login**: confira se as migrations foram aplicadas (`pnpm db:push`), senão a tabela `membros` não existe.
