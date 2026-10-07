@@ -1,3 +1,6 @@
+// Tudo aqui depende da sessão: nunca pré-renderizar.
+export const dynamic = "force-dynamic";
+
 export default function LayoutAuth({ children }: LayoutProps<"/">) {
   return (
     <main className="bg-muted/40 flex flex-1 items-center justify-center p-4">

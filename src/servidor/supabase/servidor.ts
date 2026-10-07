@@ -9,8 +9,10 @@ import type { Database } from "./tipos-banco";
  * Usa a chave pública: o RLS garante que o usuário só veja a própria organização.
  */
 export async function criarClienteServidor() {
-  const env = envPublico();
+  // cookies() primeiro: marca a rota como dinâmica antes de qualquer validação,
+  // para o build não tentar pré-renderizar páginas autenticadas.
   const cookieStore = await cookies();
+  const env = envPublico();
 
   return createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,

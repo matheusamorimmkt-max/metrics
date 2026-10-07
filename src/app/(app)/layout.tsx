@@ -2,6 +2,9 @@ import { obterContexto } from "@/servidor/sessao";
 import { Navegacao } from "./navegacao";
 import { Cabecalho } from "./cabecalho";
 
+// Tudo aqui depende da sessão: nunca pré-renderizar.
+export const dynamic = "force-dynamic";
+
 export default async function LayoutApp({ children }: LayoutProps<"/">) {
   const contexto = await obterContexto();
 
