@@ -68,12 +68,14 @@ Em produção, troque o SMTP padrão do Supabase (limite baixo de e-mails) por u
 ## 7. Deploy na Vercel
 
 1. Importe o repositório na Vercel.
-2. Cadastre as mesmas variáveis do passo 2 (menos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`, que só o CLI usa) e também `NEXT_PUBLIC_SITE_URL=https://seu-dominio`.
-3. Volte ao Supabase e atualize **Site URL** e **Redirect URLs** com o domínio da Vercel.
+2. Cadastre as mesmas variáveis do passo 2 (menos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`, que só o CLI usa) e também `NEXT_PUBLIC_SITE_URL=https://seu-dominio`. Cole cada valor sem aspas, sem espaços e sem quebra de linha, e marque os ambientes Production e Preview.
+3. As variáveis `NEXT_PUBLIC_*` são embutidas no build. Depois de criar ou corrigir qualquer uma delas, faça um novo deploy (Deployments → Redeploy); só salvar a variável não muda o site que já está no ar.
+4. Volte ao Supabase e atualize **Site URL** e **Redirect URLs** com o domínio da Vercel.
 
 ## Problemas comuns
 
 - **"Variáveis de ambiente do Supabase ausentes"**: faltou alguma chave em `.env.local` ou no ambiente. Reinicie o `pnpm dev` depois de editar.
+- **Login dá "Invalid API key"**: a `NEXT_PUBLIC_SUPABASE_ANON_KEY` do ambiente não pertence ao projeto da `NEXT_PUBLIC_SUPABASE_URL`. É a resposta do próprio Supabase a uma chave que ele não reconhece. Causas comuns: chave copiada pela metade ou com aspas, chave de outro projeto, ou variável corrigida na Vercel sem novo deploy. Compare o valor com Project Settings → API (a anon é um JWT longo que começa com `eyJ`, ou `sb_publishable_` nos projetos novos), salve e faça Redeploy.
 - **Login dá "E-mail ou senha incorretos" para um usuário que existe**: confira se o usuário está confirmado (Auto Confirm) e se a senha tem 8+ caracteres.
 - **Convite falha com "User not allowed" (`not_admin`)**: a `SUPABASE_SERVICE_ROLE_KEY` está com a chave anon/publishable em vez da service_role/secret. Confira em Project Settings → API; a service_role é a que o painel esconde por padrão. Para checar, decodifique o JWT: o campo `role` precisa ser `service_role`.
 - **Convite não chega**: veja Authentication → Logs no Supabase; o SMTP padrão tem limite por hora.

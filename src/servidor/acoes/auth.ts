@@ -32,6 +32,12 @@ export async function entrar(
     if (error.code === "invalid_credentials") return falha("E-mail ou senha incorretos.");
     if (error.code === "email_not_confirmed")
       return falha("Confirme seu e-mail antes de entrar.");
+    if (/invalid api key/i.test(error.message))
+      return falha(
+        "A chave pública do Supabase configurada neste ambiente não pertence ao projeto. " +
+          "Confira NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY (Project Settings → API) " +
+          "e faça um novo deploy: essas variáveis são embutidas no build.",
+      );
     return falha(`Não foi possível entrar: ${error.message}`);
   }
 
