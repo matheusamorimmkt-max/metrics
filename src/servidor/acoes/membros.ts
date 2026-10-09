@@ -1,24 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { schemaConvite } from "@/dominio/schemas/auth";
+import { origemDoApp } from "@/servidor/origem";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { criarClienteAdmin } from "@/servidor/supabase/admin";
 import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
 
 const CAMINHO = "/configuracoes/usuarios";
-
-/** URL pública do app, para o link do convite voltar para cá. */
-async function origemDoApp() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto =
-    h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 /** Procura um usuário do Auth pelo e-mail (a API admin não tem busca direta por e-mail). */
 async function encontrarUsuarioPorEmail(email: string) {

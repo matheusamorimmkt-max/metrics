@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * 1. Renova o token do Supabase e repassa os cookies atualizados.
  * 2. Manda quem não está logado para /login e quem está logado para fora de /login.
  */
-const ROTAS_PUBLICAS = ["/login", "/auth"];
+const ROTAS_PUBLICAS = ["/login", "/esqueci-senha", "/auth"];
 
 export async function proxy(request: NextRequest) {
   let resposta = NextResponse.next({ request });
@@ -47,7 +47,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (autenticado && caminho === "/login") {
+  if (autenticado && (caminho === "/login" || caminho === "/esqueci-senha")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

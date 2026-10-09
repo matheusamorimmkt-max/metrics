@@ -1,9 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BotaoEnviar } from "@/components/formulario/botao-enviar";
+import { InputSenha } from "@/components/formulario/input-senha";
 import {
   ErroCampo,
   ErroFormulario,
@@ -44,14 +46,16 @@ export function FormularioLogin({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="senha">Senha</Label>
-        <Input
-          id="senha"
-          name="senha"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
+        <div className="flex items-center justify-between">
+          <Label htmlFor="senha">Senha</Label>
+          <Link
+            href="/esqueci-senha"
+            className="text-muted-foreground hover:text-foreground text-xs underline"
+          >
+            Esqueci minha senha
+          </Link>
+        </div>
+        <InputSenha id="senha" name="senha" autoComplete="current-password" required />
         <ErroCampo erros={erros} campo="senha" />
       </div>
 

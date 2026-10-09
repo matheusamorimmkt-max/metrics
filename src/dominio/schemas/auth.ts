@@ -1,7 +1,17 @@
 import { z } from "zod";
 
+/**
+ * E-mail aparado e em minúsculas. O trim vem antes da validação de formato:
+ * no Zod 4, `z.email().trim()` valida primeiro e rejeitaria " ana@empresa.com ".
+ */
+const campoEmail = z
+  .string("Informe um e-mail válido.")
+  .trim()
+  .toLowerCase()
+  .pipe(z.email("Informe um e-mail válido."));
+
 export const schemaLogin = z.object({
-  email: z.email("Informe um e-mail válido.").trim().toLowerCase(),
+  email: campoEmail,
   senha: z.string().min(1, "Informe a senha."),
   proximo: z.string().optional(),
 });
@@ -17,5 +27,9 @@ export const schemaDefinirSenha = z
   });
 
 export const schemaConvite = z.object({
-  email: z.email("Informe um e-mail válido.").trim().toLowerCase(),
+  email: campoEmail,
+});
+
+export const schemaRecuperarSenha = z.object({
+  email: campoEmail,
 });

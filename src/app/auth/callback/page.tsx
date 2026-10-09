@@ -35,7 +35,9 @@ export default function PaginaCallbackAuth() {
         router.refresh();
       } else if (evento === "INITIAL_SESSION") {
         // Sem sessão e sem tokens na URL: nada a fazer aqui.
-        setErro("Este link expirou ou já foi usado. Peça um novo convite.");
+        setErro(
+          "Este link expirou ou já foi usado. Peça um novo convite ou uma nova recuperação de senha.",
+        );
       }
     });
 
