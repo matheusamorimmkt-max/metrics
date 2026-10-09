@@ -1,4 +1,4 @@
-# Painel de Funis — Especificação do Produto
+# Metric Analytics — Especificação do Produto
 
 Oct 7, 2026 · @ricardo
 

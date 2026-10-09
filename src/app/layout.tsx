@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Painel de Funis",
-    template: "%s · Painel de Funis",
+    default: "Metric Analytics",
+    template: "%s · Metric Analytics",
   },
   description: "Gasto em anúncios e vendas do gateway, por funil e no negócio inteiro.",
 };
