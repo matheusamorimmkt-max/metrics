@@ -42,6 +42,8 @@ Para conferir as migrations sem tocar no projeto real (precisa de um Postgres lo
 pnpm db:test
 ```
 
+Sem a senha do banco (o `db push` precisa dela), as migrations também podem ser aplicadas pelo **SQL Editor** do painel ou pela Management API (`POST /v1/projects/<project-id>/database/query` com o token pessoal), uma a uma e em ordem. Nesse caso registre cada uma em `supabase_migrations.schema_migrations` (`version`, `name`, `statements`) para o CLI saber que já foram aplicadas e o próximo `pnpm db:push` não repeti-las.
+
 ## 4. Primeiro usuário
 
 No painel do Supabase: **Authentication → Users → Add user → Create new user**. Informe e-mail e senha e marque **Auto Confirm User**. Esse é o primeiro diretor. Ao entrar no app ele verá a tela "Criar organização".
@@ -73,15 +75,17 @@ O SMTP padrão do Supabase envia poucos e-mails por hora; se o link não chegar,
 ## 7. Deploy na Vercel
 
 1. Importe o repositório na Vercel.
-2. Cadastre as mesmas variáveis do passo 2 (menos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`, que só o CLI usa) e também `NEXT_PUBLIC_SITE_URL=https://seu-dominio`.
-3. Volte ao Supabase e atualize **Site URL** e **Redirect URLs** com o domínio da Vercel.
+2. Cadastre as mesmas variáveis do passo 2 (menos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`, que só o CLI usa) e também `NEXT_PUBLIC_SITE_URL=https://seu-dominio`. Cole cada valor sem aspas, sem espaços e sem quebra de linha, e marque os ambientes Production e Preview.
+3. As variáveis `NEXT_PUBLIC_*` são embutidas no build. Depois de criar ou corrigir qualquer uma delas, faça um novo deploy (Deployments → Redeploy); só salvar a variável não muda o site que já está no ar.
+4. Volte ao Supabase e atualize **Site URL** e **Redirect URLs** com o domínio da Vercel.
 
 ## Problemas comuns
 
-- **Login dá "Não foi possível entrar: Invalid API key"**: a `NEXT_PUBLIC_SUPABASE_ANON_KEY` configurada no ambiente (Vercel) não é a chave do projeto apontado por `NEXT_PUBLIC_SUPABASE_URL`. Confira em **Project Settings → API** se a chave copiada é a **anon / publishable** inteira (sem espaços nem quebras de linha) e do mesmo projeto. As variáveis `NEXT_PUBLIC_*` são embutidas no build: depois de corrigir na Vercel, faça um **Redeploy**, senão o app continua com o valor antigo.
 - **"Variáveis de ambiente do Supabase ausentes"**: faltou alguma chave em `.env.local` ou no ambiente. Reinicie o `pnpm dev` depois de editar.
+- **Login dá "Invalid API key"**: a `NEXT_PUBLIC_SUPABASE_ANON_KEY` do ambiente não pertence ao projeto da `NEXT_PUBLIC_SUPABASE_URL`. É a resposta do próprio Supabase a uma chave que ele não reconhece. Causas comuns: chave copiada pela metade ou com aspas, chave de outro projeto, ou variável corrigida na Vercel sem novo deploy. Compare o valor com Project Settings → API (a anon é um JWT longo que começa com `eyJ`, ou `sb_publishable_` nos projetos novos), salve e faça Redeploy.
 - **Login dá "E-mail ou senha incorretos" para um usuário que existe**: confira se o usuário está confirmado (Auto Confirm) e se a senha tem 8+ caracteres.
 - **Convite ou e-mail de recuperação não chega**: veja Authentication → Logs no Supabase; o SMTP padrão tem limite por hora.
 - **Link do e-mail abre em `localhost:3000` mesmo em produção**: a URL do app não está em **Redirect URLs** (passo 1.5) ou falta `NEXT_PUBLIC_SITE_URL` na Vercel.
 - **Link de recuperação dá "expirou ou já foi usado" logo de cara**: o link foi aberto em outro navegador com o template padrão. Troque o template como descrito em 6a.
+- **Convite falha com "User not allowed" (`not_admin`)**: a `SUPABASE_SERVICE_ROLE_KEY` está com a chave anon/publishable em vez da service_role/secret. Confira em Project Settings → API; a service_role é a que o painel esconde por padrão. Para checar, decodifique o JWT: o campo `role` precisa ser `service_role`.
 - **Página em branco após o login**: confira se as migrations foram aplicadas (`pnpm db:push`), senão a tabela `membros` não existe.
