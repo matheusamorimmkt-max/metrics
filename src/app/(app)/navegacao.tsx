@@ -50,8 +50,15 @@ export function Navegacao() {
               <Icone className="size-4" aria-hidden />
               {item.rotulo}
             </Link>
-            {"filhos" in item && estaAtivo ? (
-              <ul className="mt-1 hidden space-y-0.5 pl-9 md:block">
+            {"filhos" in item ? (
+              <ul
+                className={cn(
+                  "mt-1 space-y-0.5 pl-9 md:block",
+                  // No celular a navegação é uma faixa horizontal: as seções só aparecem
+                  // quando Configurações está aberta, lado a lado.
+                  estaAtivo ? "flex gap-1 md:flex-col md:gap-0" : "hidden",
+                )}
+              >
                 {item.filhos.map((filho) => {
                   const filhoAtivo = ativo(
                     pathname,
@@ -63,7 +70,7 @@ export function Navegacao() {
                       <Link
                         href={filho.href}
                         className={cn(
-                          "block rounded-md px-2 py-1 text-sm",
+                          "block rounded-md px-2 py-1 text-sm whitespace-nowrap",
                           filhoAtivo
                             ? "text-sidebar-foreground font-medium"
                             : "text-sidebar-foreground/70 hover:text-sidebar-foreground",
