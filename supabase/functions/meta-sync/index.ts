@@ -42,10 +42,27 @@ function json(corpo: unknown, status = 200) {
   });
 }
 
+/**
+ * Só a service role chama o conector. O gateway do Supabase já validou a assinatura
+ * do JWT; aqui conferimos o papel. Aceita também a chave injetada no ambiente
+ * (formato novo sb_secret_…), que não é JWT.
+ */
 function autenticado(req: Request): boolean {
-  const chave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const auth = req.headers.get("Authorization") ?? "";
-  return chave.length > 0 && auth === `Bearer ${chave}`;
+  if (!auth.startsWith("Bearer ")) return false;
+  const credencial = auth.slice(7).trim();
+  const chaveAmbiente = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (chaveAmbiente && credencial === chaveAmbiente) return true;
+  const partes = credencial.split(".");
+  if (partes.length !== 3) return false;
+  try {
+    const payload = JSON.parse(
+      atob(partes[1].replace(/-/g, "+").replace(/_/g, "/")),
+    ) as { role?: string };
+    return payload.role === "service_role";
+  } catch {
+    return false;
+  }
 }
 
 Deno.serve(async (req) => {
