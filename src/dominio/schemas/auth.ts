@@ -1,14 +1,17 @@
 import { z } from "zod";
 
-/** E-mail como chave de identidade: sem espaços nas pontas e em minúsculas, validado depois de normalizar. */
-const emailNormalizado = z
-  .string()
+/**
+ * E-mail aparado e em minúsculas. O trim vem antes da validação de formato:
+ * no Zod 4, `z.email().trim()` valida primeiro e rejeitaria " ana@empresa.com ".
+ */
+const campoEmail = z
+  .string("Informe um e-mail válido.")
   .trim()
   .toLowerCase()
   .pipe(z.email("Informe um e-mail válido."));
 
 export const schemaLogin = z.object({
-  email: emailNormalizado,
+  email: campoEmail,
   senha: z.string().min(1, "Informe a senha."),
   proximo: z.string().optional(),
 });
@@ -24,9 +27,9 @@ export const schemaDefinirSenha = z
   });
 
 export const schemaConvite = z.object({
-  email: emailNormalizado,
+  email: campoEmail,
 });
 
 export const schemaRecuperarSenha = z.object({
-  email: emailNormalizado,
+  email: campoEmail,
 });

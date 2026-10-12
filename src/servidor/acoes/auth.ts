@@ -90,15 +90,19 @@ export async function solicitarRecuperacaoSenha(
 
   const supabase = await criarClienteServidor();
   const { error } = await supabase.auth.resetPasswordForEmail(parse.data.email, {
-    redirectTo: `${await origemDoApp()}/auth/confirmar?proximo=/definir-senha`,
+    redirectTo: `${await origemDoApp()}/auth/recuperar`,
   });
 
-  if (error && error.code === "over_email_send_rate_limit")
-    return falha("Muitas tentativas. Aguarde alguns minutos e tente de novo.");
-  if (error && error.code !== "user_not_found")
-    return falha(`Não foi possível enviar o e-mail: ${error.message}`);
+  if (error) {
+    if (error.code === "over_email_send_rate_limit")
+      return falha(
+        "Muitos e-mails enviados em pouco tempo. Aguarde alguns minutos e tente de novo.",
+      );
+    if (error.code === "email_address_invalid") return falha("Informe um e-mail válido.");
+    // Outros erros (ex.: conta inexistente) não são expostos de propósito.
+  }
 
   return sucesso(
-    "Se este e-mail tiver uma conta, você receberá um link para criar uma nova senha. Confira também a caixa de spam.",
+    `Se ${parse.data.email} tiver uma conta, você receberá um e-mail com o link para criar uma nova senha. Confira também a caixa de spam.`,
   );
 }

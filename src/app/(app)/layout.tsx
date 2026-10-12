@@ -12,7 +12,7 @@ export default async function LayoutApp({ children }: LayoutProps<"/">) {
     <div className="flex min-h-full flex-1 flex-col md:flex-row">
       <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border flex w-full flex-col border-b md:min-h-screen md:w-60 md:border-r md:border-b-0">
         <div className="flex h-14 items-center px-4">
-          <span className="font-semibold tracking-tight">Painel de Funis</span>
+          <span className="font-semibold tracking-tight">Metric Analytics</span>
         </div>
         <Navegacao />
       </aside>

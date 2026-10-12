@@ -1,10 +1,11 @@
-# Painel de Funis
+# Metric Analytics
 
 Painel web que junta gasto em anúncios (Meta) e vendas do gateway (Greenn) para mostrar, por funil e no negócio inteiro, quanto entrou, quanto saiu e quanto sobrou.
 
 - Especificação: `docs/PRD.md`
 - Regras do projeto: `CLAUDE.md`
-- Plano da fase atual: `docs/plano-fase-1.md`
+- Plano da fase atual: `docs/plano-fase-2.md` (Fase 1 em `docs/plano-fase-1.md`)
+- API da Greenn, o que entrega e limites: `docs/greenn-api.md`
 - Como configurar do zero: `docs/setup.md`
 
 ## Stack

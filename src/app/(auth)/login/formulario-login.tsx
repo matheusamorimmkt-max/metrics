@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BotaoEnviar } from "@/components/formulario/botao-enviar";
@@ -49,8 +49,8 @@ export function FormularioLogin({
         <div className="flex items-center justify-between">
           <Label htmlFor="senha">Senha</Label>
           <Link
-            href="/recuperar-senha"
-            className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
+            href="/esqueci-senha"
+            className="text-muted-foreground hover:text-foreground text-xs underline"
           >
             Esqueci minha senha
           </Link>

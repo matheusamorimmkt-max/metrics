@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,24 +13,17 @@ import {
 } from "@/components/formulario/mensagens";
 import { solicitarRecuperacaoSenha } from "@/servidor/acoes/auth";
 
-export function FormularioRecuperarSenha() {
+export function FormularioEsqueciSenha({ email }: { email?: string }) {
   const [resultado, acao] = useActionState(solicitarRecuperacaoSenha, RESULTADO_INICIAL);
   const erros = resultado.ok ? undefined : resultado.erros;
 
   if (resultado.ok && resultado.mensagem) {
     return (
-      <div className="space-y-4">
-        <Alert>
-          <CheckCircle2 />
-          <AlertTitle>E-mail enviado</AlertTitle>
-          <AlertDescription>{resultado.mensagem}</AlertDescription>
-        </Alert>
-        <p className="text-center text-sm">
-          <Link href="/login" className="underline underline-offset-4">
-            Voltar para o login
-          </Link>
-        </p>
-      </div>
+      <Alert>
+        <CheckCircle2 />
+        <AlertTitle>E-mail enviado</AlertTitle>
+        <AlertDescription>{resultado.mensagem}</AlertDescription>
+      </Alert>
     );
   }
 
@@ -46,6 +38,7 @@ export function FormularioRecuperarSenha() {
           name="email"
           type="email"
           autoComplete="email"
+          defaultValue={email}
           required
           autoFocus
         />
@@ -55,15 +48,6 @@ export function FormularioRecuperarSenha() {
       <BotaoEnviar className="w-full" enviando="Enviando…">
         Enviar link de recuperação
       </BotaoEnviar>
-
-      <p className="text-center text-sm">
-        <Link
-          href="/login"
-          className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-        >
-          Voltar para o login
-        </Link>
-      </p>
     </form>
   );
 }

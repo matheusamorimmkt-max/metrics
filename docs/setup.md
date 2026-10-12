@@ -1,6 +1,6 @@
 # Setup do zero
 
-Passo a passo para colocar o Painel de Funis no ar pela primeira vez. Nada aqui exige saber programar; os comandos são copiados e colados.
+Passo a passo para colocar o Metric Analytics no ar pela primeira vez. Nada aqui exige saber programar; os comandos são copiados e colados.
 
 ## 1. Projeto no Supabase
 
@@ -11,7 +11,7 @@ Passo a passo para colocar o Painel de Funis no ar pela primeira vez. Nada aqui 
    - chave **service_role** (nos projetos novos chama-se **Secret**)
 3. Em **Account → Access Tokens** gere um token (ex.: "claude-code").
 4. Em **Authentication → Providers → Email** desligue **Allow new users to sign up**. O cadastro aberto fica desligado: o primeiro diretor é criado por você (passo 4) e os demais entram por convite.
-5. Em **Authentication → URL Configuration** coloque a URL do app em **Site URL** (em desenvolvimento, `http://localhost:3000`) e adicione em **Redirect URLs**: `http://localhost:3000/**` e, depois do deploy, `https://seu-dominio/**`.
+5. Em **Authentication → URL Configuration** coloque a URL do app em **Site URL** (em desenvolvimento, `http://localhost:3000`) e adicione em **Redirect URLs**: `http://localhost:3000/**` e, depois do deploy, `https://seu-dominio/**`. Sem isso, os links de convite e de recuperação de senha são redirecionados para a Site URL e param de funcionar fora dela.
 
 ## 2. Variáveis de ambiente
 
@@ -61,14 +61,14 @@ Na tela **Configurações → Usuários**, "Convidar diretor" dispara o e-mail p
 Se quiser que o link funcione sem JavaScript no navegador, troque o template **Invite user** (Authentication → Email Templates) para apontar para
 `{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=invite`. O app aceita os dois formatos.
 
-## 6.1 Recuperação de senha
+## 6a. Recuperação de senha
 
-Na tela de login, "Esqueci minha senha" leva a `/recuperar-senha`, que dispara o e-mail **Reset Password** do Supabase. O link volta para `/auth/confirmar`, grava a sessão e abre "Definir senha".
+Na tela de login, "Esqueci minha senha" leva para `/esqueci-senha`. O app pede ao Supabase o e-mail de recuperação com o link voltando para `/auth/recuperar`, que valida o link, cria a sessão e abre "Definir senha". A resposta na tela é a mesma exista ou não a conta, para não revelar quais e-mails estão cadastrados.
 
-Com o template padrão, o link só funciona no mesmo navegador em que a recuperação foi pedida (fluxo PKCE). Para funcionar em qualquer navegador, troque o template **Reset Password** (Authentication → Email Templates) para apontar para
-`{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=recovery`. Lembre de manter o domínio do app em **Site URL** e em **Redirect URLs**.
+Com o template padrão **Reset Password** o link só funciona no mesmo navegador em que a recuperação foi pedida (fluxo PKCE). Para funcionar em qualquer navegador (por exemplo, pedir no computador e abrir no celular), troque o template em **Authentication → Email Templates → Reset Password** para apontar para
+`{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery`. O app aceita os dois formatos.
 
-Em produção, troque o SMTP padrão do Supabase (limite baixo de e-mails) por um provedor próprio em **Project Settings → Auth → SMTP**.
+O SMTP padrão do Supabase envia poucos e-mails por hora; se o link não chegar, veja **Authentication → Logs** ou configure um SMTP próprio.
 
 ## 7. Deploy na Vercel
 
@@ -81,5 +81,7 @@ Em produção, troque o SMTP padrão do Supabase (limite baixo de e-mails) por u
 - **Login dá "Não foi possível entrar: Invalid API key"**: a `NEXT_PUBLIC_SUPABASE_ANON_KEY` configurada no ambiente (Vercel) não é a chave do projeto apontado por `NEXT_PUBLIC_SUPABASE_URL`. Confira em **Project Settings → API** se a chave copiada é a **anon / publishable** inteira (sem espaços nem quebras de linha) e do mesmo projeto. As variáveis `NEXT_PUBLIC_*` são embutidas no build: depois de corrigir na Vercel, faça um **Redeploy**, senão o app continua com o valor antigo.
 - **"Variáveis de ambiente do Supabase ausentes"**: faltou alguma chave em `.env.local` ou no ambiente. Reinicie o `pnpm dev` depois de editar.
 - **Login dá "E-mail ou senha incorretos" para um usuário que existe**: confira se o usuário está confirmado (Auto Confirm) e se a senha tem 8+ caracteres.
-- **Convite não chega**: veja Authentication → Logs no Supabase; o SMTP padrão tem limite por hora.
+- **Convite ou e-mail de recuperação não chega**: veja Authentication → Logs no Supabase; o SMTP padrão tem limite por hora.
+- **Link do e-mail abre em `localhost:3000` mesmo em produção**: a URL do app não está em **Redirect URLs** (passo 1.5) ou falta `NEXT_PUBLIC_SITE_URL` na Vercel.
+- **Link de recuperação dá "expirou ou já foi usado" logo de cara**: o link foi aberto em outro navegador com o template padrão. Troque o template como descrito em 6a.
 - **Página em branco após o login**: confira se as migrations foram aplicadas (`pnpm db:push`), senão a tabela `membros` não existe.
