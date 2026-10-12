@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Entradas das Edge Functions usam o runtime Deno; o código puro em _shared é lintado.
+    "supabase/functions/**/index.ts",
   ]),
 ]);
 

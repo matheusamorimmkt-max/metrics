@@ -86,7 +86,13 @@ Em **Configurações → Integrações** cada organização conecta as próprias
 - **Greenn**: na conta Greenn, Configurações do sistema → Integrações e Tokens → gerar um token com as permissões de leitura `sales:read`, `products:read` e `offers:read`. Cole em "Token da API" e clique em "Conectar Greenn".
 - **Meta Ads**: no Meta Business, Configurações do negócio → Usuários → Usuários do sistema → gerar token com a permissão `ads_read` para a conta de anúncios. Cole o token e informe o ID da conta de anúncios (o número que aparece no Gerenciador de Anúncios, com ou sem `act_`).
 
+**Token do Meta Ads, passo a passo:** em business.facebook.com → Configurações do negócio → Usuários → Usuários do sistema → Adicionar (tipo Funcionário basta) → Adicionar ativos → Contas de anúncios → marque a conta com permissão "Ver desempenho" → Gerar token → escolha o app do negócio, validade "Nunca expira" e a permissão `ads_read`. Copie o token (começa com `EAA`). O ID da conta de anúncios aparece no Gerenciador de Anúncios, no seletor de contas (número; o app aceita com ou sem `act_`).
+
 A credencial vai para o Vault do Supabase e nunca volta ao navegador: a tela mostra só os 4 últimos caracteres e a data. "Trocar credenciais" substitui o token; "Desconectar" apaga o segredo. A primeira sincronização (conector da Fase 2 para a Greenn, da Fase 3 para o Meta) é que confirma se o acesso está correto; até lá o status fica em "Credenciais salvas".
+
+## 9. Conector do Meta (Edge Function)
+
+O conector é a Edge Function `meta-sync` em `supabase/functions/meta-sync`. Publicar: `pnpm dlx supabase functions deploy meta-sync --project-ref <project-id>` (usa `SUPABASE_ACCESS_TOKEN`). Ela lê `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`, que o Supabase injeta sozinho. O app a chama pelo botão "Atualizar agora" e ao entrar (quando a última atualização tem mais de 15 min). O agendamento a cada 15 min (pg_cron) é a Etapa 4 do plano da Fase 3.
 
 ## Problemas comuns
 

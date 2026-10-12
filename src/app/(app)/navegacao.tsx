@@ -15,6 +15,7 @@ const ITENS = [
       { href: "/configuracoes", rotulo: "Geral" },
       { href: "/configuracoes/categorias", rotulo: "Categorias" },
       { href: "/configuracoes/funis", rotulo: "Funis" },
+      { href: "/configuracoes/campanhas", rotulo: "Campanhas" },
       { href: "/configuracoes/usuarios", rotulo: "Usuários" },
       { href: "/configuracoes/integracoes", rotulo: "Integrações" },
     ],
