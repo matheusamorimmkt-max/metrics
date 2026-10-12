@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { schemaConvite } from "@/dominio/schemas/auth";
 import { origemDoApp } from "@/servidor/origem";
 import { obterContexto } from "@/servidor/sessao";
-import { origemDoApp } from "@/servidor/origem";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { criarClienteAdmin } from "@/servidor/supabase/admin";
 import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
