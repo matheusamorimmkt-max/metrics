@@ -1,6 +1,6 @@
 # Plano da Fase 1 — Fundação
 
-Status: **banco aplicado no Supabase e validado; falta o roteiro de aceite pela interface** (2026-10-07)
+Status: **aceita** (2026-10-12): roteiro de aceite executado pelo usuário no app em produção; tudo funcionou.
 
 O que já está no repositório: Etapas 0 a 4 completas (esqueleto, banco com 59 testes pgTAP, login e organização, telas de Configurações, testes e docs). Em 2026-10-07 as 4 migrations foram aplicadas no projeto Supabase `pwicxmkckygscdmtvetn` (Postgres 17, sa-east-1) e registradas em `supabase_migrations.schema_migrations`, como o CLI faria. Validado no banco real: 9 tabelas com RLS e políticas, `anon` sem privilégio algum, `criar_organizacao` e isolamento entre duas organizações (18 verificações numa transação revertida), tipos TypeScript iguais ao schema remoto, tela de login contra o Auth real. O que falta: executar o roteiro de aceite abaixo pela interface (`E2E_EMAIL`/`E2E_SENHA` + `pnpm test:e2e`), o que depende de um usuário com senha conhecida, e corrigir a variável `SUPABASE_SERVICE_ROLE_KEY` do ambiente, que hoje contém a chave anon (ver `docs/setup.md`).
 

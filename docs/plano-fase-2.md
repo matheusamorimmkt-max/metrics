@@ -4,6 +4,8 @@ Status: **proposta, aguardando revisão do usuário** (2026-10-09)
 
 Referência da API: `docs/greenn-api.md`. Fase anterior: `docs/plano-fase-1.md`.
 
+Antecipado em 2026-10-12, a pedido do usuário: a parte de **credenciais por organização** da Etapa 3 (migration `20261012000001_integracoes_credenciais.sql`, RPCs do Vault, tela de Integrações com Greenn e Meta: conectar, trocar credenciais, desconectar). Fica para a Etapa 3 o que depende da Edge Function: "Testar conexão", importação com progresso, "Atualizar agora". A decisão 11 abaixo foi ajustada: a RPC de gravação é executada pelo usuário autenticado (exige ser membro da organização), e só a leitura do segredo é exclusiva da `service_role`.
+
 ## Objetivo
 
 Conectar a conta Greenn da organização e trazer para o Supabase tudo o que o modelo financeiro precisa: produtos, ofertas, vendas com status, taxas e parceiros, reembolsos e chargebacks, clientes. Em cima disso, calcular transações e recompra pela janela da organização e sugerir bumps e upsells pelo histórico. O usuário passa a ver produtos e ofertas nas Configurações, informa alíquota e base do imposto e vincula ofertas aos funis por papel.

@@ -79,6 +79,15 @@ O SMTP padrão do Supabase envia poucos e-mails por hora; se o link não chegar,
 3. As variáveis `NEXT_PUBLIC_*` são embutidas no build. Depois de criar ou corrigir qualquer uma delas, faça um novo deploy (Deployments → Redeploy); só salvar a variável não muda o site que já está no ar.
 4. Volte ao Supabase e atualize **Site URL** e **Redirect URLs** com o domínio da Vercel.
 
+## 8. Conectar Greenn e Meta
+
+Em **Configurações → Integrações** cada organização conecta as próprias contas. Nada disso vai em variável de ambiente.
+
+- **Greenn**: na conta Greenn, Configurações do sistema → Integrações e Tokens → gerar um token com as permissões de leitura `sales:read`, `products:read` e `offers:read`. Cole em "Token da API" e clique em "Conectar Greenn".
+- **Meta Ads**: no Meta Business, Configurações do negócio → Usuários → Usuários do sistema → gerar token com a permissão `ads_read` para a conta de anúncios. Cole o token e informe o ID da conta de anúncios (o número que aparece no Gerenciador de Anúncios, com ou sem `act_`).
+
+A credencial vai para o Vault do Supabase e nunca volta ao navegador: a tela mostra só os 4 últimos caracteres e a data. "Trocar credenciais" substitui o token; "Desconectar" apaga o segredo. A primeira sincronização (conector da Fase 2 para a Greenn, da Fase 3 para o Meta) é que confirma se o acesso está correto; até lá o status fica em "Credenciais salvas".
+
 ## Problemas comuns
 
 - **"Variáveis de ambiente do Supabase ausentes"**: faltou alguma chave em `.env.local` ou no ambiente. Reinicie o `pnpm dev` depois de editar.
