@@ -197,8 +197,8 @@ function FormularioConexao({
         <InputSenha
           id={`${prefixo}credencial`}
           name="credencial"
+          finalidade="token"
           placeholder={definicao.credencial.placeholder}
-          autoComplete="off"
           required
         />
         <p className="text-muted-foreground text-xs">{definicao.credencial.ajuda}</p>
@@ -213,6 +213,9 @@ function FormularioConexao({
             name={campo.nome}
             placeholder={campo.placeholder}
             autoComplete="off"
+            data-1p-ignore=""
+            data-lpignore="true"
+            data-form-type="other"
             required
           />
           <p className="text-muted-foreground text-xs">{campo.ajuda}</p>
