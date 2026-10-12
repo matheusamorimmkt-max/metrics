@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const url = new URL("/login", origin);
     url.searchParams.set(
       "erro",
-      "Este link expirou ou já foi usado. Peça um novo convite.",
+      "Este link expirou ou já foi usado. Peça um novo convite ou solicite outra recuperação de senha.",
     );
     return NextResponse.redirect(url);
   }

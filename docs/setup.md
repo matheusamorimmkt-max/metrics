@@ -61,6 +61,13 @@ Na tela **Configurações → Usuários**, "Convidar diretor" dispara o e-mail p
 Se quiser que o link funcione sem JavaScript no navegador, troque o template **Invite user** (Authentication → Email Templates) para apontar para
 `{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=invite`. O app aceita os dois formatos.
 
+## 6.1 Recuperação de senha
+
+Na tela de login, "Esqueci minha senha" leva a `/recuperar-senha`, que dispara o e-mail **Reset Password** do Supabase. O link volta para `/auth/confirmar`, grava a sessão e abre "Definir senha".
+
+Com o template padrão, o link só funciona no mesmo navegador em que a recuperação foi pedida (fluxo PKCE). Para funcionar em qualquer navegador, troque o template **Reset Password** (Authentication → Email Templates) para apontar para
+`{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=recovery`. Lembre de manter o domínio do app em **Site URL** e em **Redirect URLs**.
+
 Em produção, troque o SMTP padrão do Supabase (limite baixo de e-mails) por um provedor próprio em **Project Settings → Auth → SMTP**.
 
 ## 7. Deploy na Vercel
@@ -71,6 +78,7 @@ Em produção, troque o SMTP padrão do Supabase (limite baixo de e-mails) por u
 
 ## Problemas comuns
 
+- **Login dá "Não foi possível entrar: Invalid API key"**: a `NEXT_PUBLIC_SUPABASE_ANON_KEY` configurada no ambiente (Vercel) não é a chave do projeto apontado por `NEXT_PUBLIC_SUPABASE_URL`. Confira em **Project Settings → API** se a chave copiada é a **anon / publishable** inteira (sem espaços nem quebras de linha) e do mesmo projeto. As variáveis `NEXT_PUBLIC_*` são embutidas no build: depois de corrigir na Vercel, faça um **Redeploy**, senão o app continua com o valor antigo.
 - **"Variáveis de ambiente do Supabase ausentes"**: faltou alguma chave em `.env.local` ou no ambiente. Reinicie o `pnpm dev` depois de editar.
 - **Login dá "E-mail ou senha incorretos" para um usuário que existe**: confira se o usuário está confirmado (Auto Confirm) e se a senha tem 8+ caracteres.
 - **Convite não chega**: veja Authentication → Logs no Supabase; o SMTP padrão tem limite por hora.

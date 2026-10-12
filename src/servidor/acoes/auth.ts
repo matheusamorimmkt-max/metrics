@@ -1,9 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { schemaDefinirSenha, schemaLogin } from "@/dominio/schemas/auth";
+import {
+  schemaDefinirSenha,
+  schemaLogin,
+  schemaRecuperarSenha,
+} from "@/dominio/schemas/auth";
+import { origemDoApp } from "@/servidor/origem";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { falha, falhaValidacao, texto, type Resultado } from "./resultado";
+import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
 
 /** Só aceita caminhos internos como destino após o login. */
 function destinoSeguro(proximo: string | undefined) {
@@ -70,4 +75,30 @@ export async function definirSenha(
   }
 
   redirect("/");
+}
+
+/**
+ * Envia o e-mail de recuperação de senha. A resposta é a mesma exista ou não a conta,
+ * para não revelar quais e-mails estão cadastrados.
+ */
+export async function solicitarRecuperacaoSenha(
+  _anterior: Resultado,
+  formData: FormData,
+): Promise<Resultado> {
+  const parse = schemaRecuperarSenha.safeParse({ email: texto(formData, "email") });
+  if (!parse.success) return falhaValidacao(parse.error);
+
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.auth.resetPasswordForEmail(parse.data.email, {
+    redirectTo: `${await origemDoApp()}/auth/confirmar?proximo=/definir-senha`,
+  });
+
+  if (error && error.code === "over_email_send_rate_limit")
+    return falha("Muitas tentativas. Aguarde alguns minutos e tente de novo.");
+  if (error && error.code !== "user_not_found")
+    return falha(`Não foi possível enviar o e-mail: ${error.message}`);
+
+  return sucesso(
+    "Se este e-mail tiver uma conta, você receberá um link para criar uma nova senha. Confira também a caixa de spam.",
+  );
 }
