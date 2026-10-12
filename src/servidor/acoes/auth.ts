@@ -1,9 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { schemaDefinirSenha, schemaLogin } from "@/dominio/schemas/auth";
+import {
+  schemaDefinirSenha,
+  schemaLogin,
+  schemaRecuperarSenha,
+} from "@/dominio/schemas/auth";
+import { origemDoApp } from "@/servidor/origem";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { falha, falhaValidacao, texto, type Resultado } from "./resultado";
+import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
 
 /** Só aceita caminhos internos como destino após o login. */
 function destinoSeguro(proximo: string | undefined) {
@@ -32,6 +37,12 @@ export async function entrar(
     if (error.code === "invalid_credentials") return falha("E-mail ou senha incorretos.");
     if (error.code === "email_not_confirmed")
       return falha("Confirme seu e-mail antes de entrar.");
+    if (/invalid api key/i.test(error.message))
+      return falha(
+        "A chave pública do Supabase configurada neste ambiente não pertence ao projeto. " +
+          "Confira NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY (Project Settings → API) " +
+          "e faça um novo deploy: essas variáveis são embutidas no build.",
+      );
     return falha(`Não foi possível entrar: ${error.message}`);
   }
 
@@ -70,4 +81,34 @@ export async function definirSenha(
   }
 
   redirect("/");
+}
+
+/**
+ * Envia o e-mail de recuperação de senha. A resposta é a mesma exista ou não a conta,
+ * para não revelar quais e-mails estão cadastrados.
+ */
+export async function solicitarRecuperacaoSenha(
+  _anterior: Resultado,
+  formData: FormData,
+): Promise<Resultado> {
+  const parse = schemaRecuperarSenha.safeParse({ email: texto(formData, "email") });
+  if (!parse.success) return falhaValidacao(parse.error);
+
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.auth.resetPasswordForEmail(parse.data.email, {
+    redirectTo: `${await origemDoApp()}/auth/recuperar`,
+  });
+
+  if (error) {
+    if (error.code === "over_email_send_rate_limit")
+      return falha(
+        "Muitos e-mails enviados em pouco tempo. Aguarde alguns minutos e tente de novo.",
+      );
+    if (error.code === "email_address_invalid") return falha("Informe um e-mail válido.");
+    // Outros erros (ex.: conta inexistente) não são expostos de propósito.
+  }
+
+  return sucesso(
+    `Se ${parse.data.email} tiver uma conta, você receberá um e-mail com o link para criar uma nova senha. Confira também a caixa de spam.`,
+  );
 }

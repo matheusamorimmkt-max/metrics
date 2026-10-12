@@ -213,7 +213,10 @@ export type Database = {
         Row: {
           config: NonNullable<Json>;
           created_at: string;
+          credencial_sufixo: string | null;
+          credenciais_atualizadas_em: string | null;
           credenciais_secret_id: string | null;
+          erro: string | null;
           id: string;
           organizacao_id: string;
           status: string;
@@ -225,7 +228,10 @@ export type Database = {
         Insert: {
           config?: NonNullable<Json>;
           created_at?: string;
+          credencial_sufixo?: string | null;
+          credenciais_atualizadas_em?: string | null;
           credenciais_secret_id?: string | null;
+          erro?: string | null;
           id?: string;
           organizacao_id: string;
           status?: string;
@@ -236,7 +242,10 @@ export type Database = {
         Update: {
           config?: NonNullable<Json>;
           created_at?: string;
+          credencial_sufixo?: string | null;
+          credenciais_atualizadas_em?: string | null;
           credenciais_secret_id?: string | null;
+          erro?: string | null;
           id?: string;
           organizacao_id?: string;
           status?: string;
@@ -433,7 +442,21 @@ export type Database = {
     };
     Functions: {
       criar_organizacao: { Args: { p_nome: string }; Returns: string };
+      guardar_credencial_integracao: {
+        Args: {
+          p_config?: Json;
+          p_credencial: string;
+          p_organizacao_id: string;
+          p_tipo: string;
+        };
+        Returns: string;
+      };
+      ler_credencial_integracao: { Args: { p_integracao_id: string }; Returns: string };
       organizacoes_do_usuario: { Args: Record<PropertyKey, never>; Returns: string[] };
+      remover_credencial_integracao: {
+        Args: { p_organizacao_id: string; p_tipo: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;

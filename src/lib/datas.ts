@@ -10,3 +10,15 @@ export function formatarPeriodo(inicio: string | null, fim: string | null): stri
   if (!inicio && !fim) return "";
   return `${formatarData(inicio)} a ${formatarData(fim)}`;
 }
+
+/** ISO (timestamptz) -> "12/10/2026 14:32" no fuso da organização. */
+export function formatarDataHora(iso: string | null | undefined, fuso: string): string {
+  if (!iso) return "";
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return iso;
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: fuso,
+  }).format(data);
+}

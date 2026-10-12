@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BotaoEnviar } from "@/components/formulario/botao-enviar";
+import { InputSenha } from "@/components/formulario/input-senha";
 import {
   ErroCampo,
   ErroFormulario,
@@ -20,10 +20,9 @@ export function FormularioDefinirSenha() {
       <ErroFormulario resultado={resultado} />
       <div className="space-y-2">
         <Label htmlFor="senha">Nova senha</Label>
-        <Input
+        <InputSenha
           id="senha"
           name="senha"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required
@@ -33,10 +32,9 @@ export function FormularioDefinirSenha() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirmacao">Repita a senha</Label>
-        <Input
+        <InputSenha
           id="confirmacao"
           name="confirmacao"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required

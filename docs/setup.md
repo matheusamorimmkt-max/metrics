@@ -1,6 +1,6 @@
 # Setup do zero
 
-Passo a passo para colocar o Painel de Funis no ar pela primeira vez. Nada aqui exige saber programar; os comandos são copiados e colados.
+Passo a passo para colocar o Metric Analytics no ar pela primeira vez. Nada aqui exige saber programar; os comandos são copiados e colados.
 
 ## 1. Projeto no Supabase
 
@@ -11,7 +11,7 @@ Passo a passo para colocar o Painel de Funis no ar pela primeira vez. Nada aqui 
    - chave **service_role** (nos projetos novos chama-se **Secret**)
 3. Em **Account → Access Tokens** gere um token (ex.: "claude-code").
 4. Em **Authentication → Providers → Email** desligue **Allow new users to sign up**. O cadastro aberto fica desligado: o primeiro diretor é criado por você (passo 4) e os demais entram por convite.
-5. Em **Authentication → URL Configuration** coloque a URL do app em **Site URL** (em desenvolvimento, `http://localhost:3000`) e adicione em **Redirect URLs**: `http://localhost:3000/**` e, depois do deploy, `https://seu-dominio/**`.
+5. Em **Authentication → URL Configuration** coloque a URL do app em **Site URL** (em desenvolvimento, `http://localhost:3000`) e adicione em **Redirect URLs**: `http://localhost:3000/**` e, depois do deploy, `https://seu-dominio/**`. Sem isso, os links de convite e de recuperação de senha são redirecionados para a Site URL e param de funcionar fora dela.
 
 ## 2. Variáveis de ambiente
 
@@ -42,6 +42,8 @@ Para conferir as migrations sem tocar no projeto real (precisa de um Postgres lo
 pnpm db:test
 ```
 
+Sem a senha do banco (o `db push` precisa dela), as migrations também podem ser aplicadas pelo **SQL Editor** do painel ou pela Management API (`POST /v1/projects/<project-id>/database/query` com o token pessoal), uma a uma e em ordem. Nesse caso registre cada uma em `supabase_migrations.schema_migrations` (`version`, `name`, `statements`) para o CLI saber que já foram aplicadas e o próximo `pnpm db:push` não repeti-las.
+
 ## 4. Primeiro usuário
 
 No painel do Supabase: **Authentication → Users → Add user → Create new user**. Informe e-mail e senha e marque **Auto Confirm User**. Esse é o primeiro diretor. Ao entrar no app ele verá a tela "Criar organização".
@@ -61,17 +63,38 @@ Na tela **Configurações → Usuários**, "Convidar diretor" dispara o e-mail p
 Se quiser que o link funcione sem JavaScript no navegador, troque o template **Invite user** (Authentication → Email Templates) para apontar para
 `{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=invite`. O app aceita os dois formatos.
 
-Em produção, troque o SMTP padrão do Supabase (limite baixo de e-mails) por um provedor próprio em **Project Settings → Auth → SMTP**.
+## 6a. Recuperação de senha
+
+Na tela de login, "Esqueci minha senha" leva para `/esqueci-senha`. O app pede ao Supabase o e-mail de recuperação com o link voltando para `/auth/recuperar`, que valida o link, cria a sessão e abre "Definir senha". A resposta na tela é a mesma exista ou não a conta, para não revelar quais e-mails estão cadastrados.
+
+Com o template padrão **Reset Password** o link só funciona no mesmo navegador em que a recuperação foi pedida (fluxo PKCE). Para funcionar em qualquer navegador (por exemplo, pedir no computador e abrir no celular), troque o template em **Authentication → Email Templates → Reset Password** para apontar para
+`{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery`. O app aceita os dois formatos.
+
+O SMTP padrão do Supabase envia poucos e-mails por hora; se o link não chegar, veja **Authentication → Logs** ou configure um SMTP próprio.
 
 ## 7. Deploy na Vercel
 
 1. Importe o repositório na Vercel.
-2. Cadastre as mesmas variáveis do passo 2 (menos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`, que só o CLI usa) e também `NEXT_PUBLIC_SITE_URL=https://seu-dominio`.
-3. Volte ao Supabase e atualize **Site URL** e **Redirect URLs** com o domínio da Vercel.
+2. Cadastre as mesmas variáveis do passo 2 (menos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`, que só o CLI usa) e também `NEXT_PUBLIC_SITE_URL=https://seu-dominio`. Cole cada valor sem aspas, sem espaços e sem quebra de linha, e marque os ambientes Production e Preview.
+3. As variáveis `NEXT_PUBLIC_*` são embutidas no build. Depois de criar ou corrigir qualquer uma delas, faça um novo deploy (Deployments → Redeploy); só salvar a variável não muda o site que já está no ar.
+4. Volte ao Supabase e atualize **Site URL** e **Redirect URLs** com o domínio da Vercel.
+
+## 8. Conectar Greenn e Meta
+
+Em **Configurações → Integrações** cada organização conecta as próprias contas. Nada disso vai em variável de ambiente.
+
+- **Greenn**: na conta Greenn, Configurações do sistema → Integrações e Tokens → gerar um token com as permissões de leitura `sales:read`, `products:read` e `offers:read`. Cole em "Token da API" e clique em "Conectar Greenn".
+- **Meta Ads**: no Meta Business, Configurações do negócio → Usuários → Usuários do sistema → gerar token com a permissão `ads_read` para a conta de anúncios. Cole o token e informe o ID da conta de anúncios (o número que aparece no Gerenciador de Anúncios, com ou sem `act_`).
+
+A credencial vai para o Vault do Supabase e nunca volta ao navegador: a tela mostra só os 4 últimos caracteres e a data. "Trocar credenciais" substitui o token; "Desconectar" apaga o segredo. A primeira sincronização (conector da Fase 2 para a Greenn, da Fase 3 para o Meta) é que confirma se o acesso está correto; até lá o status fica em "Credenciais salvas".
 
 ## Problemas comuns
 
 - **"Variáveis de ambiente do Supabase ausentes"**: faltou alguma chave em `.env.local` ou no ambiente. Reinicie o `pnpm dev` depois de editar.
+- **Login dá "Invalid API key"**: a `NEXT_PUBLIC_SUPABASE_ANON_KEY` do ambiente não pertence ao projeto da `NEXT_PUBLIC_SUPABASE_URL`. É a resposta do próprio Supabase a uma chave que ele não reconhece. Causas comuns: chave copiada pela metade ou com aspas, chave de outro projeto, ou variável corrigida na Vercel sem novo deploy. Compare o valor com Project Settings → API (a anon é um JWT longo que começa com `eyJ`, ou `sb_publishable_` nos projetos novos), salve e faça Redeploy.
 - **Login dá "E-mail ou senha incorretos" para um usuário que existe**: confira se o usuário está confirmado (Auto Confirm) e se a senha tem 8+ caracteres.
-- **Convite não chega**: veja Authentication → Logs no Supabase; o SMTP padrão tem limite por hora.
+- **Convite ou e-mail de recuperação não chega**: veja Authentication → Logs no Supabase; o SMTP padrão tem limite por hora.
+- **Link do e-mail abre em `localhost:3000` mesmo em produção**: a URL do app não está em **Redirect URLs** (passo 1.5) ou falta `NEXT_PUBLIC_SITE_URL` na Vercel.
+- **Link de recuperação dá "expirou ou já foi usado" logo de cara**: o link foi aberto em outro navegador com o template padrão. Troque o template como descrito em 6a.
+- **Convite falha com "User not allowed" (`not_admin`)**: a `SUPABASE_SERVICE_ROLE_KEY` está com a chave anon/publishable em vez da service_role/secret. Confira em Project Settings → API; a service_role é a que o painel esconde por padrão. Para checar, decodifique o JWT: o campo `role` precisa ser `service_role`.
 - **Página em branco após o login**: confira se as migrations foram aplicadas (`pnpm db:push`), senão a tabela `membros` não existe.
