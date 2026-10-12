@@ -16,7 +16,8 @@
     "db:test": "bash supabase/tests/run-local.sh",
     "db:push": "supabase db push --linked",
     "db:link": "supabase link --project-ref $SUPABASE_PROJECT_ID",
-    "db:types": "supabase gen types typescript --linked --schema public > src/servidor/supabase/tipos-banco.ts"
+    "db:types": "supabase gen types typescript --linked --schema public > src/servidor/supabase/tipos-banco.ts",
+    "greenn:sonda": "node scripts/greenn-sonda.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

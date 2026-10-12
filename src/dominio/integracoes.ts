@@ -37,7 +37,7 @@ export const INTEGRACOES: Record<TipoIntegracao, DefinicaoIntegracao> = {
     credencial: {
       rotulo: "Token da API",
       ajuda:
-        "Na Greenn: Configurações do sistema → Integrações e Tokens → gerar token com as permissões de leitura sales:read, products:read e offers:read.",
+        "Na Greenn: Configurações do sistema → Integrações e Tokens → API → gerar um token com as permissões de leitura sales:read, products:read e offers:read. O token certo começa com grn_live_ (o token de webhook, que parece $2y$10$…, não serve).",
       placeholder: "grn_live_…",
     },
     config: [],

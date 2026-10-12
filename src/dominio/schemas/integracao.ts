@@ -15,7 +15,10 @@ const contaAnuncios = z
 
 export const schemaConectarGreenn = z.object({
   tipo: z.literal("greenn"),
-  credencial: credencial("Cole o token da API da Greenn."),
+  credencial: credencial("Cole o token da API da Greenn.").refine(
+    (v) => /^grn_(live|test)_/.test(v),
+    "Este não é um token da API pública da Greenn: ele começa com grn_live_. Gere um em Configurações do sistema → Integrações e Tokens → API.",
+  ),
 });
 
 export const schemaConectarMeta = z.object({

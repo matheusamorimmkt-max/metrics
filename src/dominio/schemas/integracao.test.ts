@@ -38,6 +38,14 @@ describe("schemaConectarIntegracao", () => {
     expect(jaComPrefixo.success).toBe(false);
   });
 
+  it("rejeita token da Greenn sem o prefixo grn_live_ (ex.: token de webhook)", () => {
+    const r = schemaConectarIntegracao.safeParse({
+      tipo: "greenn",
+      credencial: "$2y$10$DeAbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
+    });
+    expect(r.success).toBe(false);
+  });
+
   it("rejeita credencial curta e tipo desconhecido", () => {
     expect(
       schemaConectarIntegracao.safeParse({ tipo: "greenn", credencial: "abc" }).success,
