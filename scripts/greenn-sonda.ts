@@ -137,7 +137,7 @@ async function main() {
   if (!porStatus("refunded")) {
     const r = await sondar(
       "Vendas reembolsadas",
-      "/sales?per_page=1&status=refunded",
+      "/sales?per_page=1&filter[status]=refunded",
       "sales-refunded.json",
     );
     const v = itens(r)[0];

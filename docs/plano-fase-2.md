@@ -1,6 +1,6 @@
 # Plano da Fase 2 — Conector Greenn
 
-Status: **proposta, aguardando revisão do usuário** (2026-10-09)
+Status: **aprovado pelo usuário em 2026-10-12; Etapa 1 (schema) concluída; Etapa 0 (sonda) bloqueada até existir um token `grn_live_`** (2026-10-12)
 
 Referência da API: `docs/greenn-api.md`. Fase anterior: `docs/plano-fase-1.md`.
 
@@ -47,7 +47,9 @@ Cada etapa termina com um commit e algo conferível.
 - Registra em `docs/greenn-api.md` as respostas às perguntas "a confirmar" e fecha as decisões 1, 2 e a questão reais × centavos.
 - **Confere:** `docs/greenn-api.md` sem nenhum "a confirmar".
 
-### Etapa 1 — Schema
+### Etapa 1 — Schema ✅ (2026-10-12)
+
+Feito em `20261012000002_fase2_vendas.sql` com 45 testes pgTAP em `04_fase2_vendas.test.sql`. Diferenças em relação ao proposto: cliente é único só por e-mail (id externo não é único); `taxa_gateway_origem` ganha o valor `desconhecida` porque o usuário dispensou webhook e tabela de taxas por enquanto.
 
 Migrations em `supabase/migrations/` com RLS e testes pgTAP:
 
@@ -133,6 +135,11 @@ src/dominio/schemas/integracao.ts, produto.ts, funil-oferta.ts
 8. Um cliente com compras às 10h00, 10h03 e 10h07 (dados de semente no teste) resulta em duas transações, a segunda marcada como recompra, com `funil_entrada` igual ao funil da primeira.
 9. Mudar a janela de transação para 10 min e reprocessar: vira uma transação só.
 10. Fazer um reembolso de teste na Greenn: na reconsulta seguinte a venda muda para `reembolsada` com `reembolsada_em` preenchida.
+
+## Situação em 2026-10-12
+
+- O token salvo na tela de Integrações é o **Webhook Token / API Key** da tela "Integração e Tokens" (formato `$2y$10$…`). A API pública v1 só aceita Personal Access Token `grn_live_…`. A tela passou a recusar o formato errado. Sem o token certo, a Etapa 0 (sonda) e a Etapa 2 (conector) não têm como ser testadas contra a conta real.
+- O usuário entende que a Greenn devolve valor bruto e líquido. No REST a lista e o detalhe trazem `amount` e `total` (ambos inteiros); `fee` e `seller_balance` existem só no webhook. A sonda confirma se `total` é o líquido.
 
 ## O que preciso de você
 
