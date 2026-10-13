@@ -37,6 +37,7 @@ import { ROTULO_STATUS, type DefinicaoIntegracao } from "@/dominio/integracoes";
 import { conectarIntegracao, desconectarIntegracao } from "@/servidor/acoes/integracoes";
 import type { Integracao } from "@/servidor/consultas/integracoes";
 import { formatarDataHora } from "@/lib/datas";
+import { Logo } from "./logo";
 
 const VARIANTE_STATUS = {
   desconectada: "outline",
@@ -64,9 +65,10 @@ export function CartaoIntegracao({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between gap-2">
-          <span>
+          <span className="flex items-center gap-2">
+            <Logo src={definicao.logo} nome={definicao.nome} />
             {definicao.nome}
-            <span className="text-muted-foreground ml-2 text-xs font-normal">
+            <span className="text-muted-foreground text-xs font-normal">
               {definicao.categoria}
             </span>
           </span>

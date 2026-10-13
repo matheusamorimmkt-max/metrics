@@ -15,6 +15,7 @@ import {
   somarDias,
   traduzirAnuncio,
   traduzirCampanha,
+  traduzirConjunto,
   traduzirConta,
   traduzirInsight,
 } from "../_shared/meta/tradutor.ts";
@@ -34,11 +35,13 @@ type Entrada = {
   corte?: string;
 };
 
-/** Ação pontual pedida pelo app (não é um ciclo): ligar/pausar campanha. */
+/** Ação pontual pedida pelo app (não é um ciclo): ligar/pausar campanha, conjunto ou anúncio. */
 type EntradaAcao = {
-  acao: "alterar_status_campanha";
+  acao: "alterar_status";
+  nivel: "campanha" | "conjunto" | "anuncio";
   organizacao_id: string;
-  campanha_id: string;
+  /** Id interno (uuid) da linha em campanhas, conjuntos ou anuncios. */
+  id: string;
   status: "ACTIVE" | "PAUSED";
 };
 
@@ -221,6 +224,44 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
       for (const c of data ?? []) campanhaIdPorExterno.set(c.id_externo, c.id);
     });
     detalhes.campanhas = totalCampanhas;
+
+    // 2a. Conjuntos (para a chave liga/desliga). Complemento: erro não derruba o ciclo.
+    try {
+      detalhes.conjuntos = await meta.conjuntos(contaId, async (lote) => {
+        const linhas = lote
+          .map(traduzirConjunto)
+          .filter((c): c is NonNullable<typeof c> => c !== null)
+          .map((c) => ({
+            c,
+            campanhaId: campanhaIdPorExterno.get(c.campanha_id_externo),
+          }))
+          .filter(
+            (
+              x,
+            ): x is {
+              c: NonNullable<ReturnType<typeof traduzirConjunto>>;
+              campanhaId: string;
+            } => Boolean(x.campanhaId),
+          )
+          .map(({ c, campanhaId }) => ({
+            organizacao_id,
+            campanha_id: campanhaId,
+            plataforma: "meta",
+            id_externo: c.id_externo,
+            nome: c.nome,
+            status: c.status,
+            ativo: c.ativo,
+          }));
+        if (linhas.length) {
+          const { error } = await supabase
+            .from("conjuntos")
+            .upsert(linhas, { onConflict: "organizacao_id,plataforma,id_externo" });
+          if (error) throw new Error(`conjuntos: ${error.message}`);
+        }
+      });
+    } catch (erro) {
+      detalhes.conjuntos_erro = erro instanceof Error ? erro.message : String(erro);
+    }
 
     // 2b. Anúncios com criativo (miniatura, imagem, vídeo). As URLs do Meta expiram:
     // renovadas a cada ciclo. Vídeos ganham a URL de reprodução em lotes.
@@ -419,25 +460,40 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
   }
 }
 
+const TABELA_POR_NIVEL = {
+  campanha: "campanhas",
+  conjunto: "conjuntos",
+  anuncio: "anuncios",
+} as const;
+
 /**
- * Liga ou pausa uma campanha no Meta e reflete no banco. A campanha precisa pertencer à
- * organização informada; o app já conferiu o usuário antes de chamar.
+ * Liga ou pausa uma campanha, conjunto ou anúncio no Meta e reflete no banco. A linha
+ * precisa pertencer à organização informada; o app já conferiu o usuário antes.
  */
 async function executarAcao(supabase: SupabaseClient, entrada: EntradaAcao) {
-  if (entrada.acao !== "alterar_status_campanha") throw new Error("Ação desconhecida.");
+  if (entrada.acao !== "alterar_status") throw new Error("Ação desconhecida.");
   if (entrada.status !== "ACTIVE" && entrada.status !== "PAUSED")
     throw new Error("Status inválido.");
+  const tabela = TABELA_POR_NIVEL[entrada.nivel];
+  if (!tabela) throw new Error("Nível inválido.");
 
-  const { data: campanha, error } = await supabase
-    .from("campanhas")
-    .select("id, id_externo, plataforma, contas_anuncio(integracao_id)")
-    .eq("id", entrada.campanha_id)
+  const { data: linha, error } = await supabase
+    .from(tabela)
+    .select("id, id_externo, plataforma, campanha_id")
+    .eq("id", entrada.id)
     .eq("organizacao_id", entrada.organizacao_id)
     .maybeSingle();
-  if (error) throw new Error(`campanhas: ${error.message}`);
-  if (!campanha || campanha.plataforma !== "meta")
-    throw new Error("Campanha não encontrada.");
-  const integracaoId = (campanha.contas_anuncio as { integracao_id?: string } | null)
+  if (error) throw new Error(`${tabela}: ${error.message}`);
+  if (!linha || linha.plataforma !== "meta") throw new Error("Registro não encontrado.");
+
+  const campanhaId =
+    entrada.nivel === "campanha" ? linha.id : (linha.campanha_id as string);
+  const { data: campanha } = await supabase
+    .from("campanhas")
+    .select("id, contas_anuncio(integracao_id)")
+    .eq("id", campanhaId)
+    .maybeSingle();
+  const integracaoId = (campanha?.contas_anuncio as { integracao_id?: string } | null)
     ?.integracao_id;
   if (!integracaoId) throw new Error("Campanha sem integração.");
 
@@ -450,14 +506,14 @@ async function executarAcao(supabase: SupabaseClient, entrada: EntradaAcao) {
   if (erroToken || !token) throw new Error("Credencial do Meta não encontrada no cofre.");
 
   const meta = new ClienteMeta({ token });
-  await meta.alterarStatusCampanha(campanha.id_externo, entrada.status);
+  await meta.alterarStatus(linha.id_externo, entrada.status);
 
   const { error: erroUpdate } = await supabase
-    .from("campanhas")
+    .from(tabela)
     .update({ status: entrada.status, ativo: entrada.status === "ACTIVE" })
-    .eq("id", campanha.id);
-  if (erroUpdate) throw new Error(`campanhas: ${erroUpdate.message}`);
-  return { status: "concluida", campanha_status: entrada.status };
+    .eq("id", linha.id);
+  if (erroUpdate) throw new Error(`${tabela}: ${erroUpdate.message}`);
+  return { status: "concluida", novo_status: entrada.status };
 }
 
 function linhaMetrica(

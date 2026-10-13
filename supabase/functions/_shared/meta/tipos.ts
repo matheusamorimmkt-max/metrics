@@ -18,6 +18,14 @@ export type CampanhaImportada = {
   ativo: boolean;
 };
 
+export type ConjuntoImportado = {
+  id_externo: string;
+  campanha_id_externo: string;
+  nome: string;
+  status: string | null;
+  ativo: boolean;
+};
+
 export type AnuncioImportado = {
   id_externo: string;
   campanha_id_externo: string;

@@ -76,8 +76,14 @@ test.describe("Fases 2 a 5 — telas com conectores desligados", () => {
     page,
   }) => {
     await page.goto("/configuracoes/integracoes");
-    await expect(page.getByText("Gateway de pagamento")).toBeVisible();
-    await expect(page.getByText("Anúncios", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Gateways de pagamento" }),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fontes de tráfego" })).toBeVisible();
+    for (const nome of ["Hotmart", "Kiwify", "Eduzz", "Google Ads"]) {
+      await expect(page.getByRole("button", { name: `Conectar ${nome}` })).toBeDisabled();
+    }
+    await expect(page.getByText("CRM", { exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Token da API")).toBeVisible();
     await expect(page.getByLabel("Token de acesso")).toBeVisible();
     await expect(page.getByLabel("ID da conta de anúncios")).toBeVisible();

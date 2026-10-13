@@ -300,6 +300,68 @@ export type Database = {
           },
         ];
       };
+      conjuntos: {
+        Row: {
+          ativo: boolean;
+          campanha_id: string;
+          created_at: string;
+          id: string;
+          id_externo: string;
+          nome: string;
+          organizacao_id: string;
+          plataforma: string;
+          status: string | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          ativo?: boolean;
+          campanha_id: string;
+          created_at?: string;
+          id?: string;
+          id_externo: string;
+          nome?: string;
+          organizacao_id: string;
+          plataforma: string;
+          status?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          ativo?: boolean;
+          campanha_id?: string;
+          created_at?: string;
+          id?: string;
+          id_externo?: string;
+          nome?: string;
+          organizacao_id?: string;
+          plataforma?: string;
+          status?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conjuntos_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conjuntos_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas_resumo";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conjuntos_organizacao_id_fkey";
+            columns: ["organizacao_id"];
+            isOneToOne: false;
+            referencedRelation: "organizacoes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       contas_anuncio: {
         Row: {
           ativo: boolean;

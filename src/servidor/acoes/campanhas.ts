@@ -63,38 +63,55 @@ export async function vincularCampanha(
   return sucesso("Campanha vinculada.");
 }
 
-type RespostaAcao = { status: string; erro?: string; campanha_status?: string };
+type RespostaAcao = { status: string; erro?: string; novo_status?: string };
+
+const schemaVeiculacao = z.object({
+  nivel: z.enum(["campanha", "conjunto", "anuncio"]),
+  id: z.uuid("Registro inválido."),
+});
+
+const TABELA_POR_NIVEL = {
+  campanha: "campanhas",
+  conjunto: "conjuntos",
+  anuncio: "anuncios",
+} as const;
+
+const ROTULO_NIVEL = { campanha: "Campanha", conjunto: "Conjunto", anuncio: "Anúncio" };
 
 /**
- * Liga (ACTIVE) ou desativa (PAUSED) a campanha na plataforma, pelo conector. O app
- * nunca fala com o Meta direto: a Edge Function lê o token no cofre e faz a chamada.
+ * Liga (ACTIVE) ou pausa (PAUSED) uma campanha, conjunto ou anúncio na plataforma,
+ * pelo conector. O app nunca fala com o Meta direto: a Edge Function lê o token no
+ * cofre e faz a chamada.
  */
-export async function alterarStatusCampanha(
-  campanhaId: string,
+export async function alterarStatusVeiculacao(
+  nivel: "campanha" | "conjunto" | "anuncio",
+  id: string,
   ativar: boolean,
 ): Promise<Resultado> {
   const { organizacao } = await obterContexto();
-  const id = z.uuid().safeParse(campanhaId);
-  if (!id.success) return falha("Campanha inválida.");
+  const parse = schemaVeiculacao.safeParse({ nivel, id });
+  if (!parse.success) return falha(parse.error.issues[0]?.message ?? "Dados inválidos.");
 
   const supabase = await criarClienteServidor();
-  const { data: campanha } = await supabase
-    .from("campanhas")
+  const { data: linha, error: erroLinha } = await supabase
+    .from(TABELA_POR_NIVEL[parse.data.nivel])
     .select("id, plataforma")
-    .eq("id", id.data)
+    .eq("id", parse.data.id)
     .eq("organizacao_id", organizacao.id)
     .maybeSingle();
-  if (!campanha) return falha("Campanha não encontrada.");
-  const funcao = CONECTORES[campanha.plataforma];
+  if (erroLinha) return falha(`Não foi possível localizar: ${erroLinha.message}`);
+  if (!linha) return falha(`${ROTULO_NIVEL[parse.data.nivel]} não encontrado.`);
+  const funcao = CONECTORES[linha.plataforma];
   if (!funcao)
     return falha("Esta plataforma ainda não permite ligar ou desligar pelo painel.");
 
   const admin = criarClienteAdmin();
   const { data, error } = await admin.functions.invoke<RespostaAcao>(funcao, {
     body: {
-      acao: "alterar_status_campanha",
+      acao: "alterar_status",
+      nivel: parse.data.nivel,
       organizacao_id: organizacao.id,
-      campanha_id: id.data,
+      id: parse.data.id,
       status: ativar ? "ACTIVE" : "PAUSED",
     },
   });
@@ -117,5 +134,6 @@ export async function alterarStatusCampanha(
   revalidatePath(CAMINHO);
   revalidatePath("/trafego");
   revalidatePath("/", "layout");
-  return sucesso(ativar ? "Campanha ligada." : "Campanha desativada.");
+  const rotulo = ROTULO_NIVEL[parse.data.nivel];
+  return sucesso(ativar ? `${rotulo} em veiculação.` : `${rotulo} pausado.`);
 }

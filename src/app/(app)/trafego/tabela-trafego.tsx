@@ -16,7 +16,7 @@ import { metricaTrafego } from "@/dominio/metricas-trafego";
 import { CLASSE_COR_STATUS, traduzirStatusCampanha } from "@/dominio/status-campanha";
 import type { LinhaTrafego } from "@/servidor/consultas/trafego";
 import { cn } from "@/lib/utils";
-import { ChaveCampanha } from "../configuracoes/campanhas/chave-campanha";
+import { ChaveVeiculacao } from "../configuracoes/campanhas/chave-campanha";
 import { CaixaSelecao } from "./selecao";
 import { useColunasTrafego, useLargurasTrafego } from "./colunas";
 import { PersonalizarColunas } from "./personalizar-colunas";
@@ -76,7 +76,6 @@ export function TabelaTrafego({
     );
   }
   const largura = (chave: string, padrao: number) => larguras[chave] ?? padrao;
-  const nivel = linhas[0]?.nivel;
 
   return (
     <div className="space-y-3">
@@ -128,12 +127,9 @@ export function TabelaTrafego({
           </TableHeader>
           <TableBody>
             {ordenadas.map((l) => {
-              const status =
-                nivel === "campanha"
-                  ? traduzirStatusCampanha(l.campanha_status)
-                  : nivel === "anuncio"
-                    ? traduzirStatusCampanha(l.status)
-                    : null;
+              const status = l.veiculacao
+                ? traduzirStatusCampanha(l.veiculacao.status)
+                : null;
               return (
                 <TableRow
                   key={l.chave}
@@ -153,14 +149,21 @@ export function TabelaTrafego({
                   ) : null}
                   <TableCell className="overflow-hidden">
                     <div className="flex items-center gap-3">
-                      {l.nivel === "campanha" ? (
-                        <ChaveCampanha
-                          campanhaId={l.campanha_id}
+                      {l.veiculacao ? (
+                        <ChaveVeiculacao
+                          nivel={l.nivel}
+                          id={l.veiculacao.id}
                           nome={l.nome}
-                          ativa={l.campanha_ativa}
+                          ativa={l.veiculacao.ativa}
                           size="sm"
                         />
-                      ) : null}
+                      ) : (
+                        <span
+                          className="bg-muted inline-block h-3.5 w-6 shrink-0 rounded-full opacity-50"
+                          title="Ainda não importado: clique em Atualizar agora."
+                          aria-hidden
+                        />
+                      )}
                       {l.nivel === "anuncio" ? (
                         <MiniaturaCriativo criativo={l.criativo} nome={l.nome} />
                       ) : null}

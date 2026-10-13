@@ -4,6 +4,7 @@ import {
   somarDias,
   traduzirAnuncio,
   traduzirCampanha,
+  traduzirConjunto,
   traduzirConta,
   traduzirInsight,
 } from "../../supabase/functions/_shared/meta/tradutor.ts";
@@ -138,6 +139,27 @@ describe("traduzirAnuncio", () => {
     });
     expect(carrossel?.criativo_tipo).toBe("carrossel");
     expect(traduzirAnuncio({ id: "ad4" })).toBeNull();
+  });
+});
+
+describe("traduzirConjunto", () => {
+  it("usa o status efetivo e exige campanha", () => {
+    expect(
+      traduzirConjunto({
+        id: "s1",
+        name: "Conjunto",
+        status: "ACTIVE",
+        effective_status: "CAMPAIGN_PAUSED",
+        campaign_id: "c1",
+      }),
+    ).toEqual({
+      id_externo: "s1",
+      campanha_id_externo: "c1",
+      nome: "Conjunto",
+      status: "CAMPAIGN_PAUSED",
+      ativo: false,
+    });
+    expect(traduzirConjunto({ id: "s2" })).toBeNull();
   });
 });
 

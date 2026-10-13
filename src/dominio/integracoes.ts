@@ -16,10 +16,33 @@ export type CampoConfig = {
   placeholder: string;
 };
 
+export type SecaoIntegracao = "gateway" | "trafego";
+
+export const SECOES_INTEGRACAO: {
+  chave: SecaoIntegracao;
+  titulo: string;
+  descricao: string;
+}[] = [
+  {
+    chave: "gateway",
+    titulo: "Gateways de pagamento",
+    descricao:
+      "De onde vêm as vendas, os reembolsos e os clientes. A receita do painel vem só daqui.",
+  },
+  {
+    chave: "trafego",
+    titulo: "Fontes de tráfego",
+    descricao: "De onde vem o gasto em anúncios, por campanha, conjunto e anúncio.",
+  },
+];
+
 export type DefinicaoIntegracao = {
   tipo: TipoIntegracao;
   nome: string;
   categoria: string;
+  secao: SecaoIntegracao;
+  /** Caminho do logo em /public. */
+  logo: string;
   descricao: string;
   /** Rótulo, ajuda e exemplo do campo secreto (token). */
   credencial: { rotulo: string; ajuda: string; placeholder: string };
@@ -32,6 +55,8 @@ export const INTEGRACOES: Record<TipoIntegracao, DefinicaoIntegracao> = {
     tipo: "greenn",
     nome: "Greenn",
     categoria: "Gateway de pagamento",
+    secao: "gateway",
+    logo: "/logos/greenn.png",
     descricao:
       "Vendas, ofertas, produtos, clientes, reembolsos e chargebacks. É a única fonte de receita do painel.",
     credencial: {
@@ -45,7 +70,9 @@ export const INTEGRACOES: Record<TipoIntegracao, DefinicaoIntegracao> = {
   meta: {
     tipo: "meta",
     nome: "Meta Ads",
-    categoria: "Anúncios",
+    categoria: "Fonte de tráfego",
+    secao: "trafego",
+    logo: "/logos/meta.svg",
     descricao:
       "Gasto, impressões, cliques e resultados por campanha e por dia. Só permissão de leitura.",
     credencial: {
@@ -65,6 +92,46 @@ export const INTEGRACOES: Record<TipoIntegracao, DefinicaoIntegracao> = {
     ],
   },
 };
+
+/** Plataformas que aparecem na tela mas ainda não têm conector. */
+export type PlataformaPrevista = {
+  chave: string;
+  nome: string;
+  secao: SecaoIntegracao;
+  logo: string;
+  descricao: string;
+};
+
+export const PLATAFORMAS_PREVISTAS: PlataformaPrevista[] = [
+  {
+    chave: "hotmart",
+    nome: "Hotmart",
+    secao: "gateway",
+    logo: "/logos/hotmart.png",
+    descricao: "Vendas, reembolsos e compradores da Hotmart.",
+  },
+  {
+    chave: "kiwify",
+    nome: "Kiwify",
+    secao: "gateway",
+    logo: "/logos/kiwify.png",
+    descricao: "Vendas, reembolsos e compradores da Kiwify.",
+  },
+  {
+    chave: "eduzz",
+    nome: "Eduzz",
+    secao: "gateway",
+    logo: "/logos/eduzz.png",
+    descricao: "Vendas, reembolsos e compradores da Eduzz.",
+  },
+  {
+    chave: "google",
+    nome: "Google Ads",
+    secao: "trafego",
+    logo: "/logos/googleads.svg",
+    descricao: "Gasto, impressões, cliques e conversões por campanha e por dia.",
+  },
+];
 
 export const ROTULO_STATUS: Record<StatusIntegracao, string> = {
   desconectada: "Não conectada",

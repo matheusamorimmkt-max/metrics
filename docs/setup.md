@@ -90,7 +90,7 @@ Em **Configurações → Integrações** cada organização conecta as próprias
 
 **Token do Meta Ads, passo a passo:** em business.facebook.com → Configurações do negócio → Usuários → Usuários do sistema → Adicionar (tipo Funcionário basta) → Adicionar ativos → Contas de anúncios → marque a conta com permissão "Gerenciar campanhas" (ou "Ver desempenho", se não quiser ligar/desligar campanhas pelo painel) → Gerar token → escolha o app do negócio, validade "Nunca expira" e as permissões `ads_read` e `ads_management`. Copie o token (começa com `EAA`). O ID da conta de anúncios aparece no Gerenciador de Anúncios, no seletor de contas (número; o app aceita com ou sem `act_`).
 
-`ads_read` basta para importar campanhas, métricas e criativos. A chave liga/desliga de campanha (Tráfego e Configurações → Campanhas) é a única escrita que o painel faz no Meta e precisa de `ads_management` com "Gerenciar campanhas" na conta; sem isso a chave mostra o motivo da recusa e nada muda.
+`ads_read` basta para importar campanhas, métricas e criativos. A chave liga/desliga de campanha, conjunto e anúncio (Tráfego e Configurações → Campanhas) é a única escrita que o painel faz no Meta e precisa de `ads_management` com "Gerenciar campanhas" na conta; sem isso a chave mostra o motivo da recusa e nada muda.
 
 A credencial vai para o Vault do Supabase e nunca volta ao navegador: a tela mostra só os 4 últimos caracteres e a data. "Trocar credenciais" substitui o token; "Desconectar" apaga o segredo. A primeira sincronização (conector da Fase 2 para a Greenn, da Fase 3 para o Meta) é que confirma se o acesso está correto; até lá o status fica em "Credenciais salvas".
 

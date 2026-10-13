@@ -2,7 +2,13 @@
  * Chamadas à Graph API do Meta com paginação e espera em limite de uso.
  * Sem Deno: usa só fetch, para ser testável fora do runtime.
  */
-import type { AnuncioMeta, CampanhaMeta, ContaMeta, InsightMeta } from "./tradutor.ts";
+import type {
+  AnuncioMeta,
+  CampanhaMeta,
+  ConjuntoMeta,
+  ContaMeta,
+  InsightMeta,
+} from "./tradutor.ts";
 
 export const VERSAO_GRAPH = "v23.0";
 const BASE = `https://graph.facebook.com/${VERSAO_GRAPH}`;
@@ -145,6 +151,16 @@ export class ClienteMeta {
     );
   }
 
+  conjuntos(
+    contaId: string,
+    aoReceber: (lote: ConjuntoMeta[]) => Promise<void>,
+  ): Promise<number> {
+    return this.paginar<ConjuntoMeta>(
+      `/${contaId}/adsets?fields=id,name,status,effective_status,campaign_id&limit=200`,
+      aoReceber,
+    );
+  }
+
   anuncios(
     contaId: string,
     aoReceber: (lote: AnuncioMeta[]) => Promise<void>,
@@ -179,12 +195,12 @@ export class ClienteMeta {
     }
   }
 
-  /** Liga (ACTIVE) ou pausa (PAUSED) uma campanha. Exige a permissão ads_management. */
-  async alterarStatusCampanha(
-    campanhaId: string,
-    status: "ACTIVE" | "PAUSED",
-  ): Promise<void> {
-    await this.post<{ success?: boolean }>(`/${campanhaId}`, { status });
+  /**
+   * Liga (ACTIVE) ou pausa (PAUSED) uma campanha, conjunto ou anúncio pelo id no Meta.
+   * Exige a permissão ads_management.
+   */
+  async alterarStatus(idExterno: string, status: "ACTIVE" | "PAUSED"): Promise<void> {
+    await this.post<{ success?: boolean }>(`/${idExterno}`, { status });
   }
 
   insights(

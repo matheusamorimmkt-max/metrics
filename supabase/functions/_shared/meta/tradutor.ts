@@ -5,6 +5,7 @@
 import type {
   AnuncioImportado,
   CampanhaImportada,
+  ConjuntoImportado,
   ContaAnuncioImportada,
   MetricaDiariaImportada,
 } from "./tipos.ts";
@@ -48,6 +49,14 @@ export type CriativoMeta = {
     link_data?: { picture?: string; image_hash?: string; child_attachments?: unknown[] };
     photo_data?: { image_hash?: string };
   };
+};
+
+export type ConjuntoMeta = {
+  id: string;
+  name?: string;
+  status?: string;
+  effective_status?: string;
+  campaign_id?: string;
 };
 
 export type AnuncioMeta = {
@@ -139,6 +148,18 @@ export function traduzirCampanha(c: CampanhaMeta): CampanhaImportada {
     nome: c.name ?? "",
     status,
     objetivo: c.objective ?? null,
+    ativo: status === "ACTIVE",
+  };
+}
+
+export function traduzirConjunto(c: ConjuntoMeta): ConjuntoImportado | null {
+  if (!c.id || !c.campaign_id) return null;
+  const status = c.effective_status ?? c.status ?? null;
+  return {
+    id_externo: c.id,
+    campanha_id_externo: c.campaign_id,
+    nome: c.name ?? "",
+    status,
     ativo: status === "ACTIVE",
   };
 }

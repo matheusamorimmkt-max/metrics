@@ -12,22 +12,23 @@ export type Criativo = {
   permalink_url: string | null;
 };
 
+export type NivelTrafego = "campanha" | "conjunto" | "anuncio";
+
+/** O que a chave liga/desliga precisa: id interno, estado e status na plataforma. */
+export type Veiculacao = { id: string; ativa: boolean; status: string | null };
+
 export type LinhaTrafego = BaseTrafego & {
   chave: string;
   nome: string;
-  /** Id interno da campanha (para ligar/desligar). */
-  campanha_id: string;
-  campanha_ativa: boolean;
-  campanha_status: string | null;
-  /** Status do anúncio (só no nível anúncio). */
-  status: string | null;
+  /** Null quando o conector ainda não importou esta campanha/conjunto/anúncio. */
+  veiculacao: Veiculacao | null;
   /** Criativo do anúncio (só no nível anúncio, quando importado). */
   criativo: Criativo | null;
   /** Linha pai (campanha para conjunto; conjunto para anúncio). */
   pai: string | null;
   /** Chave da campanha a que a linha pertence (a própria, no nível campanha). */
   campanha_chave: string;
-  nivel: "campanha" | "conjunto" | "anuncio";
+  nivel: NivelTrafego;
   funil_nome: string | null;
   objetivo: string | null;
 };
@@ -56,26 +57,46 @@ export async function obterTrafego(
   if (error && tabelaAusente(error)) return { linhas: [], truncado: false };
   if (error) throw new Error(`Falha ao carregar tráfego: ${error.message}`);
 
-  // Criativos dos anúncios (tabela pode não existir até a migration ser aplicada).
-  const criativos = new Map<string, Criativo & { status: string | null }>();
-  const anuncios = await supabase
-    .from("anuncios")
-    .select(
-      "id_externo, status, criativo_tipo, miniatura_url, imagem_url, video_url, permalink_url",
-    )
-    .eq("organizacao_id", organizacaoId)
-    .limit(LIMITE_LINHAS);
+  // Conjuntos e anúncios importados (tabelas podem não existir até a migration ser
+  // aplicada): trazem o status para a chave e o criativo do anúncio.
+  const [conjuntos, anuncios] = await Promise.all([
+    supabase
+      .from("conjuntos")
+      .select("id, id_externo, status, ativo")
+      .eq("organizacao_id", organizacaoId)
+      .limit(LIMITE_LINHAS),
+    supabase
+      .from("anuncios")
+      .select(
+        "id, id_externo, status, ativo, criativo_tipo, miniatura_url, imagem_url, video_url, permalink_url",
+      )
+      .eq("organizacao_id", organizacaoId)
+      .limit(LIMITE_LINHAS),
+  ]);
+  if (conjuntos.error && !tabelaAusente(conjuntos.error)) {
+    throw new Error(`Falha ao carregar conjuntos: ${conjuntos.error.message}`);
+  }
   if (anuncios.error && !tabelaAusente(anuncios.error)) {
     throw new Error(`Falha ao carregar anúncios: ${anuncios.error.message}`);
   }
+  const conjuntoPorExterno = new Map<string, Veiculacao>();
+  for (const c of conjuntos.data ?? []) {
+    conjuntoPorExterno.set(c.id_externo, { id: c.id, ativa: c.ativo, status: c.status });
+  }
+  const anuncioPorExterno = new Map<
+    string,
+    { veiculacao: Veiculacao; criativo: Criativo }
+  >();
   for (const a of anuncios.data ?? []) {
-    criativos.set(a.id_externo, {
-      status: a.status,
-      tipo: a.criativo_tipo as Criativo["tipo"],
-      miniatura_url: a.miniatura_url,
-      imagem_url: a.imagem_url,
-      video_url: a.video_url,
-      permalink_url: a.permalink_url,
+    anuncioPorExterno.set(a.id_externo, {
+      veiculacao: { id: a.id, ativa: a.ativo, status: a.status },
+      criativo: {
+        tipo: a.criativo_tipo as Criativo["tipo"],
+        miniatura_url: a.miniatura_url,
+        imagem_url: a.imagem_url,
+        video_url: a.video_url,
+        permalink_url: a.permalink_url,
+      },
     });
   }
 
@@ -91,29 +112,18 @@ export async function obterTrafego(
   const zero = (
     base: Pick<
       LinhaTrafego,
-      | "chave"
-      | "nome"
-      | "pai"
-      | "nivel"
-      | "funil_nome"
-      | "campanha_chave"
-      | "objetivo"
-      | "campanha_id"
-      | "campanha_ativa"
-      | "campanha_status"
+      "chave" | "nome" | "pai" | "nivel" | "funil_nome" | "campanha_chave" | "objetivo"
     > &
-      Partial<Pick<LinhaTrafego, "status" | "criativo">>,
-  ): LinhaTrafego => ({ status: null, criativo: null, ...base, ...BASE_ZERADA });
+      Partial<Pick<LinhaTrafego, "veiculacao" | "criativo">>,
+  ): LinhaTrafego => ({ veiculacao: null, criativo: null, ...base, ...BASE_ZERADA });
 
   for (const l of data ?? []) {
     const campanha = l.campanhas;
     const funilNome = campanha?.funil_campanhas?.funis?.nome ?? null;
     const objetivo = campanha?.objetivo ?? null;
-    const campanhaBase = {
-      campanha_id: l.campanha_id,
-      campanha_ativa: campanha?.ativo ?? false,
-      campanha_status: campanha?.status ?? null,
-    };
+    const veiculacaoCampanha: Veiculacao | null = campanha
+      ? { id: l.campanha_id, ativa: campanha.ativo, status: campanha.status }
+      : null;
     const chaveCamp = `c:${l.campanha_id}`;
     const chaveConj = `s:${l.campanha_id}:${l.conjunto_id_externo}`;
     const chaveAn = `a:${l.campanha_id}:${l.conjunto_id_externo}:${l.anuncio_id_externo}`;
@@ -127,7 +137,7 @@ export async function obterTrafego(
           nivel: "campanha",
           funil_nome: funilNome,
           objetivo,
-          ...campanhaBase,
+          veiculacao: veiculacaoCampanha,
         }),
       ),
     ];
@@ -142,7 +152,7 @@ export async function obterTrafego(
             nivel: "conjunto",
             funil_nome: funilNome,
             objetivo,
-            ...campanhaBase,
+            veiculacao: conjuntoPorExterno.get(l.conjunto_id_externo) ?? null,
           }),
         ),
       );
@@ -158,9 +168,8 @@ export async function obterTrafego(
             nivel: "anuncio",
             funil_nome: funilNome,
             objetivo,
-            ...campanhaBase,
-            status: criativos.get(l.anuncio_id_externo)?.status ?? null,
-            criativo: criativos.get(l.anuncio_id_externo) ?? null,
+            veiculacao: anuncioPorExterno.get(l.anuncio_id_externo)?.veiculacao ?? null,
+            criativo: anuncioPorExterno.get(l.anuncio_id_externo)?.criativo ?? null,
           }),
         ),
       );
