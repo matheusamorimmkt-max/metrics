@@ -11,7 +11,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { obterContexto } from "@/servidor/sessao";
 import { listarCategorias } from "@/servidor/consultas/categorias";
 import { obterFunil } from "@/servidor/consultas/funis";
+import {
+  listarOfertasDoFunil,
+  listarOfertasSemFunil,
+} from "@/servidor/consultas/ofertas";
+import { listarIntegracoes } from "@/servidor/consultas/integracoes";
 import { atualizarFunil } from "@/servidor/acoes/funis";
+import { EditorOfertas } from "./editor-ofertas";
 import { FormularioFunil } from "../formulario-funil";
 import { AcoesFunil } from "./acoes-funil";
 
@@ -24,11 +30,17 @@ export default async function PaginaEditarFunil({
   const { id } = await params;
   const busca = await searchParams;
   const { organizacao } = await obterContexto();
-  const [funil, categorias] = await Promise.all([
+  const [funil, categorias, ofertas, disponiveis, integracoes] = await Promise.all([
     obterFunil(organizacao.id, id),
     listarCategorias(organizacao.id),
+    listarOfertasDoFunil(organizacao.id, id),
+    listarOfertasSemFunil(organizacao.id),
+    listarIntegracoes(organizacao.id),
   ]);
   if (!funil) notFound();
+  const greennConectada = Boolean(
+    integracoes.greenn && integracoes.greenn.status !== "desconectada",
+  );
 
   return (
     <div className="space-y-6">
@@ -36,8 +48,8 @@ export default async function PaginaEditarFunil({
         <Alert>
           <AlertTitle>Funil criado</AlertTitle>
           <AlertDescription>
-            Quando a Greenn estiver conectada, as ofertas aparecerão aqui para você
-            definir qual é o front, quais são os bumps e os upsells.
+            Agora defina as ofertas do funil: qual é o front, quais são os bumps e os
+            upsells. O sistema também sugere pelo histórico de vendas.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -55,15 +67,18 @@ export default async function PaginaEditarFunil({
         <CardHeader>
           <CardTitle>Ofertas do funil</CardTitle>
           <CardDescription>
-            Front (1 ou mais), order bumps, upsells e downsells, cada um com o ID da
-            oferta no gateway.
+            Front (1 ou mais), order bumps, upsells e downsells. Sugestões vêm do
+            histórico de vendas: confirme ou descarte.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-muted-foreground rounded-md border border-dashed p-6 text-center text-sm">
-            As ofertas serão importadas da Greenn na próxima fase. Depois disso, o sistema
-            sugere a estrutura a partir do histórico de vendas e você confirma.
-          </div>
+          <EditorOfertas
+            funilId={funil.id}
+            ofertas={ofertas}
+            disponiveis={disponiveis}
+            moeda={organizacao.moeda}
+            greennConectada={greennConectada}
+          />
         </CardContent>
       </Card>
 

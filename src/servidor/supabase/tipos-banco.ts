@@ -377,6 +377,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "funil_ofertas_oferta_id_fkey";
+            columns: ["oferta_id"];
+            isOneToOne: true;
+            referencedRelation: "ofertas_resumo";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "funil_ofertas_organizacao_id_fkey";
             columns: ["organizacao_id"];
             isOneToOne: false;
@@ -488,6 +495,13 @@ export type Database = {
             columns: ["produto_id"];
             isOneToOne: false;
             referencedRelation: "produtos";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "historico_aliquotas_produto_id_fkey";
+            columns: ["produto_id"];
+            isOneToOne: false;
+            referencedRelation: "produtos_resumo";
             referencedColumns: ["id"];
           },
         ];
@@ -736,6 +750,13 @@ export type Database = {
             referencedRelation: "produtos";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "ofertas_produto_id_fkey";
+            columns: ["produto_id"];
+            isOneToOne: false;
+            referencedRelation: "produtos_resumo";
+            referencedColumns: ["id"];
+          },
         ];
       };
       ofertas_descartadas: {
@@ -777,6 +798,13 @@ export type Database = {
             columns: ["oferta_id"];
             isOneToOne: false;
             referencedRelation: "ofertas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ofertas_descartadas_oferta_id_fkey";
+            columns: ["oferta_id"];
+            isOneToOne: false;
+            referencedRelation: "ofertas_resumo";
             referencedColumns: ["id"];
           },
           {
@@ -1113,6 +1141,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "vendas_oferta_id_fkey";
+            columns: ["oferta_id"];
+            isOneToOne: false;
+            referencedRelation: "ofertas_resumo";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "vendas_organizacao_id_fkey";
             columns: ["organizacao_id"];
             isOneToOne: false;
@@ -1124,6 +1159,13 @@ export type Database = {
             columns: ["produto_id"];
             isOneToOne: false;
             referencedRelation: "produtos";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vendas_produto_id_fkey";
+            columns: ["produto_id"];
+            isOneToOne: false;
+            referencedRelation: "produtos_resumo";
             referencedColumns: ["id"];
           },
           {
@@ -1204,6 +1246,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "vendas_oferta_id_fkey";
+            columns: ["oferta_id"];
+            isOneToOne: false;
+            referencedRelation: "ofertas_resumo";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "vendas_organizacao_id_fkey";
             columns: ["organizacao_id"];
             isOneToOne: false;
@@ -1235,6 +1284,108 @@ export type Database = {
         };
         ComputedFields: never;
         Relationships: [];
+      };
+      ofertas_resumo: {
+        Row: {
+          ativo: boolean | null;
+          faturamento: number | null;
+          funil_id: string | null;
+          funil_nome: string | null;
+          id: string | null;
+          id_externo: string | null;
+          nome: string | null;
+          organizacao_id: string | null;
+          papel: string | null;
+          plataforma: string | null;
+          preco: number | null;
+          produto_id: string | null;
+          produto_nome: string | null;
+          ultima_venda: string | null;
+          vendas: number | null;
+          vinculo_status: string | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "funil_ofertas_funil_id_fkey";
+            columns: ["funil_id"];
+            isOneToOne: false;
+            referencedRelation: "funis";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ofertas_organizacao_id_fkey";
+            columns: ["organizacao_id"];
+            isOneToOne: false;
+            referencedRelation: "organizacoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ofertas_produto_id_fkey";
+            columns: ["produto_id"];
+            isOneToOne: false;
+            referencedRelation: "produtos";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ofertas_produto_id_fkey";
+            columns: ["produto_id"];
+            isOneToOne: false;
+            referencedRelation: "produtos_resumo";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      produtos_resumo: {
+        Row: {
+          aliquota_imposto: number | null;
+          ativo: boolean | null;
+          base_imposto: string | null;
+          id: string | null;
+          id_externo: string | null;
+          nome: string | null;
+          ofertas: number | null;
+          organizacao_id: string | null;
+          plataforma: string | null;
+          vendas_30d: number | null;
+          vigencias: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          aliquota_imposto?: number | null;
+          ativo?: boolean | null;
+          base_imposto?: string | null;
+          id?: string | null;
+          id_externo?: string | null;
+          nome?: string | null;
+          ofertas?: never;
+          organizacao_id?: string | null;
+          plataforma?: string | null;
+          vendas_30d?: never;
+          vigencias?: never;
+        };
+        Update: {
+          aliquota_imposto?: number | null;
+          ativo?: boolean | null;
+          base_imposto?: string | null;
+          id?: string | null;
+          id_externo?: string | null;
+          nome?: string | null;
+          ofertas?: never;
+          organizacao_id?: string | null;
+          plataforma?: string | null;
+          vendas_30d?: never;
+          vigencias?: never;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "produtos_organizacao_id_fkey";
+            columns: ["organizacao_id"];
+            isOneToOne: false;
+            referencedRelation: "organizacoes";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Functions: {
