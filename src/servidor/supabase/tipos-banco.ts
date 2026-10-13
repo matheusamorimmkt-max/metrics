@@ -1212,6 +1212,30 @@ export type Database = {
           },
         ];
       };
+      metricas_diarias: {
+        Row: {
+          clientes_novos: number | null;
+          cliques_link: number | null;
+          data: string | null;
+          faturamento_bruto: number | null;
+          funil_id: string | null;
+          gasto: number | null;
+          impostos: number | null;
+          impressoes: number | null;
+          inicios_checkout: number | null;
+          leads: number | null;
+          organizacao_id: string | null;
+          parceiros: number | null;
+          recompras: number | null;
+          reembolsos: number | null;
+          taxas_gateway: number | null;
+          transacoes: number | null;
+          vendas: number | null;
+          visualizacoes_pagina: number | null;
+        };
+        ComputedFields: never;
+        Relationships: [];
+      };
     };
     Functions: {
       criar_organizacao: { Args: { p_nome: string }; Returns: string };
