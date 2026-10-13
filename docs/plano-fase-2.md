@@ -1,6 +1,6 @@
 # Plano da Fase 2 — Conector Greenn
 
-Status: **aprovado pelo usuário em 2026-10-12; Etapa 1 (schema) concluída; Etapa 0 (sonda) bloqueada até existir um token `grn_live_`** (2026-10-12)
+Status: **Etapas 1, 2, 3 e 4 implementadas e publicadas (2026-10-13). Etapa 0 (sonda) e Etapa 5 (conferência) bloqueadas até existir um token `grn_live_`.** (2026-10-13)
 
 Referência da API: `docs/greenn-api.md`. Fase anterior: `docs/plano-fase-1.md`.
 
@@ -61,7 +61,7 @@ Migrations em `supabase/migrations/` com RLS e testes pgTAP:
 
 - **Confere:** `pnpm db:test` com testes de RLS para cada tabela nova, exemplo canônico de transações, janela alterada, recorrência fora da recompra, sugestão com limiar.
 
-### Etapa 2 — Conector (Edge Function)
+### Etapa 2 — Conector (Edge Function) ✅ (2026-10-13, escrito pelo spec; pontos `[SONDA]` a confirmar)
 
 `supabase/functions/greenn-sync/` em Deno, com código puro em `supabase/functions/_shared/greenn/`:
 
@@ -72,7 +72,9 @@ Migrations em `supabase/migrations/` com RLS e testes pgTAP:
 - pg_cron: a cada 15 min para organizações com Greenn conectada; a cada 1 min enquanto houver importação retroativa em andamento.
 - **Confere:** rodar a retroativa na conta real e comparar `conferencia_vendas_mensal` com o relatório da Greenn.
 
-### Etapa 3 — Tela de Integrações
+### Etapa 3 — Tela de Integrações ✅ (2026-10-12/13)
+
+Feito sem o botão "Testar conexão": o primeiro ciclo valida o token e o card mostra `erro` com a mensagem da Greenn ou `conectada`. Data inicial da importação: tudo (decisão 3). Progresso da retroativa aparece pelo `importacao_cursor` e pela última sincronização.
 
 - Card Greenn: colar token, "Testar conexão" (chama `GET /products?per_page=1` pela Edge Function), data inicial da importação, "Importar histórico", progresso, última sincronização, último erro, "Desconectar" (apaga o segredo do Vault).
 - Botão **Atualizar agora** no cabeçalho (só Greenn nesta fase), bloqueado durante um ciclo e por 1 min após concluir; indicador "Atualizado às 14h32".
@@ -136,7 +138,9 @@ src/dominio/schemas/integracao.ts, produto.ts, funil-oferta.ts
 9. Mudar a janela de transação para 10 min e reprocessar: vira uma transação só.
 10. Fazer um reembolso de teste na Greenn: na reconsulta seguinte a venda muda para `reembolsada` com `reembolsada_em` preenchida.
 
-## Situação em 2026-10-12
+## Situação em 2026-10-13
+
+- Conector `greenn-sync` publicado no projeto e respondendo (teste com o token errado devolveu `Token recusado pela Greenn: Bearer token must have grn_live_ prefix.`). Falta o token certo para a sonda (Etapa 0), confirmar os pontos `[SONDA]` e conferir um mês (Etapa 5).
 
 - O token salvo na tela de Integrações é o **Webhook Token / API Key** da tela "Integração e Tokens" (formato `$2y$10$…`). A API pública v1 só aceita Personal Access Token `grn_live_…`. A tela passou a recusar o formato errado. Sem o token certo, a Etapa 0 (sonda) e a Etapa 2 (conector) não têm como ser testadas contra a conta real.
 - O usuário entende que a Greenn devolve valor bruto e líquido. No REST a lista e o detalhe trazem `amount` e `total` (ambos inteiros); `fee` e `seller_balance` existem só no webhook. A sonda confirma se `total` é o líquido.

@@ -56,6 +56,8 @@ pnpm dev
 
 Abra `http://localhost:3000`, entre com o usuário do passo 4, crie a organização e siga o roteiro de aceite em `docs/plano-fase-1.md`.
 
+Testes de ponta a ponta (Playwright): `pnpm test:e2e` com `E2E_EMAIL` e `E2E_SENHA` no `.env.local`. Os roteiros `tests/e2e/fase-1.spec.ts` e `tests/e2e/fases-2-a-5.spec.ts` entram com esse usuário, criam a organização dele no primeiro acesso e percorrem todas as telas sem precisar de conector ligado. No projeto hospedado existe o usuário `e2e@metric-analytics.test` só para isso (senha redefinível em Authentication → Users); ele tem a própria organização e não vê os dados das outras.
+
 ## 6. Convites
 
 Na tela **Configurações → Usuários**, "Convidar diretor" dispara o e-mail padrão do Supabase. O link leva para `/auth/callback`, que grava a sessão e abre "Definir senha".
@@ -90,13 +92,17 @@ Em **Configurações → Integrações** cada organização conecta as próprias
 
 A credencial vai para o Vault do Supabase e nunca volta ao navegador: a tela mostra só os 4 últimos caracteres e a data. "Trocar credenciais" substitui o token; "Desconectar" apaga o segredo. A primeira sincronização (conector da Fase 2 para a Greenn, da Fase 3 para o Meta) é que confirma se o acesso está correto; até lá o status fica em "Credenciais salvas".
 
-## 9. Conector do Meta (Edge Function)
+## 9. Conectores (Edge Functions)
 
-O conector é a Edge Function `meta-sync` em `supabase/functions/meta-sync`. Publicar: `pnpm dlx supabase functions deploy meta-sync --project-ref <project-id>` (usa `SUPABASE_ACCESS_TOKEN`). Ela lê `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`, que o Supabase injeta sozinho. O app a chama pelo botão "Atualizar agora" e ao entrar (quando a última atualização tem mais de 15 min). O agendamento a cada 15 min (pg_cron) é a Etapa 4 do plano da Fase 3.
+Cada integração tem uma Edge Function em `supabase/functions/`: `meta-sync` (Meta Ads) e `greenn-sync` (Greenn). Publicar cada uma com `pnpm dlx supabase functions deploy <nome> --project-ref <project-id>` (usa `SUPABASE_ACCESS_TOKEN`). Elas leem `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`, que o Supabase injeta sozinho, e pegam o token da organização no Vault por `ler_credencial_integracao`.
+
+O app chama as duas no mesmo ciclo (mesmo `ciclo_id` e corte) pelo botão "Atualizar agora" e ao entrar, quando a última atualização tem mais de 15 min. O primeiro ciclo de cada integração valida o token: se a plataforma recusar, o card em Integrações mostra o status `erro` com a mensagem; se aceitar, passa a `conectada` e começa a importação retroativa (fatiada; continua a cada minuto pelo pg_cron até terminar).
+
+**Greenn**: o conector foi escrito a partir do spec público (`docs/greenn-api.md`) e tem pontos marcados `[SONDA]` em `supabase/functions/_shared/greenn/` (unidade dos valores, campos do comprador, participantes e taxa). Com o primeiro token `grn_live_` em mãos, rode `pnpm greenn:sonda` (token em `GREENN_TOKEN_SONDA`, só na sessão de desenvolvimento), confirme esses pontos, ajuste o tradutor e publique a função de novo. Depois confira um mês fechado em `conferencia_vendas_mensal` contra o relatório da Greenn.
 
 ## 10. Atualização automática (pg_cron)
 
-Depois de aplicar a migration `20261013000003_agendamento.sql`, rode uma vez no SQL Editor, trocando a chave pela **service_role** de Project Settings → API:
+Depois de aplicar as migrations `20261013000003_agendamento.sql` e `20261013000004_conector_greenn.sql`, rode uma vez no SQL Editor, trocando a chave pela **service_role** de Project Settings → API:
 
 ```sql
 select public.configurar_agendamento(
@@ -105,7 +111,7 @@ select public.configurar_agendamento(
 );
 ```
 
-Isso guarda a URL e a chave no Vault e cria dois jobs no pg_cron: `ciclo_incremental` (a cada 15 min) e `ciclo_reconsulta` (06:00 UTC). Para conferir: `select jobname, schedule, active from cron.job;`. As extensões pg_cron e pg_net precisam estar ativas em Database → Extensions (a migration tenta ativá-las).
+Isso guarda a URL e a chave no Vault e cria três jobs no pg_cron: `ciclo_incremental` (a cada 15 min), `ciclo_reconsulta` (06:00 UTC) e `ciclo_retroativa` (a cada minuto, só para integrações cuja importação inicial ainda não terminou). Se a migration 4 foi aplicada depois de já ter rodado a função, rode de novo: ela recria os jobs. Para conferir: `select jobname, schedule, active from cron.job;`. As extensões pg_cron e pg_net precisam estar ativas em Database → Extensions (a migration tenta ativá-las).
 
 ## Problemas comuns
 

@@ -1,6 +1,6 @@
 # Plano da Fase 3 — Conector Meta Ads
 
-Status: **Etapas 1 a 4 implementadas e publicadas (2026-10-13). Falta: aplicar as migrations 20261013000001 a 3 no projeto, rodar `configurar_agendamento`, conectar o token do Meta e conferir o gasto com o Gerenciador (Etapa 5).**
+Status: **Etapas 1 a 4 implementadas, publicadas e migrations 20261013000001 a 3 aplicadas (2026-10-13). Falta: conectar o token do Meta em Integrações, clicar em "Atualizar agora" e conferir o gasto com o Gerenciador (Etapa 5).**
 
 Fase anterior: `docs/plano-fase-2.md`. PRD: seções "Integrações", "Ciclo de atualização", "Vínculo de campanhas aos funis" e tabela "Tráfego".
 
