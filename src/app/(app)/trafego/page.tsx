@@ -7,15 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { formatarMetrica } from "@/dominio/metricas";
 import { obterContexto } from "@/servidor/sessao";
 import { PERIODO_PADRAO } from "@/dominio/periodo";
@@ -23,7 +14,8 @@ import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterTrafego, type LinhaTrafego } from "@/servidor/consultas/trafego";
 import { SeletorHome } from "../home/seletor";
 import { lerLista } from "@/dominio/lista-url";
-import { BarraSelecao, CaixaSelecao } from "./selecao";
+import { BarraSelecao } from "./selecao";
+import { TabelaTrafego } from "./tabela-trafego";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tráfego" };
@@ -59,7 +51,7 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
     return selCampanhas.length === 0 || selCampanhas.includes(l.campanha_chave);
   };
   const visiveis = linhas.filter((l) => l.nivel === nivel && dentroDaSelecao(l));
-  const nomePai = new Map(linhas.map((l) => [l.chave, l.nome]));
+  const nomePai = Object.fromEntries(linhas.map((l) => [l.chave, l.nome]));
 
   // Os cards somam o escopo selecionado (conjuntos > campanhas > tudo).
   const escopo = selConjuntos.length
@@ -72,10 +64,8 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
       gasto: s.gasto + l.gasto,
       impressoes: s.impressoes + l.impressoes,
       cliques_link: s.cliques_link + l.cliques_link,
-      visualizacoes_pagina: s.visualizacoes_pagina + l.visualizacoes_pagina,
-      leads: s.leads + l.leads,
     }),
-    { gasto: 0, impressoes: 0, cliques_link: 0, visualizacoes_pagina: 0, leads: 0 },
+    { gasto: 0, impressoes: 0, cliques_link: 0 },
   );
   const query = new URLSearchParams();
   if (periodo.chave !== PERIODO_PADRAO) query.set("periodo", periodo.chave);
@@ -91,8 +81,8 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Tráfego</h1>
         <p className="text-muted-foreground">
-          CPM, CTR, CPC, custo por visualização de página, connect rate e custo por lead,
-          por campanha, conjunto e anúncio.
+          Relatório por campanha, conjunto e anúncio. Escolha as métricas em
+          &ldquo;Métricas&rdquo; e clique nas colunas para ordenar.
         </p>
       </div>
 
@@ -104,7 +94,7 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
         base="/trafego"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Resumo
           nome="Gasto"
           valor={formatarMetrica(total.gasto, "moeda", organizacao.moeda)}
@@ -121,14 +111,6 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
             "percentual",
           )}
         />
-        <Resumo
-          nome="Custo por lead"
-          valor={formatarMetrica(
-            total.leads ? total.gasto / total.leads : null,
-            "moeda",
-            organizacao.moeda,
-          )}
-        />
       </div>
 
       <Card>
@@ -139,8 +121,8 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
                 Por {NIVEIS.find((n) => n.chave === nivel)?.rotulo.toLowerCase()}
               </CardTitle>
               <CardDescription>
-                Ordenado por gasto. Marque campanhas para ver só os conjuntos delas, e
-                conjuntos para ver só os anúncios deles.
+                Marque campanhas para ver só os conjuntos delas, e conjuntos para ver só
+                os anúncios deles.
               </CardDescription>
             </div>
             <div className="flex gap-1">
@@ -182,43 +164,21 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
               e clique em &ldquo;Atualizar agora&rdquo;.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {nivel !== "anuncio" ? <TableHead className="w-8" /> : null}
-                    <TableHead>
-                      {NIVEIS.find((n) => n.chave === nivel)?.rotulo.slice(0, -1)}
-                    </TableHead>
-                    <TableHead className="text-right">Gasto</TableHead>
-                    <TableHead className="text-right">CPM</TableHead>
-                    <TableHead className="text-right">CTR</TableHead>
-                    <TableHead className="text-right">CPC</TableHead>
-                    <TableHead className="text-right">Custo/página</TableHead>
-                    <TableHead className="text-right">Connect rate</TableHead>
-                    <TableHead className="text-right">Custo/checkout</TableHead>
-                    <TableHead className="text-right">Custo/lead</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visiveis.map((l) => (
-                    <LinhaTabela
-                      key={l.chave}
-                      linha={l}
-                      pai={l.pai ? nomePai.get(l.pai) : undefined}
-                      moeda={organizacao.moeda}
-                      selecao={
-                        l.nivel === "campanha"
-                          ? { parametro: "campanhas", selecionados: selCampanhas }
-                          : l.nivel === "conjunto"
-                            ? { parametro: "conjuntos", selecionados: selConjuntos }
-                            : undefined
-                      }
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <TabelaTrafego
+              linhas={visiveis}
+              nomePai={nomePai}
+              moeda={organizacao.moeda}
+              rotuloNivel={
+                NIVEIS.find((n) => n.chave === nivel)?.rotulo.slice(0, -1) ?? ""
+              }
+              selecao={
+                nivel === "campanha"
+                  ? { parametro: "campanhas", selecionados: selCampanhas }
+                  : nivel === "conjunto"
+                    ? { parametro: "conjuntos", selecionados: selConjuntos }
+                    : undefined
+              }
+            />
           )}
           {truncado ? (
             <p className="text-muted-foreground mt-2 text-xs">
@@ -240,69 +200,5 @@ function Resumo({ nome, valor }: { nome: string; valor: string }) {
         <CardTitle className="text-xl tabular-nums">{valor}</CardTitle>
       </CardHeader>
     </Card>
-  );
-}
-
-function LinhaTabela({
-  linha,
-  pai,
-  moeda,
-  selecao,
-}: {
-  linha: LinhaTrafego;
-  pai?: string;
-  moeda: string;
-  selecao?: { parametro: "campanhas" | "conjuntos"; selecionados: string[] };
-}) {
-  return (
-    <TableRow
-      data-state={selecao?.selecionados.includes(linha.chave) ? "selected" : undefined}
-    >
-      {selecao ? (
-        <TableCell>
-          <CaixaSelecao
-            chave={linha.chave}
-            parametro={selecao.parametro}
-            selecionados={selecao.selecionados}
-            rotulo={linha.nome}
-          />
-        </TableCell>
-      ) : null}
-      <TableCell>
-        <div className="font-medium">{linha.nome}</div>
-        <div className="text-muted-foreground text-xs">
-          {pai ? `${pai} · ` : ""}
-          {linha.funil_nome ? (
-            <Badge variant="outline">{linha.funil_nome}</Badge>
-          ) : (
-            "não vinculada"
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatarMetrica(linha.gasto, "moeda", moeda)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatarMetrica(linha.cpm, "moeda", moeda)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatarMetrica(linha.ctr, "percentual")}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatarMetrica(linha.cpc, "moeda", moeda)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatarMetrica(linha.custo_pagina, "moeda", moeda)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatarMetrica(linha.connect_rate, "percentual")}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatarMetrica(linha.custo_checkout, "moeda", moeda)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatarMetrica(linha.custo_lead, "moeda", moeda)}
-      </TableCell>
-    </TableRow>
   );
 }

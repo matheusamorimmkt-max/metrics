@@ -37,7 +37,7 @@ export function BotaoDetalheMetrica({
       >
         <Eye aria-hidden />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{detalhe.titulo}</DialogTitle>
           <DialogDescription>{detalhe.descricao}</DialogDescription>
@@ -47,7 +47,7 @@ export function BotaoDetalheMetrica({
             Sem movimento no período.
           </p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-[200px_1fr] sm:items-center">
+          <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)] sm:items-center">
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
@@ -70,7 +70,7 @@ export function BotaoDetalheMetrica({
                 />
               </PieChart>
             </ResponsiveContainer>
-            <ul className="space-y-1.5 text-sm">
+            <ul className="min-w-0 space-y-1.5 text-sm">
               {detalhe.fatias.map((f) => (
                 <li key={f.nome} className="flex items-center gap-2">
                   <span
@@ -81,10 +81,10 @@ export function BotaoDetalheMetrica({
                   <span className="min-w-0 flex-1 truncate" title={f.nome}>
                     {f.nome}
                   </span>
-                  <span className="tabular-nums">
+                  <span className="shrink-0 tabular-nums">
                     {formatarMetrica(f.valor, "moeda", moeda)}
                   </span>
-                  <span className="text-muted-foreground w-14 text-right tabular-nums">
+                  <span className="text-muted-foreground w-14 shrink-0 text-right tabular-nums">
                     {formatarMetrica(f.valor / total, "percentual")}
                   </span>
                 </li>
