@@ -10,7 +10,7 @@ import { Cabecalho } from "./cabecalho";
 export const dynamic = "force-dynamic";
 
 /** Integrações que já têm conector e, portanto, participam do ciclo. */
-const COM_CONECTOR = new Set(["meta"]);
+const COM_CONECTOR = new Set(["meta", "greenn"]);
 
 export default async function LayoutApp({ children }: LayoutProps<"/">) {
   const contexto = await obterContexto();

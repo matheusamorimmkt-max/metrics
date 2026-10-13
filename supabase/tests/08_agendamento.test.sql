@@ -9,7 +9,7 @@ insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000a
 select has_function('public', 'configurar_agendamento', array['text', 'text'], 'função configurar_agendamento');
 select has_function('public', 'disparar_ciclo_agendado', array['text'], 'função disparar_ciclo_agendado');
 select is(public.conector_da_integracao('meta'), 'meta-sync', 'meta → meta-sync');
-select is(public.conector_da_integracao('greenn'), null, 'greenn ainda sem conector');
+select is(public.conector_da_integracao('greenn'), 'greenn-sync', 'greenn → greenn-sync');
 
 -- Usuário comum não configura nem dispara
 do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true); end $$;

@@ -8,7 +8,7 @@ import { obterEstadoSincronizacao } from "@/servidor/consultas/sincronizacoes";
 import { falha, sucesso, type Resultado } from "./resultado";
 
 /** Conectores que já existem, por tipo de integração. */
-const CONECTORES: Record<string, string> = { meta: "meta-sync" };
+const CONECTORES: Record<string, string> = { meta: "meta-sync", greenn: "greenn-sync" };
 
 const MINUTOS_ENTRE_CICLOS = 1;
 const MINUTOS_CICLO_AUTOMATICO = 15;
