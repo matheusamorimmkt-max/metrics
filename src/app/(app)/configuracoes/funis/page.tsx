@@ -34,8 +34,8 @@ export default async function PaginaFunis({
           <h2 className="text-lg font-semibold">Funis</h2>
           <p className="text-muted-foreground text-sm">
             Cada funil é um conjunto de ofertas com papéis (front, bump, upsell). As
-            ofertas chegam da Greenn na próxima fase; por enquanto cadastre o nome, a
-            categoria e o tipo.
+            ofertas chegam da Greenn; aqui você cadastra o nome, a categoria e o tipo e
+            depois vincula as ofertas e as campanhas.
           </p>
         </div>
         <Button render={<Link href="/configuracoes/funis/novo" />}>

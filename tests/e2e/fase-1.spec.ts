@@ -20,14 +20,18 @@ test.describe("Fase 1 — Fundação", () => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/login/);
     await page.getByLabel("E-mail").fill(email!);
-    await page.getByLabel("Senha").fill(senha!);
+    await page.getByLabel("Senha", { exact: true }).fill(senha!);
     await page.getByRole("button", { name: "Entrar" }).click();
 
     // Primeiro acesso: cria a organização. Acessos seguintes: já cai na Home.
-    if (page.url().includes("/criar-organizacao")) {
-      await page.getByLabel("Nome da empresa").fill(`Empresa ${sufixo}`);
+    const nomeEmpresa = page.getByLabel("Nome da empresa");
+    const home = page.getByRole("group", { name: "Período" });
+    await expect(nomeEmpresa.or(home)).toBeVisible({ timeout: 30_000 });
+    if (await nomeEmpresa.isVisible()) {
+      await nomeEmpresa.fill(`Empresa ${sufixo}`);
       await page.getByRole("button", { name: "Criar empresa" }).click();
     }
+    await expect(home).toBeVisible({ timeout: 30_000 });
     await expect(page).toHaveURL(/\/$/);
 
     // Categorias padrão
@@ -39,9 +43,13 @@ test.describe("Fase 1 — Fundação", () => {
     }
 
     // Nova categoria
-    await page.getByLabel("Nome").fill(`Eventos ${sufixo}`);
+    await page
+      .getByRole("textbox", { name: "Nome", exact: true })
+      .fill(`Eventos ${sufixo}`);
     await page.getByRole("button", { name: "Criar categoria" }).click();
-    await expect(page.getByRole("cell", { name: `Eventos ${sufixo}` })).toBeVisible();
+    await expect(
+      page.getByRole("cell", { name: `Eventos ${sufixo}`, exact: true }),
+    ).toBeVisible();
 
     // Configurações gerais
     await page.goto("/configuracoes");
@@ -62,11 +70,13 @@ test.describe("Fase 1 — Fundação", () => {
     await page.getByRole("button", { name: "Criar funil" }).click();
     await expect(page).toHaveURL(/\/configuracoes\/funis\/[0-9a-f-]+\?criado=1/);
     await expect(page.getByText("Funil criado")).toBeVisible();
-    await expect(page.getByText("As ofertas serão importadas da Greenn")).toBeVisible();
+    await expect(page.getByText("Ofertas do funil", { exact: true })).toBeVisible();
+    await expect(page.getByText("Nenhuma oferta neste funil ainda.")).toBeVisible();
 
     // Funil de venda direta aparece na lista agrupada por categoria
     await page.goto("/configuracoes/funis/novo");
     await page.getByLabel("Nome do funil").fill(`Funil Desafio ${sufixo}`);
+    await page.getByLabel("Categoria").selectOption({ label: "Front-end" });
     await page.getByLabel("Meta de ROI (%)").fill("25");
     await page.getByRole("button", { name: "Criar funil" }).click();
     await page.goto("/configuracoes/funis");
