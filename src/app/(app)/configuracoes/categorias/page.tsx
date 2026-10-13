@@ -33,7 +33,7 @@ export default async function PaginaCategorias() {
           <CardDescription>
             Agrupam os funis na Home e nos filtros. Só funis de categorias com
             notificações ligadas recebem o sinal de desempenho (verde, amarelo ou
-            vermelho pelo ROI de ontem e anteontem; normalmente, Front-end).
+            vermelho pelo ROI das últimas 48 horas; normalmente, Front-end).
           </CardDescription>
         </CardHeader>
         <CardContent>

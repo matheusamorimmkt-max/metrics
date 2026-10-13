@@ -4,9 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
+import { criarClienteAdmin } from "@/servidor/supabase/admin";
 import { falha, sucesso, type Resultado } from "./resultado";
 
 const CAMINHO = "/configuracoes/campanhas";
+/** Conectores que aceitam ações, por plataforma da campanha. */
+const CONECTORES: Record<string, string> = { meta: "meta-sync" };
 
 const schema = z.object({
   campanha_id: z.uuid("Campanha inválida."),
@@ -58,4 +61,61 @@ export async function vincularCampanha(
   }
   revalidatePath(CAMINHO);
   return sucesso("Campanha vinculada.");
+}
+
+type RespostaAcao = { status: string; erro?: string; campanha_status?: string };
+
+/**
+ * Liga (ACTIVE) ou desativa (PAUSED) a campanha na plataforma, pelo conector. O app
+ * nunca fala com o Meta direto: a Edge Function lê o token no cofre e faz a chamada.
+ */
+export async function alterarStatusCampanha(
+  campanhaId: string,
+  ativar: boolean,
+): Promise<Resultado> {
+  const { organizacao } = await obterContexto();
+  const id = z.uuid().safeParse(campanhaId);
+  if (!id.success) return falha("Campanha inválida.");
+
+  const supabase = await criarClienteServidor();
+  const { data: campanha } = await supabase
+    .from("campanhas")
+    .select("id, plataforma")
+    .eq("id", id.data)
+    .eq("organizacao_id", organizacao.id)
+    .maybeSingle();
+  if (!campanha) return falha("Campanha não encontrada.");
+  const funcao = CONECTORES[campanha.plataforma];
+  if (!funcao)
+    return falha("Esta plataforma ainda não permite ligar ou desligar pelo painel.");
+
+  const admin = criarClienteAdmin();
+  const { data, error } = await admin.functions.invoke<RespostaAcao>(funcao, {
+    body: {
+      acao: "alterar_status_campanha",
+      organizacao_id: organizacao.id,
+      campanha_id: id.data,
+      status: ativar ? "ACTIVE" : "PAUSED",
+    },
+  });
+  if (error) {
+    let mensagem = error.message;
+    const contexto = (error as { context?: Response }).context;
+    if (contexto && typeof contexto.json === "function") {
+      try {
+        const corpo = (await contexto.json()) as RespostaAcao;
+        mensagem = corpo.erro ?? mensagem;
+      } catch {
+        /* mantém a mensagem padrão */
+      }
+    }
+    return falha(mensagem);
+  }
+  if (data?.status !== "concluida")
+    return falha(data?.erro ?? "A plataforma não confirmou.");
+
+  revalidatePath(CAMINHO);
+  revalidatePath("/trafego");
+  revalidatePath("/", "layout");
+  return sucesso(ativar ? "Campanha ligada." : "Campanha desativada.");
 }

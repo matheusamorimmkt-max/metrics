@@ -4,6 +4,92 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      anuncios: {
+        Row: {
+          ativo: boolean;
+          campanha_id: string;
+          conjunto_id_externo: string;
+          conjunto_nome: string | null;
+          created_at: string;
+          criativo_atualizado_em: string | null;
+          criativo_tipo: string | null;
+          id: string;
+          id_externo: string;
+          imagem_url: string | null;
+          miniatura_url: string | null;
+          nome: string;
+          organizacao_id: string;
+          permalink_url: string | null;
+          plataforma: string;
+          status: string | null;
+          updated_at: string;
+          video_url: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          ativo?: boolean;
+          campanha_id: string;
+          conjunto_id_externo?: string;
+          conjunto_nome?: string | null;
+          created_at?: string;
+          criativo_atualizado_em?: string | null;
+          criativo_tipo?: string | null;
+          id?: string;
+          id_externo: string;
+          imagem_url?: string | null;
+          miniatura_url?: string | null;
+          nome?: string;
+          organizacao_id: string;
+          permalink_url?: string | null;
+          plataforma: string;
+          status?: string | null;
+          updated_at?: string;
+          video_url?: string | null;
+        };
+        Update: {
+          ativo?: boolean;
+          campanha_id?: string;
+          conjunto_id_externo?: string;
+          conjunto_nome?: string | null;
+          created_at?: string;
+          criativo_atualizado_em?: string | null;
+          criativo_tipo?: string | null;
+          id?: string;
+          id_externo?: string;
+          imagem_url?: string | null;
+          miniatura_url?: string | null;
+          nome?: string;
+          organizacao_id?: string;
+          permalink_url?: string | null;
+          plataforma?: string;
+          status?: string | null;
+          updated_at?: string;
+          video_url?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "anuncios_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "anuncios_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas_resumo";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "anuncios_organizacao_id_fkey";
+            columns: ["organizacao_id"];
+            isOneToOne: false;
+            referencedRelation: "organizacoes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       campanhas: {
         Row: {
           ativo: boolean;

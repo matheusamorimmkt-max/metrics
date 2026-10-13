@@ -51,7 +51,7 @@ export default async function PaginaFunis({ searchParams }: PageProps<"/funis">)
         <CardHeader>
           <CardTitle>Por categoria e funil</CardTitle>
           <CardDescription>
-            As notificações dos funis de Front-end olham ontem e anteontem.{" "}
+            As notificações dos funis de Front-end olham as últimas 48 horas.{" "}
             <Link href="/configuracoes/funis" className="underline underline-offset-4">
               Gerenciar funis
             </Link>

@@ -3,6 +3,7 @@
  * Testado no Vitest (tests/unit/meta-tradutor.test.ts).
  */
 import type {
+  AnuncioImportado,
   CampanhaImportada,
   ContaAnuncioImportada,
   MetricaDiariaImportada,
@@ -35,6 +36,31 @@ export type CampanhaMeta = {
   objective?: string;
 };
 
+export type CriativoMeta = {
+  id?: string;
+  thumbnail_url?: string;
+  image_url?: string;
+  video_id?: string;
+  instagram_permalink_url?: string;
+  object_type?: string;
+  object_story_spec?: {
+    video_data?: { video_id?: string; image_url?: string };
+    link_data?: { picture?: string; image_hash?: string; child_attachments?: unknown[] };
+    photo_data?: { image_hash?: string };
+  };
+};
+
+export type AnuncioMeta = {
+  id: string;
+  name?: string;
+  status?: string;
+  effective_status?: string;
+  campaign_id?: string;
+  adset_id?: string;
+  adset?: { id?: string; name?: string };
+  creative?: CriativoMeta;
+};
+
 export type ContaMeta = {
   id: string;
   account_id?: string;
@@ -44,10 +70,17 @@ export type ContaMeta = {
 };
 
 /** Tipos de ação do pixel que alimentam cada coluna (decisão 3 do plano da Fase 3). */
-const MAPA_ACOES: Record<keyof Pick<
-  MetricaDiariaImportada,
-  "cliques_link" | "visualizacoes_pagina" | "inicios_checkout" | "leads" | "compras_plataforma"
->, string[]> = {
+const MAPA_ACOES: Record<
+  keyof Pick<
+    MetricaDiariaImportada,
+    | "cliques_link"
+    | "visualizacoes_pagina"
+    | "inicios_checkout"
+    | "leads"
+    | "compras_plataforma"
+  >,
+  string[]
+> = {
   cliques_link: ["link_click"],
   visualizacoes_pagina: ["landing_page_view"],
   inicios_checkout: ["initiate_checkout", "omni_initiated_checkout"],
@@ -110,6 +143,43 @@ export function traduzirCampanha(c: CampanhaMeta): CampanhaImportada {
   };
 }
 
+/** Anúncio com o criativo: decide se é vídeo, imagem ou carrossel e guarda as URLs. */
+export function traduzirAnuncio(a: AnuncioMeta): AnuncioImportado | null {
+  if (!a.id || !a.campaign_id) return null;
+  const cr = a.creative ?? {};
+  const spec = cr.object_story_spec;
+  const videoId = cr.video_id ?? spec?.video_data?.video_id ?? null;
+  const imagem =
+    cr.image_url ?? spec?.link_data?.picture ?? spec?.video_data?.image_url ?? null;
+  const carrossel =
+    (spec?.link_data?.child_attachments?.length ?? 0) > 1 ||
+    cr.object_type === "CAROUSEL";
+  const tipo: AnuncioImportado["criativo_tipo"] = videoId
+    ? "video"
+    : carrossel
+      ? "carrossel"
+      : imagem || cr.thumbnail_url
+        ? "imagem"
+        : cr.id
+          ? "outro"
+          : null;
+  const status = a.effective_status ?? a.status ?? null;
+  return {
+    id_externo: a.id,
+    campanha_id_externo: a.campaign_id,
+    conjunto_id_externo: a.adset_id ?? a.adset?.id ?? "",
+    conjunto_nome: a.adset?.name ?? null,
+    nome: a.name ?? "",
+    status,
+    ativo: status === "ACTIVE",
+    criativo_tipo: tipo,
+    miniatura_url: cr.thumbnail_url ?? imagem,
+    imagem_url: imagem,
+    video_id_externo: videoId,
+    permalink_url: cr.instagram_permalink_url ?? null,
+  };
+}
+
 export function traduzirConta(c: ContaMeta): ContaAnuncioImportada {
   const id = c.id.startsWith("act_") ? c.id : `act_${c.account_id ?? c.id}`;
   return {
@@ -121,7 +191,11 @@ export function traduzirConta(c: ContaMeta): ContaAnuncioImportada {
 }
 
 /** Divide um período em fatias de até `dias` dias (inclusive), para a importação retroativa. */
-export function fatiarPeriodo(desde: string, ate: string, dias = 30): { desde: string; ate: string }[] {
+export function fatiarPeriodo(
+  desde: string,
+  ate: string,
+  dias = 30,
+): { desde: string; ate: string }[] {
   const fatias: { desde: string; ate: string }[] = [];
   let inicio = new Date(`${desde}T00:00:00Z`);
   const fim = new Date(`${ate}T00:00:00Z`);

@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Selecao } from "@/components/formulario/selecao";
 import { formatarMetrica } from "@/dominio/metricas";
+import { CLASSE_COR_STATUS, traduzirStatusCampanha } from "@/dominio/status-campanha";
+import { ChaveCampanha } from "./chave-campanha";
 import { vincularCampanha } from "@/servidor/acoes/campanhas";
 import type { CampanhaResumo, FunilOpcao } from "@/servidor/consultas/campanhas";
 
@@ -17,6 +19,7 @@ export function LinhaCampanha({
   funis: FunilOpcao[];
 }) {
   const [funilId, setFunilId] = useState(campanha.funil_id ?? "");
+  const statusTraduzido = traduzirStatusCampanha(campanha.status);
   const [pendente, iniciar] = useTransition();
 
   function mudar(novo: string) {
@@ -40,9 +43,18 @@ export function LinhaCampanha({
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant={campanha.ativo ? "default" : "outline"}>
-          {campanha.status ?? "—"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {campanha.plataforma === "meta" ? (
+            <ChaveCampanha
+              campanhaId={campanha.id}
+              nome={campanha.nome}
+              ativa={campanha.ativo}
+            />
+          ) : null}
+          <Badge variant="outline" className={CLASSE_COR_STATUS[statusTraduzido.cor]}>
+            {statusTraduzido.rotulo}
+          </Badge>
+        </div>
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {formatarMetrica(campanha.gasto_30d, "moeda", campanha.moeda)}

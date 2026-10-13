@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type PointerEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,17 +13,25 @@ import {
 } from "@/components/ui/table";
 import { formatarMetrica } from "@/dominio/metricas";
 import { metricaTrafego } from "@/dominio/metricas-trafego";
+import { CLASSE_COR_STATUS, traduzirStatusCampanha } from "@/dominio/status-campanha";
 import type { LinhaTrafego } from "@/servidor/consultas/trafego";
 import { cn } from "@/lib/utils";
+import { ChaveCampanha } from "../configuracoes/campanhas/chave-campanha";
 import { CaixaSelecao } from "./selecao";
-import { useColunasTrafego } from "./colunas";
+import { useColunasTrafego, useLargurasTrafego } from "./colunas";
 import { PersonalizarColunas } from "./personalizar-colunas";
+import { MiniaturaCriativo } from "./criativo";
 
 type Ordenacao = { chave: string; direcao: "asc" | "desc" };
 
+const LARGURA_MINIMA = 72;
+const LARGURA_PADRAO_METRICA = 120;
+const LARGURA_PADRAO_NOME = 320;
+
 /**
- * Tabela do relatório de tráfego: colunas escolhidas pelo usuário (botão Métricas),
- * cabeçalhos clicáveis para ordenar, seleção em cascata nas campanhas e conjuntos.
+ * Tabela do relatório de tráfego: colunas escolhidas pelo usuário, cabeçalhos clicáveis
+ * para ordenar, largura ajustável arrastando a borda, seleção em cascata, chave
+ * liga/desliga nas campanhas e criativo nos anúncios.
  */
 export function TabelaTrafego({
   linhas,
@@ -39,6 +47,7 @@ export function TabelaTrafego({
   selecao?: { parametro: "campanhas" | "conjuntos"; selecionados: string[] };
 }) {
   const [colunas, definirColunas] = useColunasTrafego();
+  const [larguras, definirLargura] = useLargurasTrafego();
   const [ordem, setOrdem] = useState<Ordenacao>({ chave: "gasto", direcao: "desc" });
 
   const metricas = colunas
@@ -66,26 +75,41 @@ export function TabelaTrafego({
         : { chave, direcao: chave === "nome" ? "asc" : "desc" },
     );
   }
+  const largura = (chave: string, padrao: number) => larguras[chave] ?? padrao;
+  const nivel = linhas[0]?.nivel;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-muted-foreground text-xs">
-          Clique no cabeçalho de uma coluna para ordenar.
+          Clique no cabeçalho para ordenar; arraste a borda do cabeçalho para ajustar a
+          largura.
         </p>
         <PersonalizarColunas colunas={colunas} aoSalvar={definirColunas} />
       </div>
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="w-max min-w-full table-fixed">
+          <colgroup>
+            {selecao ? <col style={{ width: 40 }} /> : null}
+            <col style={{ width: largura("nome", LARGURA_PADRAO_NOME) }} />
+            {metricas.map((m) => (
+              <col
+                key={m.chave}
+                style={{ width: largura(m.chave, LARGURA_PADRAO_METRICA) }}
+              />
+            ))}
+          </colgroup>
           <TableHeader>
             <TableRow>
-              {selecao ? <TableHead className="w-8" /> : null}
+              {selecao ? <TableHead /> : null}
               <Cabecalho
                 rotulo={rotuloNivel}
                 chave="nome"
                 ordem={ordem}
                 aoClicar={alternarOrdem}
                 alinhar="left"
+                largura={largura("nome", LARGURA_PADRAO_NOME)}
+                aoRedimensionar={(l) => definirLargura("nome", l)}
               />
               {metricas.map((m) => (
                 <Cabecalho
@@ -96,46 +120,85 @@ export function TabelaTrafego({
                   ordem={ordem}
                   aoClicar={alternarOrdem}
                   alinhar="right"
+                  largura={largura(m.chave, LARGURA_PADRAO_METRICA)}
+                  aoRedimensionar={(l) => definirLargura(m.chave, l)}
                 />
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {ordenadas.map((l) => (
-              <TableRow
-                key={l.chave}
-                data-state={
-                  selecao?.selecionados.includes(l.chave) ? "selected" : undefined
-                }
-              >
-                {selecao ? (
-                  <TableCell>
-                    <CaixaSelecao
-                      chave={l.chave}
-                      parametro={selecao.parametro}
-                      selecionados={selecao.selecionados}
-                      rotulo={l.nome}
-                    />
+            {ordenadas.map((l) => {
+              const status =
+                nivel === "campanha"
+                  ? traduzirStatusCampanha(l.campanha_status)
+                  : nivel === "anuncio"
+                    ? traduzirStatusCampanha(l.status)
+                    : null;
+              return (
+                <TableRow
+                  key={l.chave}
+                  data-state={
+                    selecao?.selecionados.includes(l.chave) ? "selected" : undefined
+                  }
+                >
+                  {selecao ? (
+                    <TableCell>
+                      <CaixaSelecao
+                        chave={l.chave}
+                        parametro={selecao.parametro}
+                        selecionados={selecao.selecionados}
+                        rotulo={l.nome}
+                      />
+                    </TableCell>
+                  ) : null}
+                  <TableCell className="overflow-hidden">
+                    <div className="flex items-center gap-3">
+                      {l.nivel === "campanha" ? (
+                        <ChaveCampanha
+                          campanhaId={l.campanha_id}
+                          nome={l.nome}
+                          ativa={l.campanha_ativa}
+                          size="sm"
+                        />
+                      ) : null}
+                      {l.nivel === "anuncio" ? (
+                        <MiniaturaCriativo criativo={l.criativo} nome={l.nome} />
+                      ) : null}
+                      <div className="min-w-0">
+                        <div className="truncate font-medium" title={l.nome}>
+                          {l.nome}
+                        </div>
+                        <div className="text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs">
+                          {status && status.rotulo !== "—" ? (
+                            <Badge
+                              variant="outline"
+                              className={cn("h-5 px-1.5", CLASSE_COR_STATUS[status.cor])}
+                            >
+                              {status.rotulo}
+                            </Badge>
+                          ) : null}
+                          {l.pai && nomePai[l.pai] ? (
+                            <span className="truncate">{nomePai[l.pai]}</span>
+                          ) : null}
+                          {l.funil_nome ? (
+                            <Badge variant="outline" className="h-5 px-1.5">
+                              {l.funil_nome}
+                            </Badge>
+                          ) : (
+                            <span>não vinculada</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </TableCell>
-                ) : null}
-                <TableCell>
-                  <div className="font-medium">{l.nome}</div>
-                  <div className="text-muted-foreground text-xs">
-                    {l.pai && nomePai[l.pai] ? `${nomePai[l.pai]} · ` : ""}
-                    {l.funil_nome ? (
-                      <Badge variant="outline">{l.funil_nome}</Badge>
-                    ) : (
-                      "não vinculada"
-                    )}
-                  </div>
-                </TableCell>
-                {metricas.map((m) => (
-                  <TableCell key={m.chave} className="text-right tabular-nums">
-                    {formatarMetrica(m.calcular(l), m.formato, moeda)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
+                  {metricas.map((m) => (
+                    <TableCell key={m.chave} className="truncate text-right tabular-nums">
+                      {formatarMetrica(m.calcular(l), m.formato, moeda)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -150,6 +213,8 @@ function Cabecalho({
   ordem,
   aoClicar,
   alinhar,
+  largura,
+  aoRedimensionar,
 }: {
   rotulo: string;
   titulo?: string;
@@ -157,12 +222,34 @@ function Cabecalho({
   ordem: Ordenacao;
   aoClicar: (chave: string) => void;
   alinhar: "left" | "right";
+  largura: number;
+  aoRedimensionar: (largura: number) => void;
 }) {
   const ativa = ordem.chave === chave;
   const Icone = !ativa ? ArrowUpDown : ordem.direcao === "asc" ? ArrowUp : ArrowDown;
+
+  function iniciarArrasto(e: PointerEvent<HTMLSpanElement>) {
+    e.preventDefault();
+    const inicioX = e.clientX;
+    const inicial = largura;
+    const alvo = e.currentTarget;
+    alvo.setPointerCapture(e.pointerId);
+    const mover = (ev: globalThis.PointerEvent) => {
+      aoRedimensionar(Math.max(LARGURA_MINIMA, inicial + ev.clientX - inicioX));
+    };
+    const soltar = () => {
+      alvo.removeEventListener("pointermove", mover);
+      alvo.removeEventListener("pointerup", soltar);
+      alvo.removeEventListener("pointercancel", soltar);
+    };
+    alvo.addEventListener("pointermove", mover);
+    alvo.addEventListener("pointerup", soltar);
+    alvo.addEventListener("pointercancel", soltar);
+  }
+
   return (
     <TableHead
-      className={cn(alinhar === "right" && "text-right")}
+      className={cn("relative", alinhar === "right" && "text-right")}
       aria-sort={ativa ? (ordem.direcao === "asc" ? "ascending" : "descending") : "none"}
     >
       <button
@@ -170,14 +257,21 @@ function Cabecalho({
         onClick={() => aoClicar(chave)}
         title={titulo}
         className={cn(
-          "hover:text-foreground inline-flex items-center gap-1 whitespace-nowrap",
+          "hover:text-foreground inline-flex max-w-full items-center gap-1",
           alinhar === "right" && "flex-row-reverse",
           ativa && "text-foreground font-semibold",
         )}
       >
-        {rotulo}
-        <Icone className={cn("size-3.5", !ativa && "opacity-40")} aria-hidden />
+        <span className="truncate">{rotulo}</span>
+        <Icone className={cn("size-3.5 shrink-0", !ativa && "opacity-40")} aria-hidden />
       </button>
+      <span
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={`Ajustar largura de ${rotulo}`}
+        onPointerDown={iniciarArrasto}
+        className="hover:bg-primary/60 absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none"
+      />
     </TableHead>
   );
 }

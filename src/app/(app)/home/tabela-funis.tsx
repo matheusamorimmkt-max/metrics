@@ -20,9 +20,9 @@ const COR_SEMAFORO: Record<NonNullable<Semaforo>, string> = {
 function Bolinha({ semaforo }: { semaforo: Semaforo }) {
   if (!semaforo) return null;
   const titulo = {
-    verde: "Dentro do esperado: ROI de ontem e anteontem acima da meta",
-    amarelo: "Atenção: ROI de ontem e anteontem entre 0% e a meta",
-    vermelho: "Abaixo do esperado: ROI de ontem e anteontem negativo",
+    verde: "Dentro do esperado: ROI das últimas 48 horas acima da meta",
+    amarelo: "Atenção: ROI das últimas 48 horas entre 0% e a meta",
+    vermelho: "Abaixo do esperado: ROI das últimas 48 horas negativo",
   }[semaforo];
   return (
     <span

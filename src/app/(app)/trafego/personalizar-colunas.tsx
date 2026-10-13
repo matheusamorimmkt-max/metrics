@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
+import { useState, type DragEvent } from "react";
+import { GripVertical, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,12 +17,13 @@ import {
   METRICAS_TRAFEGO,
   metricaTrafego,
 } from "@/dominio/metricas-trafego";
+import { cn } from "@/lib/utils";
 
 const GRUPOS = [...new Set(METRICAS_TRAFEGO.map((m) => m.grupo))];
 
 /**
- * Botão "+" da tabela de tráfego: à esquerda o usuário marca as métricas, à direita
- * ordena a sequência das colunas (como "Personalizar colunas" do Gerenciador).
+ * "Adicionar métricas": à esquerda o usuário marca as métricas, à direita arrasta para
+ * ordenar a sequência das colunas (como "Personalizar colunas" do Gerenciador).
  */
 export function PersonalizarColunas({
   colunas,
@@ -33,6 +34,8 @@ export function PersonalizarColunas({
 }) {
   const [aberto, setAberto] = useState(false);
   const [escolha, setEscolha] = useState<string[]>(colunas);
+  const [arrastando, setArrastando] = useState<string | null>(null);
+  const [sobre, setSobre] = useState<string | null>(null);
 
   function abrir(valor: boolean) {
     if (valor) setEscolha(colunas);
@@ -43,29 +46,31 @@ export function PersonalizarColunas({
       atual.includes(chave) ? atual.filter((c) => c !== chave) : [...atual, chave],
     );
   }
-  function mover(indice: number, delta: number) {
+  function soltar(destino: string) {
+    if (!arrastando || arrastando === destino) return;
     setEscolha((atual) => {
-      const destino = indice + delta;
-      if (destino < 0 || destino >= atual.length) return atual;
-      const copia = [...atual];
-      [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
-      return copia;
+      const semOrigem = atual.filter((c) => c !== arrastando);
+      const indice = semOrigem.indexOf(destino);
+      semOrigem.splice(indice, 0, arrastando);
+      return semOrigem;
     });
+  }
+  function permitir(e: DragEvent, chave: string) {
+    e.preventDefault();
+    if (sobre !== chave) setSobre(chave);
   }
 
   return (
     <Dialog open={aberto} onOpenChange={abrir}>
-      <DialogTrigger
-        render={<Button variant="outline" size="sm" aria-label="Adicionar métricas" />}
-      >
-        <Plus data-icon="inline-start" />
-        Métricas
+      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+        Adicionar métricas
       </DialogTrigger>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Personalizar colunas</DialogTitle>
           <DialogDescription>
-            Marque as métricas à esquerda e ordene a sequência das colunas à direita.
+            Marque as métricas à esquerda. À direita, arraste para cima ou para baixo para
+            definir a ordem das colunas.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 sm:grid-cols-2">
@@ -106,12 +111,36 @@ export function PersonalizarColunas({
                 Nenhuma métrica marcada. Sem escolha, a tabela mostra as colunas padrão.
               </p>
             ) : (
-              <ol className="space-y-1">
+              <ol className="space-y-1" onDragLeave={() => setSobre(null)}>
                 {escolha.map((chave, i) => (
                   <li
                     key={chave}
-                    className="bg-muted/40 flex items-center gap-1 rounded-md px-2 py-1 text-sm"
+                    draggable
+                    onDragStart={(e) => {
+                      setArrastando(chave);
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    onDragOver={(e) => permitir(e, chave)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      soltar(chave);
+                      setArrastando(null);
+                      setSobre(null);
+                    }}
+                    onDragEnd={() => {
+                      setArrastando(null);
+                      setSobre(null);
+                    }}
+                    className={cn(
+                      "bg-muted/40 flex cursor-grab items-center gap-1 rounded-md px-2 py-1.5 text-sm select-none active:cursor-grabbing",
+                      arrastando === chave && "opacity-50",
+                      sobre === chave && arrastando !== chave && "ring-primary ring-2",
+                    )}
                   >
+                    <GripVertical
+                      className="text-muted-foreground size-4 shrink-0"
+                      aria-hidden
+                    />
                     <span className="text-muted-foreground w-5 tabular-nums">
                       {i + 1}.
                     </span>
@@ -121,25 +150,7 @@ export function PersonalizarColunas({
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Mover para cima"
-                      disabled={i === 0}
-                      onClick={() => mover(i, -1)}
-                    >
-                      <ArrowUp />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Mover para baixo"
-                      disabled={i === escolha.length - 1}
-                      onClick={() => mover(i, 1)}
-                    >
-                      <ArrowDown />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remover"
+                      aria-label={`Remover ${metricaTrafego(chave)?.nome ?? chave}`}
                       onClick={() => alternar(chave)}
                     >
                       <X />

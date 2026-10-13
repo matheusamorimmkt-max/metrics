@@ -194,10 +194,10 @@ export async function obterResumoHome(
   filtro: Filtro,
   hoje: string,
 ): Promise<ResumoHome> {
+  // Notificações: últimas 48 horas. Os dados são diários, então é hoje (parcial) + ontem.
   const ontem = somarDias(hoje, -1);
-  const anteontem = somarDias(hoje, -2);
-  const de = [periodo.anterior_de, anteontem].sort()[0];
-  const ate = [periodo.ate, ontem].sort().at(-1) ?? periodo.ate;
+  const de = [periodo.anterior_de, ontem].sort()[0];
+  const ate = [periodo.ate, hoje].sort().at(-1) ?? periodo.ate;
 
   const [funis, todas] = await Promise.all([
     listarFunisInfo(organizacaoId),
@@ -259,7 +259,7 @@ export async function obterResumoHome(
 
   // Tabela por categoria e funil (sempre do negócio inteiro, respeitando o período)
   const linhasPeriodo = todas.filter(noPeriodo);
-  const linhasSemaforo = todas.filter((l) => l.data === ontem || l.data === anteontem);
+  const linhasSemaforo = todas.filter((l) => l.data === hoje || l.data === ontem);
   const categoriasMap = new Map<string | null, ResumoCategoria>();
   const garanteCategoria = (f: FunilInfo | null) => {
     const chave = f?.categoria_id ?? null;

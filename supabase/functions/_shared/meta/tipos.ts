@@ -18,6 +18,22 @@ export type CampanhaImportada = {
   ativo: boolean;
 };
 
+export type AnuncioImportado = {
+  id_externo: string;
+  campanha_id_externo: string;
+  conjunto_id_externo: string;
+  conjunto_nome: string | null;
+  nome: string;
+  status: string | null;
+  ativo: boolean;
+  criativo_tipo: "imagem" | "video" | "carrossel" | "outro" | null;
+  miniatura_url: string | null;
+  imagem_url: string | null;
+  /** ID do vídeo no Meta; a URL de reprodução é buscada à parte. */
+  video_id_externo: string | null;
+  permalink_url: string | null;
+};
+
 export type MetricaDiariaImportada = {
   campanha_id_externo: string;
   campanha_nome: string;

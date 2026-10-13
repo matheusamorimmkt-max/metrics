@@ -7,6 +7,8 @@ import type { FormatoMetrica } from "./metricas";
 export type BaseTrafego = {
   gasto: number;
   impressoes: number;
+  /** Soma do alcance diário: quem viu em mais de um dia conta mais de uma vez. */
+  alcance: number;
   cliques: number;
   cliques_link: number;
   visualizacoes_pagina: number;
@@ -20,6 +22,7 @@ export type BaseTrafego = {
 export const BASE_ZERADA: BaseTrafego = {
   gasto: 0,
   impressoes: 0,
+  alcance: 0,
   cliques: 0,
   cliques_link: 0,
   visualizacoes_pagina: 0,
@@ -196,7 +199,16 @@ export const METRICAS_TRAFEGO: MetricaTrafego[] = [
   },
 ];
 
-export const COLUNAS_PADRAO_TRAFEGO = ["gasto", "ctr", "connect_rate"];
+export const COLUNAS_PADRAO_TRAFEGO = [
+  "gasto",
+  "alcance",
+  "impressoes",
+  "frequencia",
+  "cpm",
+  "cliques_link",
+  "ctr",
+  "cpc",
+];
 
 const POR_CHAVE = new Map(METRICAS_TRAFEGO.map((m) => [m.chave, m]));
 

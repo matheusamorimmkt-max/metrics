@@ -252,7 +252,7 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
         <CardHeader>
           <CardTitle>Por categoria e funil</CardTitle>
           <CardDescription>
-            As notificações dos funis de Front-end olham ontem e anteontem, independente
+            As notificações dos funis de Front-end olham as últimas 48 horas, independente
             do período, e sinalizam quando o ROI fica abaixo do esperado.
           </CardDescription>
         </CardHeader>
