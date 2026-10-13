@@ -79,7 +79,7 @@ Migrations em `supabase/migrations/` com RLS e testes pgTAP:
 - Disparo no login: ao abrir o app, se a última sincronização tem mais de 15 min, dispara um ciclo em segundo plano.
 - Vendas em moeda diferente e ofertas sintéticas aparecem como avisos aqui.
 
-### Etapa 4 — Produtos e ofertas nas Configurações
+### Etapa 4 — Produtos e ofertas nas Configurações ✅ (2026-10-13, antes do conector)
 
 - **Produtos**: lista importada (nome, plataforma, ofertas, vendas no mês); editar alíquota e base com o diálogo da decisão 12.
 - **Ofertas**: lista com produto, preço, funil e papel; filtro "não vinculadas" com faturamento acumulado.

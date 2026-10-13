@@ -94,6 +94,19 @@ A credencial vai para o Vault do Supabase e nunca volta ao navegador: a tela mos
 
 O conector é a Edge Function `meta-sync` em `supabase/functions/meta-sync`. Publicar: `pnpm dlx supabase functions deploy meta-sync --project-ref <project-id>` (usa `SUPABASE_ACCESS_TOKEN`). Ela lê `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`, que o Supabase injeta sozinho. O app a chama pelo botão "Atualizar agora" e ao entrar (quando a última atualização tem mais de 15 min). O agendamento a cada 15 min (pg_cron) é a Etapa 4 do plano da Fase 3.
 
+## 10. Atualização automática (pg_cron)
+
+Depois de aplicar a migration `20261013000003_agendamento.sql`, rode uma vez no SQL Editor, trocando a chave pela **service_role** de Project Settings → API:
+
+```sql
+select public.configurar_agendamento(
+  'https://<project-id>.supabase.co/functions/v1',
+  '<service_role_key>'
+);
+```
+
+Isso guarda a URL e a chave no Vault e cria dois jobs no pg_cron: `ciclo_incremental` (a cada 15 min) e `ciclo_reconsulta` (06:00 UTC). Para conferir: `select jobname, schedule, active from cron.job;`. As extensões pg_cron e pg_net precisam estar ativas em Database → Extensions (a migration tenta ativá-las).
+
 ## Problemas comuns
 
 - **"Variáveis de ambiente do Supabase ausentes"**: faltou alguma chave em `.env.local` ou no ambiente. Reinicie o `pnpm dev` depois de editar.
