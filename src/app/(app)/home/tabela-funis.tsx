@@ -61,9 +61,12 @@ function Celulas({ m, moeda }: { m: Metricas; moeda: string }) {
 export function TabelaFunis({
   categorias,
   moeda,
+  base = "/",
 }: {
   categorias: ResumoCategoria[];
   moeda: string;
+  /** "/" = links filtram a Home; "/funis" = links abrem a página do funil. */
+  base?: string;
 }) {
   if (categorias.length === 0) {
     return (
@@ -90,7 +93,12 @@ export function TabelaFunis({
       </TableHeader>
       <TableBody>
         {categorias.map((c) => (
-          <CategoriaLinhas key={c.id ?? "nao-vinculado"} categoria={c} moeda={moeda} />
+          <CategoriaLinhas
+            key={c.id ?? "nao-vinculado"}
+            categoria={c}
+            moeda={moeda}
+            base={base}
+          />
         ))}
       </TableBody>
     </Table>
@@ -100,9 +108,11 @@ export function TabelaFunis({
 function CategoriaLinhas({
   categoria,
   moeda,
+  base,
 }: {
   categoria: ResumoCategoria;
   moeda: string;
+  base: string;
 }) {
   return (
     <>
@@ -124,7 +134,14 @@ function CategoriaLinhas({
             <span className="flex items-center gap-2">
               <Bolinha semaforo={f.semaforo} />
               {f.funil ? (
-                <Link href={`/?filtro=funil:${f.funil.id}`} className="hover:underline">
+                <Link
+                  href={
+                    base === "/"
+                      ? `/?filtro=funil:${f.funil.id}`
+                      : `${base}/${f.funil.id}`
+                  }
+                  className="hover:underline"
+                >
                   {f.funil.nome}
                 </Link>
               ) : (

@@ -75,9 +75,21 @@ export type Composicao = {
   lucro: number;
 };
 
+export type Etapas = {
+  impressoes: number;
+  cliques_link: number;
+  visualizacoes_pagina: number;
+  inicios_checkout: number;
+  vendas: number;
+  leads: number;
+  recompras: number;
+  clientes_novos: number;
+};
+
 export type ResumoHome = {
   atual: Metricas;
   anterior: Metricas;
+  etapas: Etapas;
   serie: PontoSerie[];
   composicao: Composicao;
   categorias: ResumoCategoria[];
@@ -225,6 +237,17 @@ export async function obterResumoHome(
 
   const soma = (campo: keyof LinhaDiaria) =>
     atuais.reduce((s, l) => s + (l[campo] as number), 0);
+  const etapas: Etapas = {
+    impressoes: soma("impressoes"),
+    cliques_link: soma("cliques_link"),
+    visualizacoes_pagina: soma("visualizacoes_pagina"),
+    inicios_checkout: soma("inicios_checkout"),
+    vendas: soma("vendas"),
+    leads: soma("leads"),
+    recompras: soma("recompras"),
+    clientes_novos: soma("clientes_novos"),
+  };
+
   const composicao: Composicao = {
     investimento: atual.investimento,
     parceiros: soma("parceiros"),
@@ -306,6 +329,7 @@ export async function obterResumoHome(
   return {
     atual,
     anterior,
+    etapas,
     serie,
     composicao,
     categorias,

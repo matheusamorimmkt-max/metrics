@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Settings } from "lucide-react";
+import { Filter, Home, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITENS = [
   { href: "/", rotulo: "Home", icone: Home },
+  { href: "/funis", rotulo: "Funis", icone: Filter },
   {
     href: "/configuracoes",
     rotulo: "Configurações",

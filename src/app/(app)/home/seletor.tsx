@@ -14,12 +14,16 @@ export function SeletorHome({
   filtroAtual,
   categorias,
   funis,
+  base = "/",
 }: {
   periodo: Periodo;
   filtroAtual: string;
   categorias: { id: string; nome: string }[];
   funis: FunilInfo[];
+  /** Rota que recebe os parâmetros (Home, /funis ou /funis/[id]). */
+  base?: string;
 }) {
+  const mostrarFiltro = base === "/";
   const router = useRouter();
   const params = useSearchParams();
   const [pendente, iniciar] = useTransition();
@@ -30,7 +34,7 @@ export function SeletorHome({
       if (v === null || v === "") novo.delete(k);
       else novo.set(k, v);
     }
-    iniciar(() => router.push(`/?${novo.toString()}`));
+    iniciar(() => router.push(`${base}?${novo.toString()}`));
   }
 
   return (
@@ -88,33 +92,35 @@ export function SeletorHome({
         ) : null}
       </div>
 
-      <Selecao
-        value={filtroAtual}
-        onChange={(e) => navegar({ filtro: e.target.value || null })}
-        disabled={pendente}
-        className="md:w-64"
-        aria-label="Filtro"
-      >
-        <option value="">Negócio inteiro</option>
-        {categorias.length ? (
-          <optgroup label="Categorias">
-            {categorias.map((c) => (
-              <option key={c.id} value={`categoria:${c.id}`}>
-                {c.nome}
-              </option>
-            ))}
-          </optgroup>
-        ) : null}
-        {funis.length ? (
-          <optgroup label="Funis">
-            {funis.map((f) => (
-              <option key={f.id} value={`funil:${f.id}`}>
-                {f.categoria_nome} · {f.nome}
-              </option>
-            ))}
-          </optgroup>
-        ) : null}
-      </Selecao>
+      {mostrarFiltro ? (
+        <Selecao
+          value={filtroAtual}
+          onChange={(e) => navegar({ filtro: e.target.value || null })}
+          disabled={pendente}
+          className="md:w-64"
+          aria-label="Filtro"
+        >
+          <option value="">Negócio inteiro</option>
+          {categorias.length ? (
+            <optgroup label="Categorias">
+              {categorias.map((c) => (
+                <option key={c.id} value={`categoria:${c.id}`}>
+                  {c.nome}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
+          {funis.length ? (
+            <optgroup label="Funis">
+              {funis.map((f) => (
+                <option key={f.id} value={`funil:${f.id}`}>
+                  {f.categoria_nome} · {f.nome}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
+        </Selecao>
+      ) : null}
     </div>
   );
 }

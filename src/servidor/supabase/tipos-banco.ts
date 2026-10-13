@@ -1261,6 +1261,45 @@ export type Database = {
           },
         ];
       };
+      metricas_campanha_diarias: {
+        Row: {
+          campanha_id: string | null;
+          cliques: number | null;
+          cliques_link: number | null;
+          compras_plataforma: number | null;
+          data: string | null;
+          gasto: number | null;
+          impressoes: number | null;
+          inicios_checkout: number | null;
+          leads: number | null;
+          organizacao_id: string | null;
+          visualizacoes_pagina: number | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "metricas_anuncio_diarias_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "metricas_anuncio_diarias_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas_resumo";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "metricas_anuncio_diarias_organizacao_id_fkey";
+            columns: ["organizacao_id"];
+            isOneToOne: false;
+            referencedRelation: "organizacoes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       metricas_diarias: {
         Row: {
           clientes_novos: number | null;
@@ -1387,9 +1426,50 @@ export type Database = {
           },
         ];
       };
+      vendas_oferta_diarias: {
+        Row: {
+          data: string | null;
+          faturamento_bruto: number | null;
+          oferta_id: string | null;
+          organizacao_id: string | null;
+          reembolsadas: number | null;
+          valor_reembolsado: number | null;
+          vendas: number | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "vendas_oferta_id_fkey";
+            columns: ["oferta_id"];
+            isOneToOne: false;
+            referencedRelation: "ofertas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vendas_oferta_id_fkey";
+            columns: ["oferta_id"];
+            isOneToOne: false;
+            referencedRelation: "ofertas_resumo";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vendas_organizacao_id_fkey";
+            columns: ["organizacao_id"];
+            isOneToOne: false;
+            referencedRelation: "organizacoes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Functions: {
+      conector_da_integracao: { Args: { p_tipo: string }; Returns: string };
+      configurar_agendamento: {
+        Args: { p_service_role_key: string; p_url_funcoes: string };
+        Returns: string;
+      };
       criar_organizacao: { Args: { p_nome: string }; Returns: string };
+      disparar_ciclo_agendado: { Args: { p_modo?: string }; Returns: number };
       guardar_credencial_integracao: {
         Args: {
           p_config?: Json;

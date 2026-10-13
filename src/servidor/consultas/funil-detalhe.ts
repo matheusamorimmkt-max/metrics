@@ -1,0 +1,116 @@
+import "server-only";
+import { criarClienteServidor } from "@/servidor/supabase/servidor";
+import { tabelaAusente } from "@/servidor/supabase/erros";
+import type { Periodo } from "@/dominio/periodo";
+import { listarOfertasDoFunil, type OfertaResumo } from "./ofertas";
+import { listarCampanhas, type CampanhaResumo } from "./campanhas";
+
+export type Etapas = {
+  impressoes: number;
+  cliques_link: number;
+  visualizacoes_pagina: number;
+  inicios_checkout: number;
+  vendas: number;
+  leads: number;
+};
+
+export type OfertaNoPeriodo = OfertaResumo & {
+  vendas_periodo: number;
+  faturamento_periodo: number;
+  reembolsadas_periodo: number;
+};
+
+export type CampanhaNoPeriodo = CampanhaResumo & {
+  gasto_periodo: number;
+  impressoes_periodo: number;
+  cliques_link_periodo: number;
+  leads_periodo: number;
+};
+
+/** Ofertas do funil com vendas e faturamento no período. */
+export async function listarOfertasDoFunilNoPeriodo(
+  organizacaoId: string,
+  funilId: string,
+  periodo: Periodo,
+): Promise<OfertaNoPeriodo[]> {
+  const ofertas = await listarOfertasDoFunil(organizacaoId, funilId);
+  if (ofertas.length === 0) return [];
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase
+    .from("vendas_oferta_diarias")
+    .select("oferta_id, vendas, faturamento_bruto, reembolsadas")
+    .eq("organizacao_id", organizacaoId)
+    .in(
+      "oferta_id",
+      ofertas.map((o) => o.id),
+    )
+    .gte("data", periodo.de)
+    .lte("data", periodo.ate);
+  if (error && !tabelaAusente(error))
+    throw new Error(`Falha ao carregar vendas por oferta: ${error.message}`);
+  const soma = new Map<string, { v: number; f: number; r: number }>();
+  for (const l of data ?? []) {
+    if (!l.oferta_id) continue;
+    const s = soma.get(l.oferta_id) ?? { v: 0, f: 0, r: 0 };
+    s.v += Number(l.vendas ?? 0);
+    s.f += Number(l.faturamento_bruto ?? 0);
+    s.r += Number(l.reembolsadas ?? 0);
+    soma.set(l.oferta_id, s);
+  }
+  return ofertas.map((o) => {
+    const s = soma.get(o.id) ?? { v: 0, f: 0, r: 0 };
+    return {
+      ...o,
+      vendas_periodo: s.v,
+      faturamento_periodo: s.f,
+      reembolsadas_periodo: s.r,
+    };
+  });
+}
+
+/** Campanhas vinculadas ao funil com gasto no período. */
+export async function listarCampanhasDoFunilNoPeriodo(
+  organizacaoId: string,
+  funilId: string,
+  periodo: Periodo,
+): Promise<CampanhaNoPeriodo[]> {
+  const campanhas = (await listarCampanhas(organizacaoId)).filter(
+    (c) => c.funil_id === funilId,
+  );
+  if (campanhas.length === 0) return [];
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase
+    .from("metricas_campanha_diarias")
+    .select("campanha_id, gasto, impressoes, cliques_link, leads")
+    .eq("organizacao_id", organizacaoId)
+    .in(
+      "campanha_id",
+      campanhas.map((c) => c.id),
+    )
+    .gte("data", periodo.de)
+    .lte("data", periodo.ate);
+  if (error && !tabelaAusente(error))
+    throw new Error(`Falha ao carregar métricas por campanha: ${error.message}`);
+  const soma = new Map<string, { g: number; i: number; c: number; l: number }>();
+  for (const l of data ?? []) {
+    if (!l.campanha_id) continue;
+    const s = soma.get(l.campanha_id) ?? { g: 0, i: 0, c: 0, l: 0 };
+    s.g += Number(l.gasto ?? 0);
+    s.i += Number(l.impressoes ?? 0);
+    s.c += Number(l.cliques_link ?? 0);
+    s.l += Number(l.leads ?? 0);
+    soma.set(l.campanha_id, s);
+  }
+  return campanhas
+    .map((c) => {
+      const s = soma.get(c.id) ?? { g: 0, i: 0, c: 0, l: 0 };
+      return {
+        ...c,
+        gasto_periodo: s.g,
+        impressoes_periodo: s.i,
+        cliques_link_periodo: s.c,
+        leads_periodo: s.l,
+      };
+    })
+    .sort((a, b) => b.gasto_periodo - a.gasto_periodo);
+}
