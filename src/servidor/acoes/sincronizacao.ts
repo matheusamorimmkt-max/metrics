@@ -61,7 +61,10 @@ async function dispararCiclo(
           /* mantém a mensagem padrão */
         }
       }
-      resultados[integracao.tipo] = { status: "falhou", erro: mensagem };
+      resultados[integracao.tipo] =
+        mensagem === "ocupado"
+          ? { status: "ocupado" }
+          : { status: "falhou", erro: mensagem };
     } else {
       resultados[integracao.tipo] = data ?? { status: "desconhecido" };
     }
@@ -93,7 +96,13 @@ export async function atualizarAgora(): Promise<Resultado> {
   if (falhas.length) {
     return falha(falhas.map(([tipo, r]) => `${tipo}: ${r.erro ?? "falhou"}`).join(" · "));
   }
+  const ocupados = Object.entries(resultados).filter(([, r]) => r.status === "ocupado");
   const pendente = Object.values(resultados).some((r) => r.retroativa_pendente);
+  if (ocupados.length) {
+    return sucesso(
+      "A importação do histórico já está rodando em segundo plano. Os dados aparecem conforme ela avança; recarregue a página em alguns minutos.",
+    );
+  }
   return sucesso(
     pendente
       ? "Atualizado. A importação do histórico continua nas próximas atualizações."
