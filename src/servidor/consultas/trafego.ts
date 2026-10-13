@@ -8,6 +8,8 @@ export type LinhaTrafego = {
   nome: string;
   /** Linha pai (campanha para conjunto; conjunto para anúncio). */
   pai: string | null;
+  /** Chave da campanha a que a linha pertence (a própria, no nível campanha). */
+  campanha_chave: string;
   nivel: "campanha" | "conjunto" | "anuncio";
   funil_nome: string | null;
   gasto: number;
@@ -85,7 +87,10 @@ export async function obterTrafego(
     return a;
   };
   const zero = (
-    base: Pick<Acumulador, "chave" | "nome" | "pai" | "nivel" | "funil_nome">,
+    base: Pick<
+      Acumulador,
+      "chave" | "nome" | "pai" | "nivel" | "funil_nome" | "campanha_chave"
+    >,
   ): Acumulador => ({
     ...base,
     gasto: 0,
@@ -108,6 +113,7 @@ export async function obterTrafego(
       pega(chaveCamp, () =>
         zero({
           chave: chaveCamp,
+          campanha_chave: chaveCamp,
           nome: campanha?.nome || campanha?.id_externo || "Campanha",
           pai: null,
           nivel: "campanha",
@@ -120,6 +126,7 @@ export async function obterTrafego(
         pega(chaveConj, () =>
           zero({
             chave: chaveConj,
+            campanha_chave: chaveCamp,
             nome: l.conjunto_nome || l.conjunto_id_externo,
             pai: chaveCamp,
             nivel: "conjunto",
@@ -133,6 +140,7 @@ export async function obterTrafego(
         pega(chaveAn, () =>
           zero({
             chave: chaveAn,
+            campanha_chave: chaveCamp,
             nome: l.anuncio_nome || l.anuncio_id_externo,
             pai: l.conjunto_id_externo ? chaveConj : chaveCamp,
             nivel: "anuncio",

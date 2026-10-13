@@ -1,6 +1,6 @@
 import "server-only";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { tabelaAusente } from "@/servidor/supabase/erros";
+import { colunaAusente, tabelaAusente } from "@/servidor/supabase/erros";
 import { somarDias, type Periodo } from "@/dominio/periodo";
 import { deslocamento } from "./vendas";
 
@@ -162,5 +162,88 @@ export async function obterResumoClientes(
       }))
       .sort((a, b) => b.clientes - a.clientes),
     truncado: transacoes.length >= LIMITE,
+  };
+}
+
+export type ClienteDestaque = {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string | null;
+  transacoes: number;
+  itens: number;
+  gasto: number;
+  ultima_compra: string;
+};
+
+export type DestaquesClientes = {
+  recentes: ClienteDestaque[];
+  frequentes: ClienteDestaque[];
+  maior_valor: ClienteDestaque[];
+};
+
+/**
+ * Listas de destaque da aba Clientes, no período: os 3 últimos a comprar, os 3 com
+ * mais transações e os 3 que mais gastaram. Só transações (vendas aprovadas).
+ */
+export async function obterDestaquesClientes(
+  organizacaoId: string,
+  periodo: Periodo,
+  fuso: string,
+): Promise<DestaquesClientes> {
+  const supabase = await criarClienteServidor();
+  const off = deslocamento(fuso);
+  const consultar = (comTelefone: boolean) =>
+    supabase
+      .from("transacoes")
+      .select(
+        comTelefone
+          ? "cliente_id, inicio, valor_total, quantidade_vendas, clientes(nome, email, telefone)"
+          : "cliente_id, inicio, valor_total, quantidade_vendas, clientes(nome, email)",
+      )
+      .eq("organizacao_id", organizacaoId)
+      .gte("inicio", `${periodo.de}T00:00:00${off}`)
+      .lt("inicio", `${somarDias(periodo.ate, 1)}T00:00:00${off}`)
+      .limit(LIMITE);
+  let resposta = await consultar(true);
+  // Migration do telefone (20261013000006) ainda não aplicada: segue sem a coluna.
+  if (resposta.error && colunaAusente(resposta.error)) resposta = await consultar(false);
+  const { error } = resposta;
+  const data = (resposta.data ?? []) as {
+    cliente_id: string;
+    inicio: string;
+    valor_total: number | null;
+    quantidade_vendas: number | null;
+    clientes: { nome: string | null; email: string; telefone?: string | null } | null;
+  }[];
+  const vazio = { recentes: [], frequentes: [], maior_valor: [] };
+  if (error && tabelaAusente(error)) return vazio;
+  if (error) throw new Error(`Falha ao carregar destaques: ${error.message}`);
+
+  const porCliente = new Map<string, ClienteDestaque>();
+  for (const t of data ?? []) {
+    const c = porCliente.get(t.cliente_id) ?? {
+      id: t.cliente_id,
+      nome: t.clientes?.nome?.trim() || t.clientes?.email || "Cliente",
+      email: t.clientes?.email ?? "",
+      telefone: t.clientes?.telefone ?? null,
+      transacoes: 0,
+      itens: 0,
+      gasto: 0,
+      ultima_compra: t.inicio,
+    };
+    c.transacoes += 1;
+    c.itens += Number(t.quantidade_vendas ?? 0);
+    c.gasto += Number(t.valor_total ?? 0);
+    if (t.inicio > c.ultima_compra) c.ultima_compra = t.inicio;
+    porCliente.set(t.cliente_id, c);
+  }
+  const todos = [...porCliente.values()];
+  const top = (ordem: (a: ClienteDestaque, b: ClienteDestaque) => number) =>
+    [...todos].sort(ordem).slice(0, 3);
+  return {
+    recentes: top((a, b) => b.ultima_compra.localeCompare(a.ultima_compra)),
+    frequentes: top((a, b) => b.transacoes - a.transacoes || b.gasto - a.gasto),
+    maior_valor: top((a, b) => b.gasto - a.gasto || b.transacoes - a.transacoes),
   };
 }

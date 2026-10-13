@@ -8,7 +8,10 @@ import {
   traduzirStatus,
   traduzirVenda,
 } from "../../supabase/functions/_shared/greenn/tradutor.ts";
-import { ClienteGreenn, ErroGreenn } from "../../supabase/functions/_shared/greenn/cliente.ts";
+import {
+  ClienteGreenn,
+  ErroGreenn,
+} from "../../supabase/functions/_shared/greenn/cliente.ts";
 
 describe("traduzirVenda", () => {
   const base = {
@@ -28,9 +31,18 @@ describe("traduzirVenda", () => {
     offer_id: 77,
     affiliate_id: null,
     coupon_code: "PROMO",
-    client: { id: 555, name: "Fulano", email: " Fulano@Exemplo.COM ", cpf_cnpj: "123.456.789-01" },
+    client: {
+      id: 555,
+      name: "Fulano",
+      email: " Fulano@Exemplo.COM ",
+      cpf_cnpj: "123.456.789-01",
+      cellphone: "+5511999990000",
+    },
     participants: [{ id: 9, name: "Coprodutor", type: "coproducer", amount: 10.5 }],
-    saleMetas: [{ meta_key: "utm_source", meta_value: "facebook" }, { meta_key: "x", meta_value: "y" }],
+    saleMetas: [
+      { meta_key: "utm_source", meta_value: "facebook" },
+      { meta_key: "x", meta_value: "y" },
+    ],
   };
 
   it("mapeia uma venda paga com cliente, comissões e utm", () => {
@@ -60,8 +72,13 @@ describe("traduzirVenda", () => {
       email: "fulano@exemplo.com",
       nome: "Fulano",
       cpf: "12345678901",
+      telefone: "+5511999990000",
     });
-    expect(v?.comissoes[0]).toMatchObject({ tipo: "coprodutor", valor: 10.5, parceiro_nome: "Coprodutor" });
+    expect(v?.comissoes[0]).toMatchObject({
+      tipo: "coprodutor",
+      valor: 10.5,
+      parceiro_nome: "Coprodutor",
+    });
   });
 
   it("usa fee quando o detalhe traz, e marca origem gateway", () => {
@@ -71,10 +88,25 @@ describe("traduzirVenda", () => {
   });
 
   it("reembolso entra com a data do reembolso; chargeback idem", () => {
-    const r = traduzirVenda({ ...base, status: "refunded", refunded_at: "2026-09-05T10:00:00Z" });
-    expect(r).toMatchObject({ status: "reembolsada", reembolsada_em: "2026-09-05T10:00:00Z" });
-    const c = traduzirVenda({ ...base, status: "chargedback", refunded_at: null, updated_at: "2026-09-09T00:00:00Z" });
-    expect(c).toMatchObject({ status: "chargeback", reembolsada_em: "2026-09-09T00:00:00Z" });
+    const r = traduzirVenda({
+      ...base,
+      status: "refunded",
+      refunded_at: "2026-09-05T10:00:00Z",
+    });
+    expect(r).toMatchObject({
+      status: "reembolsada",
+      reembolsada_em: "2026-09-05T10:00:00Z",
+    });
+    const c = traduzirVenda({
+      ...base,
+      status: "chargedback",
+      refunded_at: null,
+      updated_at: "2026-09-09T00:00:00Z",
+    });
+    expect(c).toMatchObject({
+      status: "chargeback",
+      reembolsada_em: "2026-09-09T00:00:00Z",
+    });
     expect(traduzirVenda({ ...base, status: "refund_pending" })).toMatchObject({
       status: "aprovada",
       reembolso_pendente: true,
@@ -88,11 +120,16 @@ describe("traduzirVenda", () => {
   });
 
   it("assinatura: primeira cobrança vs renovação", () => {
-    expect(traduzirVenda({ ...base, type: "SUBSCRIPTION", subscription_id: 5 })?.origem).toBe(
-      "assinatura_primeira",
-    );
     expect(
-      traduzirVenda({ ...base, type: "SUBSCRIPTION", subscription_id: 5, charge_number: 3 })?.origem,
+      traduzirVenda({ ...base, type: "SUBSCRIPTION", subscription_id: 5 })?.origem,
+    ).toBe("assinatura_primeira");
+    expect(
+      traduzirVenda({
+        ...base,
+        type: "SUBSCRIPTION",
+        subscription_id: 5,
+        charge_number: 3,
+      })?.origem,
     ).toBe("recorrencia");
   });
 
@@ -112,7 +149,16 @@ describe("tradutores auxiliares", () => {
       nome: "Curso",
       ativo: false,
     });
-    expect(traduzirOferta({ id: 2, product_id: 1, name: "Oferta", amount: "97.00", status: "approved", active: true })).toEqual({
+    expect(
+      traduzirOferta({
+        id: 2,
+        product_id: 1,
+        name: "Oferta",
+        amount: "97.00",
+        status: "approved",
+        active: true,
+      }),
+    ).toEqual({
       id_externo: "2",
       produto_id_externo: "1",
       nome: "Oferta",
@@ -127,21 +173,34 @@ describe("tradutores auxiliares", () => {
   });
   it("comissões ignoram valores zero e aceitam afiliado separado", () => {
     expect(
-      lerComissoes({ id: 1, participants: [{ amount: 0 }], affiliate: { id: 3, name: "Af", commission: 5 } }),
-    ).toEqual([{ tipo: "afiliado", parceiro_id_externo: "3", parceiro_nome: "Af", valor: 5 }]);
+      lerComissoes({
+        id: 1,
+        participants: [{ amount: 0 }],
+        affiliate: { id: 3, name: "Af", commission: 5 },
+      }),
+    ).toEqual([
+      { tipo: "afiliado", parceiro_id_externo: "3", parceiro_nome: "Af", valor: 5 },
+    ]);
   });
   it("utm em objeto", () => {
-    expect(lerUtm({ id: 1, saleMetas: { utm_campaign: "c1", outro: "x" } })).toEqual({ utm_campaign: "c1" });
+    expect(lerUtm({ id: 1, saleMetas: { utm_campaign: "c1", outro: "x" } })).toEqual({
+      utm_campaign: "c1",
+    });
   });
 });
 
 describe("ClienteGreenn", () => {
-  function fetchFalso(respostas: { status: number; corpo: unknown; headers?: Record<string, string> }[]) {
+  function fetchFalso(
+    respostas: { status: number; corpo: unknown; headers?: Record<string, string> }[],
+  ) {
     const chamadas: string[] = [];
     const fn = (async (url: string) => {
       chamadas.push(url);
       const r = respostas.shift() ?? { status: 500, corpo: {} };
-      return new Response(JSON.stringify(r.corpo), { status: r.status, headers: r.headers });
+      return new Response(JSON.stringify(r.corpo), {
+        status: r.status,
+        headers: r.headers,
+      });
     }) as unknown as typeof fetch;
     return { fn, chamadas };
   }
@@ -151,14 +210,20 @@ describe("ClienteGreenn", () => {
       { status: 200, corpo: { data: [{ id: 1 }], meta: { last_page: 2 } } },
       { status: 200, corpo: { data: [{ id: 2 }], meta: { last_page: 2 } } },
     ]);
-    const cliente = new ClienteGreenn({ token: "grn_live_x", fetch: fn, esperar: async () => {} });
+    const cliente = new ClienteGreenn({
+      token: "grn_live_x",
+      fetch: fn,
+      esperar: async () => {},
+    });
     const lotes: number[] = [];
     const proxima = await cliente.vendas({ paid_after: "2026-01-01" }, async (l) => {
       lotes.push(l.length);
     });
     expect(proxima).toBeNull();
     expect(lotes).toEqual([1, 1]);
-    expect(chamadas[0]).toContain("/sales?filter%5Bpaid_after%5D=2026-01-01".replace("%5B", "[").replace("%5D", "]"));
+    expect(chamadas[0]).toContain(
+      "/sales?filter%5Bpaid_after%5D=2026-01-01".replace("%5B", "[").replace("%5D", "]"),
+    );
     expect(chamadas[0]).toContain("page=1&per_page=100");
     expect(chamadas[1]).toContain("page=2");
   });
@@ -188,8 +253,14 @@ describe("ClienteGreenn", () => {
     await cliente.get("/products");
     expect(esperas).toEqual([3000]);
 
-    const invalido = fetchFalso([{ status: 401, corpo: { error: { code: "INVALID_TOKEN", message: "x" } } }]);
-    const c2 = new ClienteGreenn({ token: "t", fetch: invalido.fn, esperar: async () => {} });
+    const invalido = fetchFalso([
+      { status: 401, corpo: { error: { code: "INVALID_TOKEN", message: "x" } } },
+    ]);
+    const c2 = new ClienteGreenn({
+      token: "t",
+      fetch: invalido.fn,
+      esperar: async () => {},
+    });
     const erro = await c2.get("/products").catch((e) => e);
     expect(erro).toBeInstanceOf(ErroGreenn);
     expect((erro as ErroGreenn).credencialInvalida).toBe(true);
@@ -198,7 +269,10 @@ describe("ClienteGreenn", () => {
 
   it("segura abaixo de 100 chamadas por minuto", async () => {
     let relogio = 0;
-    const respostas = Array.from({ length: 96 }, () => ({ status: 200, corpo: { ok: true } }));
+    const respostas = Array.from({ length: 96 }, () => ({
+      status: 200,
+      corpo: { ok: true },
+    }));
     const { fn } = fetchFalso(respostas);
     const esperas: number[] = [];
     const cliente = new ClienteGreenn({

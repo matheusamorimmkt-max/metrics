@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -22,6 +23,9 @@ import { obterContexto } from "@/servidor/sessao";
 import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { listarIntegracoes } from "@/servidor/consultas/integracoes";
 import { obterResumoHome, type Filtro } from "@/servidor/consultas/home";
+import { obterComposicoes } from "@/servidor/consultas/composicao";
+import { montarDetalhes } from "@/dominio/detalhe-metrica";
+import { BotaoDetalheMetrica } from "./home/detalhe-metrica";
 import { SeletorHome } from "./home/seletor";
 import { GraficoComposicao, GraficoSerie } from "./home/graficos";
 import { TabelaFunis } from "./home/tabela-funis";
@@ -75,6 +79,26 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     listarIntegracoes(organizacao.id),
     obterResumoHome(organizacao.id, organizacao.taxa_anuncios, periodo, filtro, hoje),
   ]);
+  const composicoes = await obterComposicoes(
+    organizacao.id,
+    periodo,
+    filtro,
+    resumo.funis,
+    organizacao.fuso_horario,
+  );
+  const detalhes = montarDetalhes({
+    ...composicoes,
+    taxa_anuncios: organizacao.taxa_anuncios,
+    investimento: resumo.atual.investimento,
+    faturamento_bruto: resumo.atual.faturamento_bruto,
+    receita_liquida: resumo.atual.receita_liquida,
+    lucro: resumo.atual.lucro,
+    reembolsos: resumo.composicao.reembolsos,
+    taxas_gateway: resumo.composicao.taxas_gateway,
+    parceiros: resumo.composicao.parceiros,
+    impostos: resumo.composicao.impostos,
+    moeda: organizacao.moeda,
+  });
 
   const pendentes = TIPOS_INTEGRACAO.filter(
     (t) => integracoes[t]?.status !== "conectada",
@@ -131,10 +155,16 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
         {CARDS_HOME.map((card) => {
           const chave = card.chave as keyof Metricas;
           const valor = resumo.atual[chave];
+          const detalhe = detalhes[chave];
           return (
             <Card key={card.chave}>
               <CardHeader>
                 <CardDescription>{card.nome}</CardDescription>
+                {detalhe ? (
+                  <CardAction>
+                    <BotaoDetalheMetrica detalhe={detalhe} moeda={organizacao.moeda} />
+                  </CardAction>
+                ) : null}
                 <CardTitle
                   className={cn(
                     "text-2xl tabular-nums",

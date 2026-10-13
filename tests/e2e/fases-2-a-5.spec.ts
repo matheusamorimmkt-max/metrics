@@ -184,8 +184,10 @@ test.describe("Fases 2 a 5 — telas com conectores desligados", () => {
     await expect(page.getByText("Sem vendas no período")).toBeVisible();
 
     await page.goto("/clientes");
-    await expect(page.getByRole("heading", { name: "Clientes" })).toBeVisible();
-    await expect(page.getByText("Sem transações no período")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Clientes", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("Sem transações no período").first()).toBeVisible();
     await page.getByRole("link", { name: "Integrações", exact: true }).last().click();
     await expect(page).toHaveURL(/\/configuracoes\/integracoes$/);
   });

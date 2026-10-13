@@ -126,7 +126,9 @@ export function traduzirOferta(o: OfertaGreenn): OfertaImportada | null {
 }
 
 /** Status da Greenn → interno. Null = não entra (nunca foi paga). */
-export function traduzirStatus(status: string | undefined): { status: StatusVenda; pendente: boolean } | null {
+export function traduzirStatus(
+  status: string | undefined,
+): { status: StatusVenda; pendente: boolean } | null {
   switch ((status ?? "").toLowerCase()) {
     case "paid":
       return { status: "aprovada", pendente: false };
@@ -151,11 +153,15 @@ export function lerCliente(venda: VendaGreenn): ClienteImportado {
     email,
     nome: texto(c.name ?? c.nome ?? c.full_name),
     cpf: somenteDigitos(c.cpf_cnpj ?? c.document ?? c.cpf ?? c.cnpj),
+    telefone: texto(c.cellphone ?? c.phone ?? c.telefone ?? venda.client_cellphone),
   };
 }
 
 /** [SONDA] Taxa do gateway: só se o detalhe trouxer `fee`. Senão, desconhecida. */
-export function lerTaxa(venda: VendaGreenn): { valor: number; origem: VendaImportada["taxa_gateway_origem"] } {
+export function lerTaxa(venda: VendaGreenn): {
+  valor: number;
+  origem: VendaImportada["taxa_gateway_origem"];
+} {
   if (venda.fee !== undefined && venda.fee !== null && venda.fee !== "") {
     return { valor: valorMonetario(venda.fee), origem: "gateway" };
   }
@@ -169,11 +175,17 @@ export function lerComissoes(venda: VendaGreenn): ComissaoImportada[] {
   for (const item of lista) {
     const p = objeto(item);
     if (!p) continue;
-    const valor = valorMonetario(p.amount ?? p.value ?? p.commission ?? p.commission_amount);
+    const valor = valorMonetario(
+      p.amount ?? p.value ?? p.commission ?? p.commission_amount,
+    );
     if (valor <= 0) continue;
     const tipoBruto = String(p.type ?? p.role ?? "").toLowerCase();
     saida.push({
-      tipo: tipoBruto.includes("affil") ? "afiliado" : tipoBruto.includes("co") ? "coprodutor" : "outro",
+      tipo: tipoBruto.includes("affil")
+        ? "afiliado"
+        : tipoBruto.includes("co")
+          ? "coprodutor"
+          : "outro",
       parceiro_id_externo: texto(p.id ?? p.user_id),
       parceiro_nome: texto(p.name ?? p.email),
       valor,
@@ -181,7 +193,12 @@ export function lerComissoes(venda: VendaGreenn): ComissaoImportada[] {
   }
   const afiliado = objeto(venda.affiliate);
   if (afiliado) {
-    const valor = valorMonetario(afiliado.amount ?? afiliado.value ?? afiliado.commission ?? afiliado.commission_amount);
+    const valor = valorMonetario(
+      afiliado.amount ??
+        afiliado.value ??
+        afiliado.commission ??
+        afiliado.commission_amount,
+    );
     if (valor > 0 && !saida.some((c) => c.tipo === "afiliado")) {
       saida.push({
         tipo: "afiliado",
@@ -225,15 +242,22 @@ export function traduzirVenda(venda: VendaGreenn): VendaImportada | null {
 
   const taxa = lerTaxa(venda);
   const comissoes = lerComissoes(venda);
-  const ehAssinatura = String(venda.type ?? "").toUpperCase() === "SUBSCRIPTION" || !!venda.subscription_id;
+  const ehAssinatura =
+    String(venda.type ?? "").toUpperCase() === "SUBSCRIPTION" || !!venda.subscription_id;
   // [SONDA] Renovação de assinatura: charge_number > 1 quando a API informar; senão, primeira cobrança.
   const renovacao = ehAssinatura && numero(venda.charge_number) > 1;
 
   return {
     id_externo: String(venda.id),
     cliente: lerCliente(venda),
-    oferta_id_externo: venda.offer_id === undefined || venda.offer_id === null ? null : String(venda.offer_id),
-    produto_id_externo: venda.product_id === undefined || venda.product_id === null ? null : String(venda.product_id),
+    oferta_id_externo:
+      venda.offer_id === undefined || venda.offer_id === null
+        ? null
+        : String(venda.offer_id),
+    produto_id_externo:
+      venda.product_id === undefined || venda.product_id === null
+        ? null
+        : String(venda.product_id),
     status: st.status,
     status_externo: String(venda.status ?? ""),
     reembolso_pendente: st.pendente,
@@ -253,7 +277,9 @@ export function traduzirVenda(venda: VendaGreenn): VendaImportada | null {
     vendida_em: vendidaEm,
     criada_em: texto(venda.created_at),
     reembolsada_em:
-      st.status === "aprovada" ? null : (texto(venda.refunded_at) ?? texto(venda.updated_at) ?? vendidaEm),
+      st.status === "aprovada"
+        ? null
+        : (texto(venda.refunded_at) ?? texto(venda.updated_at) ?? vendidaEm),
     comissoes,
     dados_brutos: venda,
   };

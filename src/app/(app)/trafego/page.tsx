@@ -22,6 +22,8 @@ import { PERIODO_PADRAO } from "@/dominio/periodo";
 import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterTrafego, type LinhaTrafego } from "@/servidor/consultas/trafego";
 import { SeletorHome } from "../home/seletor";
+import { lerLista } from "@/dominio/lista-url";
+import { BarraSelecao, CaixaSelecao } from "./selecao";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tráfego" };
@@ -41,26 +43,48 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
   ) as "campanha" | "conjunto" | "anuncio";
 
   const { linhas, truncado } = await obterTrafego(organizacao.id, periodo);
-  const visiveis = linhas.filter((l) => l.nivel === nivel);
+  const existentes = new Set(linhas.map((l) => l.chave));
+  const selCampanhas = lerLista(params.campanhas).filter((c) => existentes.has(c));
+  const selConjuntos = lerLista(params.conjuntos).filter((c) => existentes.has(c));
+
+  // Cascata como no Gerenciador de Anúncios: campanhas marcadas restringem os
+  // conjuntos; conjuntos marcados restringem os anúncios (ou as campanhas, se não
+  // houver conjunto marcado).
+  const dentroDaSelecao = (l: LinhaTrafego) => {
+    if (l.nivel === "campanha") return true;
+    if (l.nivel === "conjunto") {
+      return selCampanhas.length === 0 || selCampanhas.includes(l.campanha_chave);
+    }
+    if (selConjuntos.length) return l.pai !== null && selConjuntos.includes(l.pai);
+    return selCampanhas.length === 0 || selCampanhas.includes(l.campanha_chave);
+  };
+  const visiveis = linhas.filter((l) => l.nivel === nivel && dentroDaSelecao(l));
   const nomePai = new Map(linhas.map((l) => [l.chave, l.nome]));
-  const total = linhas
-    .filter((l) => l.nivel === "campanha")
-    .reduce(
-      (s, l) => ({
-        gasto: s.gasto + l.gasto,
-        impressoes: s.impressoes + l.impressoes,
-        cliques_link: s.cliques_link + l.cliques_link,
-        visualizacoes_pagina: s.visualizacoes_pagina + l.visualizacoes_pagina,
-        leads: s.leads + l.leads,
-      }),
-      { gasto: 0, impressoes: 0, cliques_link: 0, visualizacoes_pagina: 0, leads: 0 },
-    );
+
+  // Os cards somam o escopo selecionado (conjuntos > campanhas > tudo).
+  const escopo = selConjuntos.length
+    ? linhas.filter((l) => l.nivel === "conjunto" && selConjuntos.includes(l.chave))
+    : selCampanhas.length
+      ? linhas.filter((l) => l.nivel === "campanha" && selCampanhas.includes(l.chave))
+      : linhas.filter((l) => l.nivel === "campanha");
+  const total = escopo.reduce(
+    (s, l) => ({
+      gasto: s.gasto + l.gasto,
+      impressoes: s.impressoes + l.impressoes,
+      cliques_link: s.cliques_link + l.cliques_link,
+      visualizacoes_pagina: s.visualizacoes_pagina + l.visualizacoes_pagina,
+      leads: s.leads + l.leads,
+    }),
+    { gasto: 0, impressoes: 0, cliques_link: 0, visualizacoes_pagina: 0, leads: 0 },
+  );
   const query = new URLSearchParams();
   if (periodo.chave !== PERIODO_PADRAO) query.set("periodo", periodo.chave);
   if (periodo.chave === "personalizado") {
     query.set("de", periodo.de);
     query.set("ate", periodo.ate);
   }
+  if (selCampanhas.length) query.set("campanhas", selCampanhas.join(","));
+  if (selConjuntos.length) query.set("conjuntos", selConjuntos.join(","));
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -115,7 +139,8 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
                 Por {NIVEIS.find((n) => n.chave === nivel)?.rotulo.toLowerCase()}
               </CardTitle>
               <CardDescription>
-                Ordenado por gasto. Alcance não aparece porque não é somável entre dias.
+                Ordenado por gasto. Marque campanhas para ver só os conjuntos delas, e
+                conjuntos para ver só os anúncios deles.
               </CardDescription>
             </div>
             <div className="flex gap-1">
@@ -140,10 +165,14 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <BarraSelecao campanhas={selCampanhas.length} conjuntos={selConjuntos.length} />
           {visiveis.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Sem dados de anúncios no período. Conecte o Meta Ads em{" "}
+              {selCampanhas.length || selConjuntos.length
+                ? "Nada dentro da seleção neste nível. "
+                : "Sem dados de anúncios no período. "}
+              Conecte o Meta Ads em{" "}
               <Link
                 href="/configuracoes/integracoes"
                 className="underline underline-offset-4"
@@ -157,6 +186,7 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {nivel !== "anuncio" ? <TableHead className="w-8" /> : null}
                     <TableHead>
                       {NIVEIS.find((n) => n.chave === nivel)?.rotulo.slice(0, -1)}
                     </TableHead>
@@ -177,6 +207,13 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
                       linha={l}
                       pai={l.pai ? nomePai.get(l.pai) : undefined}
                       moeda={organizacao.moeda}
+                      selecao={
+                        l.nivel === "campanha"
+                          ? { parametro: "campanhas", selecionados: selCampanhas }
+                          : l.nivel === "conjunto"
+                            ? { parametro: "conjuntos", selecionados: selConjuntos }
+                            : undefined
+                      }
                     />
                   ))}
                 </TableBody>
@@ -210,13 +247,27 @@ function LinhaTabela({
   linha,
   pai,
   moeda,
+  selecao,
 }: {
   linha: LinhaTrafego;
   pai?: string;
   moeda: string;
+  selecao?: { parametro: "campanhas" | "conjuntos"; selecionados: string[] };
 }) {
   return (
-    <TableRow>
+    <TableRow
+      data-state={selecao?.selecionados.includes(linha.chave) ? "selected" : undefined}
+    >
+      {selecao ? (
+        <TableCell>
+          <CaixaSelecao
+            chave={linha.chave}
+            parametro={selecao.parametro}
+            selecionados={selecao.selecionados}
+            rotulo={linha.nome}
+          />
+        </TableCell>
+      ) : null}
       <TableCell>
         <div className="font-medium">{linha.nome}</div>
         <div className="text-muted-foreground text-xs">

@@ -18,7 +18,11 @@ import {
 import { formatarMetrica } from "@/dominio/metricas";
 import { obterContexto } from "@/servidor/sessao";
 import { periodoDaUrl } from "@/servidor/consultas/periodo";
-import { obterResumoClientes } from "@/servidor/consultas/clientes";
+import {
+  obterDestaquesClientes,
+  obterResumoClientes,
+} from "@/servidor/consultas/clientes";
+import { DestaquesClientes } from "./destaques";
 import { SeletorHome } from "../home/seletor";
 
 export const metadata: Metadata = { title: "Clientes" };
@@ -33,7 +37,10 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
   const params = await searchParams;
   const { organizacao } = await obterContexto();
   const periodo = await periodoDaUrl(organizacao, params);
-  const r = await obterResumoClientes(organizacao.id, periodo, organizacao.fuso_horario);
+  const [r, destaques] = await Promise.all([
+    obterResumoClientes(organizacao.id, periodo, organizacao.fuso_horario),
+    obterDestaquesClientes(organizacao.id, periodo, organizacao.fuso_horario),
+  ]);
   const moeda = organizacao.moeda;
 
   return (
@@ -79,6 +86,31 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
           detalhe="mediana"
         />
       </div>
+
+      <DestaquesClientes
+        titulo="Clientes mais recentes"
+        descricao="Os últimos a comprar no período."
+        clientes={destaques.recentes}
+        moeda={moeda}
+        destaque="ultima_compra"
+        fuso={organizacao.fuso_horario}
+      />
+      <DestaquesClientes
+        titulo="Clientes mais frequentes"
+        descricao="Os que mais registraram transações no período."
+        clientes={destaques.frequentes}
+        moeda={moeda}
+        destaque="transacoes"
+        fuso={organizacao.fuso_horario}
+      />
+      <DestaquesClientes
+        titulo="Clientes de maior valor"
+        descricao="Os que mais gastaram no período, só transações pagas."
+        clientes={destaques.maior_valor}
+        moeda={moeda}
+        destaque="gasto"
+        fuso={organizacao.fuso_horario}
+      />
 
       <Card>
         <CardHeader>

@@ -114,6 +114,7 @@ export type Database = {
           organizacao_id: string;
           plataforma: string | null;
           primeira_compra_em: string | null;
+          telefone: string | null;
           updated_at: string;
         };
         ComputedFields: never;
@@ -129,6 +130,7 @@ export type Database = {
           organizacao_id: string;
           plataforma?: string | null;
           primeira_compra_em?: string | null;
+          telefone?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -143,6 +145,7 @@ export type Database = {
           organizacao_id?: string;
           plataforma?: string | null;
           primeira_compra_em?: string | null;
+          telefone?: string | null;
           updated_at?: string;
         };
         Relationships: [

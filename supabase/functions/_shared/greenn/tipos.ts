@@ -22,6 +22,8 @@ export type ClienteImportado = {
   email: string | null;
   nome: string | null;
   cpf: string | null;
+  /** [SONDA] campo `cellphone`/`phone` do comprador; null se a API não trouxer. */
+  telefone: string | null;
 };
 
 export type ComissaoImportada = {

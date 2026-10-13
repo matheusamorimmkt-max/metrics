@@ -55,7 +55,9 @@ function autenticado(req: Request): boolean {
   const partes = credencial.split(".");
   if (partes.length !== 3) return false;
   try {
-    const payload = JSON.parse(atob(partes[1].replace(/-/g, "+").replace(/_/g, "/"))) as { role?: string };
+    const payload = JSON.parse(atob(partes[1].replace(/-/g, "+").replace(/_/g, "/"))) as {
+      role?: string;
+    };
     return payload.role === "service_role";
   } catch {
     return false;
@@ -86,7 +88,10 @@ Deno.serve(async (req) => {
     const resultado = await sincronizar(supabase, entrada);
     return json(resultado, resultado.status === "ocupado" ? 409 : 200);
   } catch (erro) {
-    return json({ status: "falhou", erro: erro instanceof Error ? erro.message : String(erro) }, 500);
+    return json(
+      { status: "falhou", erro: erro instanceof Error ? erro.message : String(erro) },
+      500,
+    );
   }
 });
 
@@ -119,7 +124,8 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
     .select("id")
     .single();
   if (erroSync) {
-    if (erroSync.code === "23505") return { status: "ocupado", motivo: "Já existe um ciclo em andamento." };
+    if (erroSync.code === "23505")
+      return { status: "ocupado", motivo: "Já existe um ciclo em andamento." };
     throw new Error(`sincronizacoes: ${erroSync.message}`);
   }
 
@@ -128,10 +134,14 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
   const clientesAfetados = new Set<string>();
 
   try {
-    const { data: token, error: erroToken } = await supabase.rpc("ler_credencial_integracao", {
-      p_integracao_id: integracao.id,
-    });
-    if (erroToken || !token) throw new Error("Credencial da Greenn não encontrada no cofre.");
+    const { data: token, error: erroToken } = await supabase.rpc(
+      "ler_credencial_integracao",
+      {
+        p_integracao_id: integracao.id,
+      },
+    );
+    if (erroToken || !token)
+      throw new Error("Credencial da Greenn não encontrada no cofre.");
     const greenn = new ClienteGreenn({ token });
 
     // 1. Produtos
@@ -147,7 +157,10 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
       if (!linhas.length) return;
       const { data, error } = await supabase
         .from("produtos")
-        .upsert(linhas, { onConflict: "organizacao_id,plataforma,id_externo", ignoreDuplicates: false })
+        .upsert(linhas, {
+          onConflict: "organizacao_id,plataforma,id_externo",
+          ignoreDuplicates: false,
+        })
         .select("id, id_externo");
       if (error) throw new Error(`produtos: ${error.message}`);
       for (const p of data ?? []) produtoIdPorExterno.set(p.id_externo, p.id);
@@ -179,7 +192,8 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
         .upsert(linhas, { onConflict: "organizacao_id,plataforma,id_externo" })
         .select("id, id_externo, produto_id");
       if (error) throw new Error(`ofertas: ${error.message}`);
-      for (const o of data ?? []) ofertaIdPorExterno.set(o.id_externo, { id: o.id, produto_id: o.produto_id });
+      for (const o of data ?? [])
+        ofertaIdPorExterno.set(o.id_externo, { id: o.id, produto_id: o.produto_id });
     });
     detalhes.ofertas = ofertaIdPorExterno.size;
 
@@ -199,14 +213,19 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
         .limit(1)
         .maybeSingle();
       const cursorAnterior = (anterior?.cursor as Cursor | null) ?? null;
-      cursor = cursorAnterior ?? { pagina: 1, paid_after: integracao.importacao_inicio ?? null };
+      cursor = cursorAnterior ?? {
+        pagina: 1,
+        paid_after: integracao.importacao_inicio ?? null,
+      };
       filtrosLista.push(cursor.paid_after ? { paid_after: cursor.paid_after } : {});
     } else if (modo === "reconsulta") {
       const desde = somarDias(hoje, -DIAS_RECONSULTA);
       filtrosLista.push({ paid_after: desde });
       filtrosLista.push({ refunded_after: desde });
     } else {
-      const base = integracao.ultimo_corte ? diaIso(integracao.ultimo_corte) : somarDias(hoje, -7);
+      const base = integracao.ultimo_corte
+        ? diaIso(integracao.ultimo_corte)
+        : somarDias(hoje, -7);
       filtrosLista.push({ paid_after: somarDias(base, -1) });
     }
 
@@ -236,13 +255,21 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
           for (const item of lote) {
             // Detalhe só quando faz falta: cliente desconhecido, taxa no detalhe, ou sem oferta.
             const clienteConhecido =
-              item.client_id !== undefined && item.client_id !== null &&
+              item.client_id !== undefined &&
+              item.client_id !== null &&
               clienteIdPorExterno.has(String(item.client_id));
             let completa: VendaGreenn = item;
             if (!clienteConhecido || DETALHE_TRAZ_TAXA) {
               try {
-                const detalhe = await greenn.venda<VendaGreenn | { data?: VendaGreenn }>(item.id);
-                completa = { ...item, ...(("data" in detalhe && detalhe.data) ? detalhe.data : (detalhe as VendaGreenn)) };
+                const detalhe = await greenn.venda<VendaGreenn | { data?: VendaGreenn }>(
+                  item.id,
+                );
+                completa = {
+                  ...item,
+                  ...("data" in detalhe && detalhe.data
+                    ? detalhe.data
+                    : (detalhe as VendaGreenn)),
+                };
               } catch (erro) {
                 if (erro instanceof ErroGreenn && erro.credencialInvalida) throw erro;
                 semDetalhe += 1;
@@ -277,7 +304,9 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
         p_cliente_ids: [...clientesAfetados],
       });
       if (error) throw new Error(`recalcular_transacoes: ${error.message}`);
-      const { error: erroSug } = await supabase.rpc("sugerir_ofertas", { p_organizacao_id: organizacao_id });
+      const { error: erroSug } = await supabase.rpc("sugerir_ofertas", {
+        p_organizacao_id: organizacao_id,
+      });
       if (erroSug) throw new Error(`sugerir_ofertas: ${erroSug.message}`);
     }
 
@@ -299,17 +328,39 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
     await supabase.from("integracoes").update(atualizacao).eq("id", integracao.id);
     await supabase
       .from("sincronizacoes")
-      .update({ status: "concluida", fim: new Date().toISOString(), registros, cursor: cursorFinal, detalhes })
+      .update({
+        status: "concluida",
+        fim: new Date().toISOString(),
+        registros,
+        cursor: cursorFinal,
+        detalhes,
+      })
       .eq("id", sync.id);
 
-    return { status: "concluida", registros, retroativa_pendente: retroativaPendente, detalhes };
+    return {
+      status: "concluida",
+      registros,
+      retroativa_pendente: retroativaPendente,
+      detalhes,
+    };
   } catch (erro) {
-    const mensagem = erro instanceof ErroGreenn
-      ? (erro.credencialInvalida ? `Token recusado pela Greenn: ${erro.message}` : `Greenn: ${erro.message}`)
-      : erro instanceof Error ? erro.message : String(erro);
+    const mensagem =
+      erro instanceof ErroGreenn
+        ? erro.credencialInvalida
+          ? `Token recusado pela Greenn: ${erro.message}`
+          : `Greenn: ${erro.message}`
+        : erro instanceof Error
+          ? erro.message
+          : String(erro);
     await supabase
       .from("sincronizacoes")
-      .update({ status: "falhou", fim: new Date().toISOString(), registros, erro: mensagem, detalhes })
+      .update({
+        status: "falhou",
+        fim: new Date().toISOString(),
+        registros,
+        erro: mensagem,
+        detalhes,
+      })
       .eq("id", sync.id);
     await supabase
       .from("integracoes")
@@ -346,6 +397,7 @@ async function gravarVenda(
             email: v.cliente.email,
             nome: v.cliente.nome,
             cpf: v.cliente.cpf,
+            telefone: v.cliente.telefone,
             plataforma: PLATAFORMA,
             id_externo: v.cliente.id_externo,
           },
@@ -357,14 +409,17 @@ async function gravarVenda(
       clienteId = data.id;
       mapas.clienteIdPorEmail.set(v.cliente.email, clienteId!);
     }
-    if (v.cliente.id_externo) mapas.clienteIdPorExterno.set(v.cliente.id_externo, clienteId!);
+    if (v.cliente.id_externo)
+      mapas.clienteIdPorExterno.set(v.cliente.id_externo, clienteId!);
   } else if (v.cliente.id_externo) {
     clienteId = mapas.clienteIdPorExterno.get(v.cliente.id_externo);
   }
   if (!clienteId) return null;
 
   // Oferta: a da venda; sem offer_id, oferta sintética por produto (decisão 6).
-  let oferta = v.oferta_id_externo ? mapas.ofertaIdPorExterno.get(v.oferta_id_externo) : undefined;
+  let oferta = v.oferta_id_externo
+    ? mapas.ofertaIdPorExterno.get(v.oferta_id_externo)
+    : undefined;
   if (!oferta) {
     if (!v.produto_id_externo) return null;
     const produtoId = mapas.produtoIdPorExterno.get(v.produto_id_externo);

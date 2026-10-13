@@ -83,13 +83,19 @@ export class ClienteGreenn {
 
       if (resposta.status === 429 || resposta.status >= 500) {
         const retryAfter = Number(resposta.headers.get("retry-after") ?? "0");
-        const espera = retryAfter > 0 ? retryAfter * 1000 : Math.min(60_000, 2 ** (tentativa + 1) * 1000);
+        const espera =
+          retryAfter > 0
+            ? retryAfter * 1000
+            : Math.min(60_000, 2 ** (tentativa + 1) * 1000);
         if (tentativa < 4) {
           await this.esperar(espera);
           continue;
         }
       }
-      const erro = (corpo as { error?: { code?: string; message?: string }; message?: string } | null);
+      const erro = corpo as {
+        error?: { code?: string; message?: string };
+        message?: string;
+      } | null;
       throw new ErroGreenn(
         erro?.error?.message ?? erro?.message ?? `HTTP ${resposta.status} em ${caminho}`,
         resposta.status,
@@ -112,9 +118,12 @@ export class ClienteGreenn {
     let pagina = paginaInicial;
     for (;;) {
       const sep = caminho.includes("?") ? "&" : "?";
-      const resposta = await this.get<Paginado<T>>(`${caminho}${sep}page=${pagina}&per_page=${POR_PAGINA}`);
+      const resposta = await this.get<Paginado<T>>(
+        `${caminho}${sep}page=${pagina}&per_page=${POR_PAGINA}`,
+      );
       const lote = resposta.data ?? [];
-      const ultima = resposta.meta?.last_page ?? (lote.length < POR_PAGINA ? pagina : pagina + 1);
+      const ultima =
+        resposta.meta?.last_page ?? (lote.length < POR_PAGINA ? pagina : pagina + 1);
       const continuar = await aoReceber(lote, pagina, ultima);
       if (pagina >= ultima || lote.length === 0) return null;
       pagina += 1;
