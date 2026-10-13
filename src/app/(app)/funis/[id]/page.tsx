@@ -20,10 +20,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CARDS_HOME, formatarMetrica, type Metricas } from "@/dominio/metricas";
-import { hojeNoFuso, resolverPeriodo } from "@/dominio/periodo";
+import { hojeNoFuso } from "@/dominio/periodo";
 import { ROTULO_PAPEL } from "@/dominio/schemas/funil-oferta";
 import { ROTULO_TIPO_FUNIL, type TipoFunil } from "@/dominio/schemas/funil";
 import { obterContexto } from "@/servidor/sessao";
+import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterFunil } from "@/servidor/consultas/funis";
 import { obterResumoHome } from "@/servidor/consultas/home";
 import {
@@ -48,11 +49,7 @@ export default async function PaginaFunil({
   if (!funil) notFound();
 
   const hoje = hojeNoFuso(organizacao.fuso_horario);
-  const periodo = resolverPeriodo(organizacao.fuso_horario, {
-    periodo: typeof busca.periodo === "string" ? busca.periodo : undefined,
-    de: typeof busca.de === "string" ? busca.de : undefined,
-    ate: typeof busca.ate === "string" ? busca.ate : undefined,
-  });
+  const periodo = await periodoDaUrl(organizacao, busca);
 
   const [resumo, ofertas, campanhas] = await Promise.all([
     obterResumoHome(
@@ -88,7 +85,7 @@ export default async function PaginaFunil({
                   semaforo === "amarelo" && "bg-amber-400",
                   semaforo === "vermelho" && "bg-red-500",
                 )}
-                aria-label={`Semáforo ${semaforo}`}
+                aria-label={`Notificação ${semaforo}`}
               />
             ) : null}
             {funil.nome}

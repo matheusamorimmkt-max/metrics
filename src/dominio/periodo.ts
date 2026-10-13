@@ -10,8 +10,12 @@ export const PERIODOS = [
   { chave: "30d", rotulo: "30 dias" },
   { chave: "mes", rotulo: "Este mês" },
   { chave: "mes_anterior", rotulo: "Mês passado" },
+  { chave: "todo", rotulo: "Todo o período" },
   { chave: "personalizado", rotulo: "Personalizado" },
 ] as const;
+
+/** Período padrão ao entrar no app. */
+export const PERIODO_PADRAO: ChavePeriodo = "mes";
 
 export type ChavePeriodo = (typeof PERIODOS)[number]["chave"];
 
@@ -54,15 +58,20 @@ function primeiroDiaDoMes(data: string): string {
   return `${data.slice(0, 7)}-01`;
 }
 
-/** Resolve os parâmetros da URL (periodo, de, ate) num período válido. Padrão: 30 dias. */
+/**
+ * Resolve os parâmetros da URL (periodo, de, ate) num período válido. Padrão: este mês.
+ * "Todo o período" começa no primeiro dado da organização (`inicioDados`, AAAA-MM-DD);
+ * sem dado conhecido, cobre os últimos 365 dias.
+ */
 export function resolverPeriodo(
   fuso: string,
   params: { periodo?: string; de?: string; ate?: string },
   agora = new Date(),
+  inicioDados?: string | null,
 ): Periodo {
   const hoje = hojeNoFuso(fuso, agora);
   const chave = (
-    PERIODOS.some((p) => p.chave === params.periodo) ? params.periodo : "30d"
+    PERIODOS.some((p) => p.chave === params.periodo) ? params.periodo : PERIODO_PADRAO
   ) as ChavePeriodo;
 
   let de: string;
@@ -88,6 +97,15 @@ export function resolverPeriodo(
       ate = fimAnterior;
       break;
     }
+    case "todo": {
+      const inicio =
+        inicioDados && ISO.test(inicioDados) && inicioDados <= hoje
+          ? inicioDados
+          : somarDias(hoje, -364);
+      de = inicio;
+      ate = hoje;
+      break;
+    }
     case "personalizado": {
       const deOk = params.de && ISO.test(params.de) ? params.de : somarDias(hoje, -29);
       const ateOk = params.ate && ISO.test(params.ate) ? params.ate : hoje;
@@ -96,6 +114,7 @@ export function resolverPeriodo(
       break;
     }
     default:
+      // "30d"
       de = somarDias(hoje, -29);
       ate = hoje;
   }

@@ -31,9 +31,9 @@ export default async function PaginaCategorias() {
         <CardHeader>
           <CardTitle>Categorias</CardTitle>
           <CardDescription>
-            Agrupam os funis na Home e nos filtros. Só funis de categorias com semáforo
-            ligado mostram o sinal verde, amarelo ou vermelho de ROI (normalmente,
-            Front-end).
+            Agrupam os funis na Home e nos filtros. Só funis de categorias com
+            notificações ligadas recebem o sinal de desempenho (verde, amarelo ou
+            vermelho pelo ROI de ontem e anteontem; normalmente, Front-end).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -43,7 +43,7 @@ export default async function PaginaCategorias() {
                 <TableHead className="w-24">Ordem</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead className="w-28 text-center">Funis</TableHead>
-                <TableHead className="w-28 text-center">Semáforo</TableHead>
+                <TableHead className="w-28 text-center">Notificações</TableHead>
                 <TableHead className="w-28 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>

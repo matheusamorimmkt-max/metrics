@@ -90,7 +90,7 @@ export async function definirSemaforo(id: string, ligado: boolean): Promise<Resu
   if (error) return falha(mensagemErro(error.code, error.message));
 
   revalidatePath(CAMINHO);
-  return sucesso(ligado ? "Semáforo ligado." : "Semáforo desligado.");
+  return sucesso(ligado ? "Notificações ligadas." : "Notificações desligadas.");
 }
 
 export async function moverCategoria(

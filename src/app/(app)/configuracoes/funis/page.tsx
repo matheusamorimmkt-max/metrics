@@ -68,7 +68,7 @@ export default async function PaginaFunis({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {c.nome}
-                {c.tem_semaforo ? <Badge variant="secondary">semáforo</Badge> : null}
+                {c.tem_semaforo ? <Badge variant="secondary">notificações</Badge> : null}
               </CardTitle>
             </CardHeader>
             <CardContent className="divide-y">

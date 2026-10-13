@@ -62,7 +62,7 @@ export function LinhaCategoria({
       const r = await definirSemaforo(categoria.id, ligado);
       if (!r.ok) {
         setSemaforo(!ligado);
-        toast.error(r.erro ?? "Não foi possível alterar o semáforo.");
+        toast.error(r.erro ?? "Não foi possível alterar as notificações.");
       }
     });
   }
@@ -106,7 +106,7 @@ export function LinhaCategoria({
           checked={semaforo}
           onCheckedChange={alternarSemaforo}
           disabled={pendente}
-          aria-label={`Semáforo de ${categoria.nome}`}
+          aria-label={`Notificações de ${categoria.nome}`}
         />
       </TableCell>
       <TableCell>

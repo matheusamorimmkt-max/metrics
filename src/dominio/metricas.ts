@@ -5,7 +5,7 @@
  */
 
 export type EntradaMetricas = {
-  /** Gasto em anúncios no período, antes da taxa sobre anúncios. */
+  /** Gasto em anúncios no período, antes do imposto sobre anúncios. */
   gasto_anuncios: number;
   /** Fração aplicada sobre o gasto (ex.: 0.1215). */
   taxa_anuncios: number;
@@ -90,7 +90,7 @@ export const CARDS_HOME: {
   {
     chave: "investimento",
     nome: "Investimento",
-    descricao: "Gasto em anúncios com a taxa sobre anúncios.",
+    descricao: "Gasto em anúncios mais o imposto sobre anúncios.",
     formato: "moeda",
   },
   {

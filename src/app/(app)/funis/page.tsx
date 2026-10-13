@@ -7,8 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { hojeNoFuso, resolverPeriodo } from "@/dominio/periodo";
+import { hojeNoFuso } from "@/dominio/periodo";
 import { obterContexto } from "@/servidor/sessao";
+import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterResumoHome } from "@/servidor/consultas/home";
 import { SeletorHome } from "../home/seletor";
 import { TabelaFunis } from "../home/tabela-funis";
@@ -19,11 +20,7 @@ export default async function PaginaFunis({ searchParams }: PageProps<"/funis">)
   const params = await searchParams;
   const { organizacao } = await obterContexto();
   const hoje = hojeNoFuso(organizacao.fuso_horario);
-  const periodo = resolverPeriodo(organizacao.fuso_horario, {
-    periodo: typeof params.periodo === "string" ? params.periodo : undefined,
-    de: typeof params.de === "string" ? params.de : undefined,
-    ate: typeof params.ate === "string" ? params.ate : undefined,
-  });
+  const periodo = await periodoDaUrl(organizacao, params);
   const resumo = await obterResumoHome(
     organizacao.id,
     organizacao.taxa_anuncios,
@@ -54,7 +51,7 @@ export default async function PaginaFunis({ searchParams }: PageProps<"/funis">)
         <CardHeader>
           <CardTitle>Por categoria e funil</CardTitle>
           <CardDescription>
-            O semáforo dos funis de Front-end olha ontem e anteontem.{" "}
+            As notificações dos funis de Front-end olham ontem e anteontem.{" "}
             <Link href="/configuracoes/funis" className="underline underline-offset-4">
               Gerenciar funis
             </Link>

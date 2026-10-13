@@ -51,7 +51,7 @@ export function NovaCategoria() {
             </div>
             <label className="flex h-9 items-center gap-2 text-sm">
               <input type="checkbox" name="tem_semaforo" className="size-4" />
-              Mostrar semáforo
+              Ativar notificações
             </label>
             <BotaoEnviar enviando="Criando…">Criar categoria</BotaoEnviar>
           </div>

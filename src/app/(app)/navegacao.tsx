@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Filter, Home, Megaphone, Settings, ShoppingCart, Users } from "lucide-react";
+import { useState } from "react";
+import {
+  ChevronDown,
+  Filter,
+  Home,
+  Megaphone,
+  Settings,
+  ShoppingCart,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITENS = [
@@ -34,6 +43,11 @@ function ativo(pathname: string, href: string, exato: boolean) {
 
 export function Navegacao() {
   const pathname = usePathname();
+  // O grupo Configurações abre sozinho quando a rota está dentro dele; o usuário pode
+  // recolher ou abrir à mão, e essa escolha vale até a rota mudar.
+  const [manual, setManual] = useState<{ pathname: string; aberto: boolean } | null>(
+    null,
+  );
 
   return (
     <nav
@@ -43,27 +57,46 @@ export function Navegacao() {
       {ITENS.map((item) => {
         const Icone = item.icone;
         const estaAtivo = ativo(pathname, item.href, item.href === "/");
+        const temFilhos = "filhos" in item;
+        const aberto =
+          temFilhos && (manual?.pathname === pathname ? manual.aberto : estaAtivo);
         return (
           <div key={item.href} className="shrink-0 md:shrink">
-            <Link
-              href={item.href}
+            <div
               className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium",
+                "flex items-center rounded-md text-sm font-medium",
                 estaAtivo
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60",
               )}
             >
-              <Icone className="size-4" aria-hidden />
-              {item.rotulo}
-            </Link>
-            {"filhos" in item ? (
+              <Link href={item.href} className="flex flex-1 items-center gap-2 px-3 py-2">
+                <Icone className="size-4" aria-hidden />
+                {item.rotulo}
+              </Link>
+              {temFilhos ? (
+                <button
+                  type="button"
+                  onClick={() => setManual({ pathname, aberto: !aberto })}
+                  aria-expanded={aberto}
+                  aria-controls="menu-configuracoes"
+                  aria-label={aberto ? "Recolher configurações" : "Abrir configurações"}
+                  className="hover:bg-sidebar-accent flex h-9 w-8 items-center justify-center rounded-r-md"
+                >
+                  <ChevronDown
+                    className={cn("size-4 transition-transform", aberto && "rotate-180")}
+                    aria-hidden
+                  />
+                </button>
+              ) : null}
+            </div>
+            {temFilhos ? (
               <ul
+                id="menu-configuracoes"
                 className={cn(
-                  "mt-1 space-y-0.5 pl-9 md:block",
-                  // No celular a navegação é uma faixa horizontal: as seções só aparecem
-                  // quando Configurações está aberta, lado a lado.
-                  estaAtivo ? "flex gap-1 md:flex-col md:gap-0" : "hidden",
+                  "mt-1 space-y-0.5 pl-9",
+                  // No celular a navegação é uma faixa horizontal: as seções ficam lado a lado.
+                  aberto ? "flex gap-1 md:flex-col md:gap-0" : "hidden",
                 )}
               >
                 {item.filhos.map((filho) => {

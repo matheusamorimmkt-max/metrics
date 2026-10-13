@@ -156,7 +156,7 @@ export function FormularioFunil({
               ajuda={
                 categoriaTemSemaforo
                   ? "Acima da meta: verde. Entre 0% e a meta: amarelo. Abaixo de 0%: vermelho. Padrão 20."
-                  : "Usada pelo semáforo; esta categoria não mostra semáforo, mas o valor fica guardado."
+                  : "Usada pelas notificações; esta categoria não as mostra, mas o valor fica guardado."
               }
             >
               <Input

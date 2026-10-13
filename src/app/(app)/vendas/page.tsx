@@ -16,8 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatarMetrica } from "@/dominio/metricas";
-import { resolverPeriodo } from "@/dominio/periodo";
 import { obterContexto } from "@/servidor/sessao";
+import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterResumoVendas, type Agrupado } from "@/servidor/consultas/vendas";
 import { SeletorHome } from "../home/seletor";
 
@@ -26,11 +26,7 @@ export const metadata: Metadata = { title: "Vendas" };
 export default async function PaginaVendas({ searchParams }: PageProps<"/vendas">) {
   const params = await searchParams;
   const { organizacao } = await obterContexto();
-  const periodo = resolverPeriodo(organizacao.fuso_horario, {
-    periodo: typeof params.periodo === "string" ? params.periodo : undefined,
-    de: typeof params.de === "string" ? params.de : undefined,
-    ate: typeof params.ate === "string" ? params.ate : undefined,
-  });
+  const periodo = await periodoDaUrl(organizacao, params);
   const r = await obterResumoVendas(organizacao.id, periodo, organizacao.fuso_horario);
   const moeda = organizacao.moeda;
 

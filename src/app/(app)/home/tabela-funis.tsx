@@ -20,15 +20,15 @@ const COR_SEMAFORO: Record<NonNullable<Semaforo>, string> = {
 function Bolinha({ semaforo }: { semaforo: Semaforo }) {
   if (!semaforo) return null;
   const titulo = {
-    verde: "ROI de ontem e anteontem acima da meta",
-    amarelo: "ROI de ontem e anteontem entre 0% e a meta",
-    vermelho: "ROI de ontem e anteontem negativo",
+    verde: "Dentro do esperado: ROI de ontem e anteontem acima da meta",
+    amarelo: "Atenção: ROI de ontem e anteontem entre 0% e a meta",
+    vermelho: "Abaixo do esperado: ROI de ontem e anteontem negativo",
   }[semaforo];
   return (
     <span
       className={cn("inline-block size-2.5 rounded-full", COR_SEMAFORO[semaforo])}
       title={titulo}
-      aria-label={`Semáforo ${semaforo}`}
+      aria-label={`Notificação: ${titulo}`}
     />
   );
 }
@@ -57,7 +57,7 @@ function Celulas({ m, moeda }: { m: Metricas; moeda: string }) {
   );
 }
 
-/** Tabela por categoria e funil, com o semáforo nos funis de Front-end. */
+/** Tabela por categoria e funil, com a notificação de desempenho nos funis de Front-end. */
 export function TabelaFunis({
   categorias,
   moeda,

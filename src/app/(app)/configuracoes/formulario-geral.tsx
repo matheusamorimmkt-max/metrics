@@ -16,7 +16,13 @@ import { Campo } from "@/components/formulario/campo";
 import { Selecao } from "@/components/formulario/selecao";
 import { ErroFormulario, RESULTADO_INICIAL } from "@/components/formulario/mensagens";
 import { fracaoParaTexto } from "@/dominio/percentual";
-import { FUSOS_SUGERIDOS } from "@/dominio/fuso-horario";
+import {
+  FUSOS_BRASIL,
+  FUSOS_MUNDO,
+  ordenarPorGmt,
+  rotuloFuso,
+} from "@/dominio/fuso-horario";
+import { MOEDAS, rotuloMoeda } from "@/dominio/moedas";
 import { atualizarConfiguracoesGerais } from "@/servidor/acoes/configuracoes";
 import type { Organizacao } from "@/servidor/sessao";
 
@@ -34,11 +40,11 @@ export function FormularioGeral({ organizacao }: { organizacao: Organizacao }) {
     if (resultado.ok && resultado.mensagem) toast.success(resultado.mensagem);
   }, [resultado]);
 
-  const fusos = FUSOS_SUGERIDOS.includes(
-    organizacao.fuso_horario as (typeof FUSOS_SUGERIDOS)[number],
-  )
-    ? [...FUSOS_SUGERIDOS]
-    : [organizacao.fuso_horario, ...FUSOS_SUGERIDOS];
+  const conhecidos = [...FUSOS_BRASIL, ...FUSOS_MUNDO].some(
+    (f) => f.id === organizacao.fuso_horario,
+  );
+  const mundo = ordenarPorGmt(FUSOS_MUNDO);
+  const moedaConhecida = MOEDAS.some((m) => m.codigo === organizacao.moeda);
 
   return (
     <form action={acao}>
@@ -65,9 +71,9 @@ export function FormularioGeral({ organizacao }: { organizacao: Organizacao }) {
           <div className="grid gap-6 sm:grid-cols-2">
             <Campo
               id="taxa_anuncios"
-              rotulo="Taxa sobre anúncios (%)"
+              rotulo="Imposto sobre anúncios (%)"
               erros={erros}
-              ajuda="Percentual somado ao gasto do gerenciador para formar o investimento total. Padrão 12,15."
+              ajuda="Imposto somado ao gasto do gerenciador para formar o investimento total. Padrão 12,15."
             >
               <Input
                 id="taxa_anuncios"
@@ -100,18 +106,35 @@ export function FormularioGeral({ organizacao }: { organizacao: Organizacao }) {
               id="fuso_horario"
               rotulo="Fuso horário"
               erros={erros}
-              ajuda="Define o que é “um dia” nos gráficos e no semáforo."
+              ajuda="Define o que é “um dia” nos gráficos e nas notificações."
             >
               <Selecao
                 id="fuso_horario"
                 name="fuso_horario"
                 defaultValue={organizacao.fuso_horario}
               >
-                {fusos.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
+                {!conhecidos ? (
+                  <option value={organizacao.fuso_horario}>
+                    {rotuloFuso({
+                      id: organizacao.fuso_horario,
+                      cidades: organizacao.fuso_horario,
+                    })}
                   </option>
-                ))}
+                ) : null}
+                <optgroup label="Brasil">
+                  {FUSOS_BRASIL.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {rotuloFuso(f)}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Mundo">
+                  {mundo.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {rotuloFuso(f)}
+                    </option>
+                  ))}
+                </optgroup>
               </Selecao>
             </Campo>
 
@@ -119,16 +142,20 @@ export function FormularioGeral({ organizacao }: { organizacao: Organizacao }) {
               id="moeda"
               rotulo="Moeda"
               erros={erros}
-              ajuda="Código de 3 letras. Padrão BRL."
+              ajuda="Moeda em que os valores aparecem. Padrão BRL."
             >
-              <Input
-                id="moeda"
-                name="moeda"
-                defaultValue={organizacao.moeda}
-                maxLength={3}
-                className="uppercase"
-                required
-              />
+              <Selecao id="moeda" name="moeda" defaultValue={organizacao.moeda}>
+                {!moedaConhecida ? (
+                  <option value={organizacao.moeda}>
+                    {rotuloMoeda(organizacao.moeda)}
+                  </option>
+                ) : null}
+                {MOEDAS.map((m) => (
+                  <option key={m.codigo} value={m.codigo}>
+                    {rotuloMoeda(m.codigo)}
+                  </option>
+                ))}
+              </Selecao>
             </Campo>
           </div>
         </CardContent>

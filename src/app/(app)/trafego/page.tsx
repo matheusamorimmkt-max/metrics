@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatarMetrica } from "@/dominio/metricas";
-import { resolverPeriodo } from "@/dominio/periodo";
 import { obterContexto } from "@/servidor/sessao";
+import { PERIODO_PADRAO } from "@/dominio/periodo";
+import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterTrafego, type LinhaTrafego } from "@/servidor/consultas/trafego";
 import { SeletorHome } from "../home/seletor";
 import { cn } from "@/lib/utils";
@@ -34,11 +35,7 @@ const NIVEIS = [
 export default async function PaginaTrafego({ searchParams }: PageProps<"/trafego">) {
   const params = await searchParams;
   const { organizacao } = await obterContexto();
-  const periodo = resolverPeriodo(organizacao.fuso_horario, {
-    periodo: typeof params.periodo === "string" ? params.periodo : undefined,
-    de: typeof params.de === "string" ? params.de : undefined,
-    ate: typeof params.ate === "string" ? params.ate : undefined,
-  });
+  const periodo = await periodoDaUrl(organizacao, params);
   const nivel = (
     NIVEIS.some((n) => n.chave === params.nivel) ? params.nivel : "campanha"
   ) as "campanha" | "conjunto" | "anuncio";
@@ -59,7 +56,7 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
       { gasto: 0, impressoes: 0, cliques_link: 0, visualizacoes_pagina: 0, leads: 0 },
     );
   const query = new URLSearchParams();
-  if (periodo.chave !== "30d") query.set("periodo", periodo.chave);
+  if (periodo.chave !== PERIODO_PADRAO) query.set("periodo", periodo.chave);
   if (periodo.chave === "personalizado") {
     query.set("de", periodo.de);
     query.set("ate", periodo.ate);

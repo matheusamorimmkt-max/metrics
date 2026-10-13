@@ -14,9 +14,20 @@ describe("hojeNoFuso", () => {
 describe("resolverPeriodo", () => {
   const fuso = "America/Sao_Paulo";
 
-  it("padrão é 30 dias terminando hoje, com período anterior de mesmo tamanho", () => {
+  it("padrão é este mês, com período anterior de mesmo tamanho", () => {
     const p = resolverPeriodo(fuso, {}, AGORA);
     expect(p).toMatchObject({
+      chave: "mes",
+      de: "2026-10-01",
+      ate: "2026-10-12",
+      anterior_de: "2026-09-19",
+      anterior_ate: "2026-09-30",
+      dias: 12,
+    });
+  });
+
+  it("30 dias termina hoje", () => {
+    expect(resolverPeriodo(fuso, { periodo: "30d" }, AGORA)).toMatchObject({
       chave: "30d",
       de: "2026-09-13",
       ate: "2026-10-12",
@@ -24,6 +35,25 @@ describe("resolverPeriodo", () => {
       anterior_ate: "2026-09-12",
       dias: 30,
     });
+  });
+
+  it("todo o período começa no primeiro dado ou, sem dado, 365 dias atrás", () => {
+    expect(resolverPeriodo(fuso, { periodo: "todo" }, AGORA, "2026-05-22")).toMatchObject(
+      {
+        chave: "todo",
+        de: "2026-05-22",
+        ate: "2026-10-12",
+      },
+    );
+    expect(resolverPeriodo(fuso, { periodo: "todo" }, AGORA, null)).toMatchObject({
+      de: "2025-10-13",
+      ate: "2026-10-12",
+      dias: 365,
+    });
+    // Primeiro dado no futuro (relógio errado) não vira período invertido.
+    expect(resolverPeriodo(fuso, { periodo: "todo" }, AGORA, "2027-01-01").de).toBe(
+      "2025-10-13",
+    );
   });
 
   it("este mês e mês passado", () => {
@@ -49,6 +79,6 @@ describe("resolverPeriodo", () => {
   });
 
   it("parâmetro desconhecido cai no padrão", () => {
-    expect(resolverPeriodo(fuso, { periodo: "x" }, AGORA).chave).toBe("30d");
+    expect(resolverPeriodo(fuso, { periodo: "x" }, AGORA).chave).toBe("mes");
   });
 });
