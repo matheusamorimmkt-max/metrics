@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Filter, Home, Settings } from "lucide-react";
+import { Filter, Home, Megaphone, Settings, ShoppingCart, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITENS = [
   { href: "/", rotulo: "Home", icone: Home },
   { href: "/funis", rotulo: "Funis", icone: Filter },
+  { href: "/trafego", rotulo: "Tráfego", icone: Megaphone },
+  { href: "/vendas", rotulo: "Vendas", icone: ShoppingCart },
+  { href: "/clientes", rotulo: "Clientes", icone: Users },
   {
     href: "/configuracoes",
     rotulo: "Configurações",
