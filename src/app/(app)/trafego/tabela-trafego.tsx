@@ -27,6 +27,10 @@ type Ordenacao = { chave: string; direcao: "asc" | "desc" };
 const LARGURA_MINIMA = 72;
 const LARGURA_PADRAO_METRICA = 120;
 const LARGURA_PADRAO_NOME = 320;
+const LARGURA_SELECAO = 40;
+/** Célula fixa à esquerda: fundo opaco que acompanha o hover e a seleção da linha. */
+const CELULA_FIXA =
+  "bg-card sticky z-10 group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted";
 
 /**
  * Tabela do relatório de tráfego: colunas escolhidas pelo usuário, cabeçalhos clicáveis
@@ -76,6 +80,7 @@ export function TabelaTrafego({
     );
   }
   const largura = (chave: string, padrao: number) => larguras[chave] ?? padrao;
+  const esquerdaNome = selecao ? LARGURA_SELECAO : 0;
 
   return (
     <div className="space-y-3">
@@ -86,10 +91,12 @@ export function TabelaTrafego({
         </p>
         <PersonalizarColunas colunas={colunas} aoSalvar={definirColunas} />
       </div>
-      <div className="overflow-x-auto">
+      {/* Rolagem vertical e horizontal no mesmo quadro; cabeçalho fixo no topo e a
+          coluna do nome (com a caixa de seleção) fixa à esquerda. */}
+      <div className="[&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:overflow-auto [&_[data-slot=table-container]]:rounded-md [&_[data-slot=table-container]]:border">
         <Table className="w-max min-w-full table-fixed">
           <colgroup>
-            {selecao ? <col style={{ width: 40 }} /> : null}
+            {selecao ? <col style={{ width: LARGURA_SELECAO }} /> : null}
             <col style={{ width: largura("nome", LARGURA_PADRAO_NOME) }} />
             {metricas.map((m) => (
               <col
@@ -100,7 +107,9 @@ export function TabelaTrafego({
           </colgroup>
           <TableHeader>
             <TableRow>
-              {selecao ? <TableHead /> : null}
+              {selecao ? (
+                <TableHead className="bg-card sticky top-0 left-0 z-30 shadow-[inset_-1px_0_0_var(--border)]" />
+              ) : null}
               <Cabecalho
                 rotulo={rotuloNivel}
                 chave="nome"
@@ -109,6 +118,7 @@ export function TabelaTrafego({
                 alinhar="left"
                 largura={largura("nome", LARGURA_PADRAO_NOME)}
                 aoRedimensionar={(l) => definirLargura("nome", l)}
+                fixaEsquerda={esquerdaNome}
               />
               {metricas.map((m) => (
                 <Cabecalho
@@ -133,12 +143,13 @@ export function TabelaTrafego({
               return (
                 <TableRow
                   key={l.chave}
+                  className="group/row"
                   data-state={
                     selecao?.selecionados.includes(l.chave) ? "selected" : undefined
                   }
                 >
                   {selecao ? (
-                    <TableCell>
+                    <TableCell className={cn(CELULA_FIXA, "left-0")}>
                       <CaixaSelecao
                         chave={l.chave}
                         parametro={selecao.parametro}
@@ -147,7 +158,13 @@ export function TabelaTrafego({
                       />
                     </TableCell>
                   ) : null}
-                  <TableCell className="overflow-hidden">
+                  <TableCell
+                    className={cn(
+                      CELULA_FIXA,
+                      "overflow-hidden shadow-[inset_-1px_0_0_var(--border)]",
+                    )}
+                    style={{ left: esquerdaNome }}
+                  >
                     <div className="flex items-center gap-3">
                       {l.veiculacao ? (
                         <ChaveVeiculacao
@@ -218,6 +235,7 @@ function Cabecalho({
   alinhar,
   largura,
   aoRedimensionar,
+  fixaEsquerda,
 }: {
   rotulo: string;
   titulo?: string;
@@ -227,6 +245,8 @@ function Cabecalho({
   alinhar: "left" | "right";
   largura: number;
   aoRedimensionar: (largura: number) => void;
+  /** Deslocamento à esquerda quando a coluna fica fixa na rolagem horizontal. */
+  fixaEsquerda?: number;
 }) {
   const ativa = ordem.chave === chave;
   const Icone = !ativa ? ArrowUpDown : ordem.direcao === "asc" ? ArrowUp : ArrowDown;
@@ -252,7 +272,12 @@ function Cabecalho({
 
   return (
     <TableHead
-      className={cn("relative", alinhar === "right" && "text-right")}
+      className={cn(
+        "bg-card sticky top-0 z-20",
+        alinhar === "right" && "text-right",
+        fixaEsquerda !== undefined && "z-30 shadow-[inset_-1px_0_0_var(--border)]",
+      )}
+      style={fixaEsquerda !== undefined ? { left: fixaEsquerda } : undefined}
       aria-sort={ativa ? (ordem.direcao === "asc" ? "ascending" : "descending") : "none"}
     >
       <button
