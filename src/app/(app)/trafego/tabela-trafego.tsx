@@ -7,12 +7,17 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { formatarMetrica } from "@/dominio/metricas";
-import { metricaTrafego } from "@/dominio/metricas-trafego";
+import {
+  BASE_ZERADA,
+  metricaTrafego,
+  type BaseTrafego,
+} from "@/dominio/metricas-trafego";
 import { CLASSE_COR_STATUS, traduzirStatusCampanha } from "@/dominio/status-campanha";
 import type { LinhaTrafego } from "@/servidor/consultas/trafego";
 import { cn } from "@/lib/utils";
@@ -71,6 +76,26 @@ export function TabelaTrafego({
     if (vb === null) return -1;
     return ordem.direcao === "asc" ? va - vb : vb - va;
   });
+
+  // Última linha: soma dos números base das linhas visíveis. As métricas de razão
+  // (CTR, CPM, CPC…) são recalculadas sobre a soma, como no Gerenciador, e não
+  // somadas linha a linha.
+  const totais: BaseTrafego = linhas.reduce(
+    (t, l) => ({
+      gasto: t.gasto + l.gasto,
+      impressoes: t.impressoes + l.impressoes,
+      alcance: t.alcance + l.alcance,
+      cliques: t.cliques + l.cliques,
+      cliques_link: t.cliques_link + l.cliques_link,
+      visualizacoes_pagina: t.visualizacoes_pagina + l.visualizacoes_pagina,
+      inicios_checkout: t.inicios_checkout + l.inicios_checkout,
+      leads: t.leads + l.leads,
+      compras_plataforma: t.compras_plataforma + l.compras_plataforma,
+      resultados: t.resultados + l.resultados,
+    }),
+    { ...BASE_ZERADA },
+  );
+  const rotuloTotal = `Resultados de ${linhas.length} ${rotuloNivel.toLowerCase()}${linhas.length === 1 ? "" : "s"}`;
 
   function alternarOrdem(chave: string) {
     setOrdem((atual) =>
@@ -266,6 +291,28 @@ export function TabelaTrafego({
               );
             })}
           </TableBody>
+          <TableFooter className="bg-card sticky bottom-0 z-20 [&>tr]:hover:bg-transparent">
+            <TableRow className="group/row border-t-2">
+              {selecao ? <TableCell className={cn(CELULA_FIXA, "left-0")} /> : null}
+              <TableCell
+                className={cn(CELULA_FIXA, "shadow-[inset_-1px_0_0_var(--border)]")}
+                style={{ left: esquerdaNome }}
+              >
+                <div className="font-semibold">{rotuloTotal}</div>
+                <div className="text-muted-foreground text-xs font-normal">
+                  Soma das linhas acima
+                </div>
+              </TableCell>
+              {metricas.map((m) => (
+                <TableCell
+                  key={m.chave}
+                  className="truncate text-right font-semibold tabular-nums"
+                >
+                  {formatarMetrica(m.calcular(totais), m.formato, moeda)}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableFooter>
         </Table>
       </div>
     </div>
