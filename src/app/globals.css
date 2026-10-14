@@ -128,3 +128,28 @@
     @apply font-sans;
   }
 }
+
+/* Quadro de rolagem das tabelas grandes (aba Tráfego): rola nos dois sentidos,
+   barra sempre visível e arrastável com o mouse. */
+.quadro-rolagem [data-slot="table-container"] {
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) transparent;
+  overscroll-behavior-x: contain;
+}
+.quadro-rolagem [data-slot="table-container"]::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+.quadro-rolagem [data-slot="table-container"]::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border: 3px solid var(--card);
+  border-radius: 999px;
+}
+.quadro-rolagem[data-arrastando="true"] {
+  cursor: grabbing;
+  user-select: none;
+}

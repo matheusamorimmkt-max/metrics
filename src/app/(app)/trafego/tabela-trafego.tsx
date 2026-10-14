@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type PointerEvent } from "react";
+import { useRef, useState, type PointerEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -81,20 +81,66 @@ export function TabelaTrafego({
   }
   const largura = (chave: string, padrao: number) => larguras[chave] ?? padrao;
   const esquerdaNome = selecao ? LARGURA_SELECAO : 0;
+  // Largura exata da soma das colunas: com table-layout fixo e largura 100% o
+  // navegador espremeria as colunas e nunca haveria rolagem lateral.
+  const larguraTotal =
+    esquerdaNome +
+    largura("nome", LARGURA_PADRAO_NOME) +
+    metricas.reduce((soma, m) => soma + largura(m.chave, LARGURA_PADRAO_METRICA), 0);
+
+  // Arrastar o quadro com o mouse rola a tabela (como no Gerenciador de Anúncios).
+  // Botões, chaves, caixas e a alça de largura continuam respondendo ao clique.
+  const quadroRef = useRef<HTMLDivElement>(null);
+  function iniciarArrastoQuadro(e: PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0 || e.pointerType === "touch") return;
+    const alvo = e.target as HTMLElement;
+    if (alvo.closest("button, a, input, label, [role=separator], video")) return;
+    const quadro = quadroRef.current;
+    const rolagem = quadro?.querySelector<HTMLElement>("[data-slot=table-container]");
+    if (!quadro || !rolagem) return;
+    const inicioX = e.clientX;
+    const inicioY = e.clientY;
+    const scrollLeft = rolagem.scrollLeft;
+    const scrollTop = rolagem.scrollTop;
+    let arrastou = false;
+    const mover = (ev: globalThis.PointerEvent) => {
+      const dx = ev.clientX - inicioX;
+      const dy = ev.clientY - inicioY;
+      if (!arrastou && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      arrastou = true;
+      quadro.dataset.arrastando = "true";
+      rolagem.scrollLeft = scrollLeft - dx;
+      rolagem.scrollTop = scrollTop - dy;
+    };
+    const soltar = () => {
+      delete quadro.dataset.arrastando;
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      window.removeEventListener("pointercancel", soltar);
+    };
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-muted-foreground text-xs">
           Clique no cabeçalho para ordenar; arraste a borda do cabeçalho para ajustar a
-          largura.
+          largura; arraste a tabela para rolar.
         </p>
         <PersonalizarColunas colunas={colunas} aoSalvar={definirColunas} />
       </div>
-      {/* Rolagem vertical e horizontal no mesmo quadro; cabeçalho fixo no topo e a
-          coluna do nome (com a caixa de seleção) fixa à esquerda. */}
-      <div className="[&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:overflow-auto [&_[data-slot=table-container]]:rounded-md [&_[data-slot=table-container]]:border">
-        <Table className="w-max min-w-full table-fixed">
+      {/* Rolagem vertical e horizontal no mesmo quadro (barra sempre visível e
+          arrastável com o mouse); cabeçalho fixo no topo e a coluna do nome (com a
+          caixa de seleção) fixa à esquerda. */}
+      <div
+        ref={quadroRef}
+        className="quadro-rolagem"
+        onPointerDown={iniciarArrastoQuadro}
+      >
+        <Table className="table-fixed" style={{ width: larguraTotal, minWidth: "100%" }}>
           <colgroup>
             {selecao ? <col style={{ width: LARGURA_SELECAO }} /> : null}
             <col style={{ width: largura("nome", LARGURA_PADRAO_NOME) }} />
