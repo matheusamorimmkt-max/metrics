@@ -4,6 +4,8 @@ Guia de marca da Mentoria DOMINA POCUS, do Dr. Ricardo Bassan. Não faz parte do
 
 Origem: definida em 2026-10-16 a partir da peça de stories `https://claude.ai/artifact/VPjEP58KTaVR6pDJAfJQBG`. A logo oficial ainda não foi fornecida; a marca atual é provisória (transdutor estilizado dentro de um círculo âmbar).
 
+**Paleta aprovada pelo usuário em 2026-10-16:** "esse tom dourado, verde e branco ficou bom". Ou seja: dourado = âmbar `#e8a33d`, verde = petróleo `#1f5f63`, branco = marfim `#f4efe6`, sobre fundo grafite escuro. Manter essa combinação em todas as peças.
+
 ## Cores
 
 | Papel                 | Nome           | Hex                     | Uso                                                    |
