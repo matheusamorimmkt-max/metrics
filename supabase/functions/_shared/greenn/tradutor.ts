@@ -20,7 +20,12 @@ import type {
 export const UNIDADE_VALOR: "reais" | "centavos" = "reais";
 
 /** [SONDA] Se o detalhe da venda não trouxer `fee`, o conector não precisa buscá-lo para clientes já conhecidos. */
-export const DETALHE_TRAZ_TAXA = false;
+/**
+ * Sonda de 2026-10-20: o detalhe da venda traz a taxa da Greenn no participante de
+ * tipo "seller" (commission_amount ≈ 4,99% do preço da oferta + R$ 1,00). Por isso o
+ * detalhe é sempre buscado.
+ */
+export const DETALHE_TRAZ_TAXA = true;
 
 export type ProdutoGreenn = {
   id: string | number;
@@ -157,7 +162,17 @@ export function lerCliente(venda: VendaGreenn): ClienteImportado {
   };
 }
 
-/** [SONDA] Taxa do gateway: só se o detalhe trouxer `fee`. Senão, desconhecida. */
+/** Participante que representa o próprio vendedor: o "commission_amount" dele é a taxa da Greenn. */
+function ehVendedor(p: Record<string, unknown>): boolean {
+  const tipo = String(p.type ?? p.role ?? "").toLowerCase();
+  return tipo === "seller" || tipo === "producer" || tipo === "owner";
+}
+
+/**
+ * Taxa do gateway: `fee` quando vier (webhook) ou, no detalhe da API, o
+ * `commission_amount` do participante "seller" (confirmado na sonda de 2026-10-20:
+ * 4,99% do preço da oferta + R$ 1,00). Sem nenhum dos dois, desconhecida.
+ */
 export function lerTaxa(venda: VendaGreenn): {
   valor: number;
   origem: VendaImportada["taxa_gateway_origem"];
@@ -165,16 +180,26 @@ export function lerTaxa(venda: VendaGreenn): {
   if (venda.fee !== undefined && venda.fee !== null && venda.fee !== "") {
     return { valor: valorMonetario(venda.fee), origem: "gateway" };
   }
+  const lista = Array.isArray(venda.participants) ? venda.participants : [];
+  for (const item of lista) {
+    const p = objeto(item);
+    if (!p || !ehVendedor(p)) continue;
+    const valor = valorMonetario(p.commission_amount ?? p.amount ?? p.value);
+    if (valor > 0) return { valor, origem: "gateway" };
+  }
   return { valor: 0, origem: "desconhecida" };
 }
 
-/** [SONDA] Comissões: `participants` (coprodutores) e `affiliate` com valores, se vierem. */
+/**
+ * Comissões: `participants` (coprodutores, afiliados) e `affiliate`, com valores. O
+ * participante "seller" é o próprio vendedor e fica de fora (é a taxa, não parceiro).
+ */
 export function lerComissoes(venda: VendaGreenn): ComissaoImportada[] {
   const saida: ComissaoImportada[] = [];
   const lista = Array.isArray(venda.participants) ? venda.participants : [];
   for (const item of lista) {
     const p = objeto(item);
-    if (!p) continue;
+    if (!p || ehVendedor(p)) continue;
     const valor = valorMonetario(
       p.amount ?? p.value ?? p.commission ?? p.commission_amount,
     );
@@ -263,8 +288,10 @@ export function traduzirVenda(venda: VendaGreenn): VendaImportada | null {
     reembolso_pendente: st.pendente,
     origem: !ehAssinatura ? "unica" : renovacao ? "recorrencia" : "assinatura_primeira",
     assinatura_id_externo: texto(venda.subscription_id ?? venda.contract_id),
-    // [SONDA] `total` deve ser o valor pago (com juros de parcelamento); `amount` o preço da oferta.
-    valor_bruto: valorMonetario(venda.total ?? venda.amount),
+    // Sonda de 2026-10-20: `amount` é o preço da oferta (o que o vendedor fatura);
+    // `total` inclui os juros de parcelamento que o cliente paga à operadora e não
+    // chegam ao vendedor. Faturamento bruto usa `amount`; `total` fica em dados_brutos.
+    valor_bruto: valorMonetario(venda.amount ?? venda.total),
     taxa_gateway: taxa.valor,
     taxa_gateway_origem: taxa.origem,
     valor_parceiros: Math.round(comissoes.reduce((s, c) => s + c.valor, 0) * 100) / 100,

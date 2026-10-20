@@ -1,6 +1,6 @@
 # Plano da Fase 2 — Conector Greenn
 
-Status: **Etapas 1, 2, 3 e 4 implementadas e publicadas (2026-10-13). Etapa 0 (sonda) e Etapa 5 (conferência) bloqueadas até existir um token `grn_live_`.** (2026-10-13)
+Status: **Etapas 0 a 4 concluídas (2026-10-20): token `grn_live_` conectado, sonda feita, histórico importado. Falta a Etapa 5: conferir um mês fechado com o relatório da Greenn.**
 
 Referência da API: `docs/greenn-api.md`. Fase anterior: `docs/plano-fase-1.md`.
 
@@ -41,7 +41,7 @@ Conectar a conta Greenn da organização e trazer para o Supabase tudo o que o m
 
 Cada etapa termina com um commit e algo conferível.
 
-### Etapa 0 — Sonda da API (precisa do token)
+### Etapa 0 — Sonda da API ✅ (2026-10-20; resultados em `docs/greenn-api.md`)
 
 - Script `scripts/greenn-sonda.ts` (roda local, `pnpm greenn:sonda`): lista 2 produtos, 2 ofertas, 5 vendas e o detalhe de 3 vendas (uma paga, uma reembolsada, uma com afiliado se houver). Imprime a estrutura com valores mascarados (e-mail, CPF, nome) e grava amostras anonimizadas na pasta de rascunho da sessão, nunca no repositório.
 - Registra em `docs/greenn-api.md` as respostas às perguntas "a confirmar" e fecha as decisões 1, 2 e a questão reais × centavos.

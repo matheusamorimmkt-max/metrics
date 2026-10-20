@@ -61,3 +61,19 @@ Se a sonda mostrar que o detalhe da venda **não** entrega `fee`, o webhook pass
 | Comissões por parceiro    | `affiliate_id` e `participants_count` na lista; `participants` e `affiliate` no detalhe. Estrutura e valores: a confirmar na sonda. |
 | Data de reembolso         | **Sim**: `refunded_at`, com filtro `refunded_after/before` (base da reconsulta diária de 60 dias).                                  |
 | Limite de chamadas        | **100/min por token**, com `Retry-After`. Ciclo de 15 min cabe com folga; a importação retroativa precisa ser fatiada e retomável.  |
+
+## Sonda de 2026-10-20 (token real, conta do usuário)
+
+Respostas ao que estava "a confirmar":
+
+| Pergunta                    | Resposta da sonda                                                                                                                                                                                                                                              |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unidade de `amount`/`total` | **Reais** (`amount: 1950`, `total: 2187`; oferta `amount: 497`). Inteiros quando não há centavos.                                                                                                                                                              |
+| `amount` × `total`          | `amount` é o preço da oferta (o que o vendedor fatura); `total` inclui os juros de parcelamento pagos pelo cliente à operadora. **Faturamento bruto usa `amount`.**                                                                                            |
+| `client` no detalhe         | `{ id, name, email, document }`. A lista traz só `client_id`. Sem telefone na API.                                                                                                                                                                             |
+| Taxa do gateway             | Não existe `fee` na API. Vem em `participants`: o item de `type: "seller"` traz `commission_amount` ≈ **4,99% de `amount` + R$ 1,00** (ex.: 1697 → 85,68; 1300 → 65,87). Esse valor é a taxa, não uma comissão.                                                |
+| `participants`              | `[{ type, user_id, name, email, commission_amount, commission_percentage }]`. Tipos vistos: `seller` (o vendedor, taxa), `co_seller` (coprodutor; veio com 0), afiliados.                                                                                      |
+| Ids                         | Produto: `id` é o nano id (`"8sqedjs"`); a venda e a oferta apontam para o produto por um id numérico diferente (`product_id: 196097`), então a venda liga à oferta (`offer_id` numérico = `offers.id`) e a oferta ao produto (`offers.product_id` = nano id). |
+| Ordenação                   | `sort=paid_at` põe primeiro as vendas sem pagamento (`waiting_payment`, `refused`): as 2 primeiras páginas de 100 não tinham nenhuma venda paga. O conector pula pelo status antes de pedir o detalhe.                                                         |
+| Volume                      | 1.028 vendas (31 reembolsadas) em 2026-10-20; 53 produtos; 231 ofertas.                                                                                                                                                                                        |
+| Limite                      | Confirmado: `X-RateLimit-Limit: 100` por minuto.                                                                                                                                                                                                               |

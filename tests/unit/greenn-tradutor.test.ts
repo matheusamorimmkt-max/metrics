@@ -38,7 +38,16 @@ describe("traduzirVenda", () => {
       cpf_cnpj: "123.456.789-01",
       cellphone: "+5511999990000",
     },
-    participants: [{ id: 9, name: "Coprodutor", type: "coproducer", amount: 10.5 }],
+    participants: [
+      { id: 9, name: "Coprodutor", type: "coproducer", amount: 10.5 },
+      {
+        user_id: 1,
+        name: "Vendedor",
+        type: "seller",
+        commission_amount: 5.84,
+        commission_percentage: 6.02,
+      },
+    ],
     saleMetas: [
       { meta_key: "utm_source", meta_value: "facebook" },
       { meta_key: "x", meta_value: "y" },
@@ -53,9 +62,9 @@ describe("traduzirVenda", () => {
       status: "aprovada",
       reembolso_pendente: false,
       origem: "unica",
-      valor_bruto: 103.5,
-      taxa_gateway: 0,
-      taxa_gateway_origem: "desconhecida",
+      valor_bruto: 97,
+      taxa_gateway: 5.84,
+      taxa_gateway_origem: "gateway",
       valor_parceiros: 10.5,
       moeda: "BRL",
       meio_pagamento: "CREDIT_CARD",
@@ -74,6 +83,7 @@ describe("traduzirVenda", () => {
       cpf: "12345678901",
       telefone: "+5511999990000",
     });
+    expect(v?.comissoes).toHaveLength(1);
     expect(v?.comissoes[0]).toMatchObject({
       tipo: "coprodutor",
       valor: 10.5,
@@ -81,7 +91,14 @@ describe("traduzirVenda", () => {
     });
   });
 
-  it("usa fee quando o detalhe traz, e marca origem gateway", () => {
+  it("sem participante seller nem fee, a taxa fica desconhecida", () => {
+    const v = traduzirVenda({ ...base, participants: [] });
+    expect(v?.taxa_gateway).toBe(0);
+    expect(v?.taxa_gateway_origem).toBe("desconhecida");
+    expect(v?.valor_parceiros).toBe(0);
+  });
+
+  it("fee (webhook) tem prioridade sobre o participante seller", () => {
     const v = traduzirVenda({ ...base, fee: "2.91" });
     expect(v?.taxa_gateway).toBe(2.91);
     expect(v?.taxa_gateway_origem).toBe("gateway");

@@ -227,10 +227,18 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
         .limit(1)
         .maybeSingle();
       const cursorAnterior = (anterior?.cursor as Cursor | null) ?? null;
-      cursor = cursorAnterior ?? {
-        pagina: 1,
-        paid_after: integracao.importacao_inicio ?? null,
-      };
+      // Retroativa pedida depois de concluída = reimportação completa, da página 1.
+      const reimportar = Boolean(integracao.importacao_concluida_em);
+      cursor =
+        !reimportar && cursorAnterior
+          ? cursorAnterior
+          : { pagina: 1, paid_after: integracao.importacao_inicio ?? null };
+      if (reimportar) {
+        await supabase
+          .from("integracoes")
+          .update({ importacao_concluida_em: null })
+          .eq("id", integracao.id);
+      }
       filtrosLista.push(cursor.paid_after ? { paid_after: cursor.paid_after } : {});
     } else if (modo === "reconsulta") {
       const desde = somarDias(hoje, -DIAS_RECONSULTA);
