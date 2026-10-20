@@ -21,6 +21,7 @@ import {
   type OfertaGreenn,
   type ProdutoGreenn,
   type VendaGreenn,
+  traduzirStatus,
 } from "../_shared/greenn/tradutor.ts";
 import type { ModoSincronizacao, VendaImportada } from "../_shared/greenn/tipos.ts";
 
@@ -109,6 +110,19 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
   if (!integracao || integracao.status === "desconectada") {
     return { status: "ignorado", motivo: "Greenn não configurada nesta organização." };
   }
+
+  // Ciclo "executando" há mais de 10 min é um conector que morreu sem responder
+  // (tempo limite, reinício): libera, senão o lock abaixo trava a integração para sempre.
+  await supabase
+    .from("sincronizacoes")
+    .update({
+      status: "falhou",
+      fim: new Date().toISOString(),
+      erro: "Ciclo interrompido sem resposta do conector.",
+    })
+    .eq("integracao_id", integracao.id)
+    .eq("status", "executando")
+    .lt("inicio", new Date(Date.now() - 10 * 60_000).toISOString());
 
   const corte = entrada.corte ?? new Date().toISOString();
   const { data: sync, error: erroSync } = await supabase
@@ -253,6 +267,9 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
         filtros,
         async (lote) => {
           for (const item of lote) {
+            // Venda que nunca foi paga (boleto vencido, pix expirado, recusada) não entra:
+            // nem gasta uma chamada de detalhe com ela.
+            if (!traduzirStatus(String(item.status ?? ""))) continue;
             // Detalhe só quando faz falta: cliente desconhecido, taxa no detalhe, ou sem oferta.
             const clienteConhecido =
               item.client_id !== undefined &&

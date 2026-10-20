@@ -19,7 +19,7 @@ export async function obterEstadoSincronizacao(
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase
     .from("sincronizacoes")
-    .select("status, fim, erro, integracoes(tipo)")
+    .select("status, inicio, fim, erro, integracoes(tipo)")
     .eq("organizacao_id", organizacaoId)
     .order("inicio", { ascending: false })
     .limit(20);
@@ -47,7 +47,12 @@ export async function obterEstadoSincronizacao(
 
   return {
     ultima_concluida_em: concluida?.fim ?? null,
-    executando: data.some((s) => s.status === "executando"),
+    // Ciclo "executando" há mais de 10 min é um conector que morreu: não bloqueia.
+    executando: data.some(
+      (s) =>
+        s.status === "executando" &&
+        Date.now() - new Date(s.inicio).getTime() < 10 * 60_000,
+    ),
     ultimo_fim_em: comFim?.fim ?? null,
     falhas,
   };

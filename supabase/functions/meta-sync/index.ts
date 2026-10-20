@@ -149,6 +149,19 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
     return { status: "falhou", erro: "Falta o ID da conta de anúncios." };
   }
 
+  // Ciclo "executando" há mais de 10 min é um conector que morreu sem responder
+  // (tempo limite, reinício): libera, senão o lock abaixo trava a integração para sempre.
+  await supabase
+    .from("sincronizacoes")
+    .update({
+      status: "falhou",
+      fim: new Date().toISOString(),
+      erro: "Ciclo interrompido sem resposta do conector.",
+    })
+    .eq("integracao_id", integracao.id)
+    .eq("status", "executando")
+    .lt("inicio", new Date(Date.now() - 10 * 60_000).toISOString());
+
   // Lock: um ciclo por integração por vez (índice parcial único).
   const corte = entrada.corte ?? new Date().toISOString();
   const { data: sync, error: erroSync } = await supabase
