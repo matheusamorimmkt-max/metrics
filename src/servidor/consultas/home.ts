@@ -64,6 +64,8 @@ export type PontoSerie = {
   investimento: number;
   faturamento_bruto: number;
   lucro: number;
+  roas: number | null;
+  roi: number | null;
 };
 
 export type Composicao = {
@@ -245,6 +247,8 @@ export async function obterResumoHome(
       investimento: m.investimento,
       faturamento_bruto: m.faturamento_bruto,
       lucro: m.lucro,
+      roas: m.roas,
+      roi: m.roi,
     });
   }
 

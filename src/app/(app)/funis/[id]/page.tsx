@@ -26,7 +26,9 @@ import { ROTULO_TIPO_FUNIL, type TipoFunil } from "@/dominio/schemas/funil";
 import { obterContexto } from "@/servidor/sessao";
 import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterFunil } from "@/servidor/consultas/funis";
-import { obterResumoHome } from "@/servidor/consultas/home";
+import { listarFunisInfo, obterResumoHome } from "@/servidor/consultas/home";
+import { obterIndicadoresClientes } from "@/servidor/consultas/clientes";
+import { TabelaDiaria } from "../tabela-diaria";
 import {
   listarCampanhasDoFunilNoPeriodo,
   listarOfertasDoFunilNoPeriodo,
@@ -35,6 +37,7 @@ import { SeletorHome } from "../../home/seletor";
 import { GraficoSerie } from "../../home/graficos";
 import { EtapasFunil } from "../etapas-funil";
 import { cn } from "@/lib/utils";
+import { CLASSE_COR_STATUS, traduzirStatusCampanha } from "@/dominio/status-campanha";
 
 export const metadata: Metadata = { title: "Funil" };
 
@@ -51,17 +54,32 @@ export default async function PaginaFunil({
   const hoje = hojeNoFuso(organizacao.fuso_horario);
   const periodo = await periodoDaUrl(organizacao, busca);
 
-  const [resumo, ofertas, campanhas] = await Promise.all([
-    obterResumoHome(
+  const funisInfo = await listarFunisInfo(organizacao.id);
+  const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
+  const [clientes, ofertas, campanhas] = await Promise.all([
+    obterIndicadoresClientes(
       organizacao.id,
-      organizacao.taxa_anuncios,
       periodo,
+      organizacao.fuso_horario,
       { tipo: "funil", id },
-      hoje,
+      categoriaDoFunil,
     ),
     listarOfertasDoFunilNoPeriodo(organizacao.id, id, periodo),
     listarCampanhasDoFunilNoPeriodo(organizacao.id, id, periodo),
   ]);
+  const resumo = await obterResumoHome(
+    organizacao.id,
+    organizacao.taxa_anuncios,
+    periodo,
+    { tipo: "funil", id },
+    hoje,
+    clientes,
+  );
+  // Investimento, faturamento, lucro, ROAS e ROI já aparecem na tabela de dia a dia.
+  const cardsSecundarios = CARDS_HOME.filter(
+    (c) =>
+      !["investimento", "faturamento_bruto", "lucro", "roas", "roi"].includes(c.chave),
+  );
   const semaforo = resumo.categorias
     .flatMap((c) => c.funis)
     .find((f) => f.funil?.id === id)?.semaforo;
@@ -114,48 +132,46 @@ export default async function PaginaFunil({
         base={`/funis/${id}`}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {CARDS_HOME.map((card) => {
+      <Card className="border-2">
+        <CardHeader>
+          <CardTitle className="text-xl">Etapas do funil</CardTitle>
+          <CardDescription>
+            Taxa de conversão de cada etapa em relação à anterior; abaixo, a quantidade.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EtapasFunil etapas={resumo.etapas} tipo={funil.tipo} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Dia a dia</CardTitle>
+          <CardDescription>Investimento, faturamento e lucro por dia.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <GraficoSerie serie={resumo.serie} moeda={organizacao.moeda} />
+          <TabelaDiaria serie={resumo.serie} moeda={organizacao.moeda} />
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {cardsSecundarios.map((card) => {
           const chave = card.chave as keyof Metricas;
           return (
             <Card key={card.chave}>
               <CardHeader>
                 <CardDescription>{card.nome}</CardDescription>
-                <CardTitle
-                  className={cn(
-                    "text-2xl tabular-nums",
-                    chave === "lucro" && resumo.atual.lucro < 0 && "text-destructive",
-                  )}
-                >
+                <CardTitle className="text-2xl tabular-nums">
                   {formatarMetrica(resumo.atual[chave], card.formato, organizacao.moeda)}
                 </CardTitle>
               </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-xs">{card.descricao}</p>
+              </CardContent>
             </Card>
           );
         })}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Etapas do funil</CardTitle>
-            <CardDescription>
-              Anúncios até o checkout vêm do Meta; compras vêm do gateway.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EtapasFunil etapas={resumo.etapas} tipo={funil.tipo} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Dia a dia</CardTitle>
-            <CardDescription>Investimento, faturamento e lucro por dia.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <GraficoSerie serie={resumo.serie} moeda={organizacao.moeda} />
-          </CardContent>
-        </Card>
       </div>
 
       <Card>
@@ -261,8 +277,13 @@ export default async function PaginaFunil({
                       <div className="text-muted-foreground text-xs">{c.conta_nome}</div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={c.ativo ? "default" : "outline"}>
-                        {c.status ?? "—"}
+                      <Badge
+                        variant="outline"
+                        className={
+                          CLASSE_COR_STATUS[traduzirStatusCampanha(c.status).cor]
+                        }
+                      >
+                        {traduzirStatusCampanha(c.status).rotulo}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">

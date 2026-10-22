@@ -1,9 +1,15 @@
+import { ArrowRight } from "lucide-react";
 import { formatarMetrica } from "@/dominio/metricas";
 import type { Etapas } from "@/servidor/consultas/home";
+import { cn } from "@/lib/utils";
 
 type Etapa = { nome: string; valor: number; origem: "anuncios" | "gateway" };
 
-/** Funil visual: cada etapa com o valor e a taxa de conversão em relação à anterior. */
+/**
+ * Etapas do funil em destaque: a taxa de conversão em relação à etapa anterior é o
+ * número grande; a quantidade fica menor e mais clara. A primeira etapa mostra a
+ * quantidade em destaque, porque não tem etapa anterior.
+ */
 export function EtapasFunil({ etapas, tipo }: { etapas: Etapas; tipo: string }) {
   const lista: Etapa[] =
     tipo === "isca"
@@ -33,46 +39,80 @@ export function EtapasFunil({ etapas, tipo }: { etapas: Etapas; tipo: string }) 
           { nome: "Compras", valor: etapas.vendas, origem: "gateway" },
         ];
 
-  const maior = Math.max(...lista.map((e) => e.valor), 1);
   if (lista.every((e) => e.valor === 0)) {
-    return <p className="text-muted-foreground text-sm">Sem movimento no período.</p>;
+    return (
+      <p className="text-muted-foreground py-8 text-center text-sm">
+        Sem movimento no período.
+      </p>
+    );
   }
+  const primeira = lista[0].valor;
+  const ultima = lista[lista.length - 1];
+  const taxaTotal = primeira > 0 ? ultima.valor / primeira : null;
 
   return (
-    <ol className="space-y-2">
-      {lista.map((e, i) => {
-        const anterior = i > 0 ? lista[i - 1].valor : null;
-        const taxa = anterior && anterior > 0 ? e.valor / anterior : null;
-        const largura = Math.max(4, Math.round((e.valor / maior) * 100));
-        return (
-          <li key={e.nome} className="space-y-1">
-            <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span>
+    <div className="space-y-4">
+      <ol
+        className="grid gap-3"
+        style={{ gridTemplateColumns: `repeat(${lista.length}, minmax(0, 1fr))` }}
+      >
+        {lista.map((e, i) => {
+          const anterior = i > 0 ? lista[i - 1].valor : null;
+          const taxa =
+            anterior !== null ? (anterior > 0 ? e.valor / anterior : null) : null;
+          return (
+            <li
+              key={e.nome}
+              className={cn(
+                "relative rounded-lg border p-4",
+                e.origem === "gateway" &&
+                  "border-emerald-300 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30",
+              )}
+            >
+              {i > 0 ? (
+                <ArrowRight
+                  className="text-muted-foreground absolute top-1/2 -left-3 hidden size-4 -translate-y-1/2 bg-background md:block"
+                  aria-hidden
+                />
+              ) : null}
+              <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                 {e.nome}
                 {e.origem === "gateway" ? (
-                  <span className="text-muted-foreground ml-1 text-xs">(gateway)</span>
+                  <span className="ml-1 normal-case tracking-normal">(gateway)</span>
                 ) : null}
-              </span>
-              <span className="tabular-nums">
-                {formatarMetrica(e.valor, "inteiro")}
-                {taxa !== null ? (
-                  <span className="text-muted-foreground ml-2 text-xs">
-                    {formatarMetrica(taxa, "percentual")} da anterior
-                  </span>
-                ) : null}
-              </span>
-            </div>
-            <div className="bg-muted h-2 overflow-hidden rounded-full">
-              <div
-                className={
-                  e.origem === "gateway" ? "h-full bg-emerald-500" : "h-full bg-blue-500"
-                }
-                style={{ width: `${largura}%` }}
-              />
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+              </p>
+              {i === 0 ? (
+                <>
+                  <p className="mt-1 text-3xl font-semibold tabular-nums">
+                    {formatarMetrica(e.valor, "inteiro")}
+                  </p>
+                  <p className="text-muted-foreground text-xs">início do funil</p>
+                </>
+              ) : (
+                <>
+                  <p
+                    className={cn(
+                      "mt-1 text-3xl font-semibold tabular-nums",
+                      e.origem === "gateway" && "text-emerald-700 dark:text-emerald-300",
+                    )}
+                  >
+                    {formatarMetrica(taxa, "percentual")}
+                  </p>
+                  <p className="text-muted-foreground text-sm tabular-nums">
+                    {formatarMetrica(e.valor, "inteiro")}{" "}
+                    <span className="text-xs">da etapa anterior</span>
+                  </p>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <p className="text-muted-foreground text-xs">
+        Conversão total: {formatarMetrica(taxaTotal, "percentual")} de{" "}
+        {lista[0].nome.toLowerCase()} até {ultima.nome.toLowerCase()}. Anúncios até o
+        checkout vêm do Meta; compras vêm do gateway.
+      </p>
+    </div>
   );
 }
