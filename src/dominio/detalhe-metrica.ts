@@ -5,11 +5,28 @@
 
 export type Fatia = { nome: string; valor: number; cor: string };
 
+/** Linha de tabela: valor com sinal e percentual (de uma referência dita na descrição). */
+export type LinhaDetalhe = {
+  nome: string;
+  valor: number;
+  sinal: "+" | "-" | "";
+  pct: number | null;
+  /** Linha de total: separador acima e negrito. */
+  total?: boolean;
+  /** Texto auxiliar à direita do nome. */
+  detalhe?: string;
+};
+
 export type DetalheMetrica = {
   titulo: string;
   descricao: string;
+  /** Pizza + legenda (composição). */
   fatias: Fatia[];
-  /** Observação mostrada abaixo do gráfico (ex.: prejuízo). */
+  /** Tabela no lugar da pizza (conta de chegada, reembolsos por produto). */
+  linhas?: LinhaDetalhe[];
+  /** Cabeçalho das colunas da tabela, quando houver. */
+  colunas?: [string, string, string];
+  /** Observação mostrada abaixo (ex.: prejuízo). */
   nota?: string;
 };
 
@@ -18,11 +35,12 @@ export type Parcela = { chave: string; nome: string; valor: number };
 export type EntradaDetalhes = {
   gasto_por_plataforma: Parcela[];
   faturamento_por_produto: Parcela[];
+  reembolsos_por_produto: Parcela[];
   /** Fração do imposto sobre anúncios (ex.: 0.1215). */
   taxa_anuncios: number;
   investimento: number;
   faturamento_bruto: number;
-  receita_liquida: number;
+
   lucro: number;
   reembolsos: number;
   taxas_gateway: number;
@@ -91,7 +109,8 @@ export function montarDetalhes(
 
   const faturamento: DetalheMetrica = {
     titulo: "Faturamento bruto",
-    descricao: "Quanto cada produto faturou no período.",
+    descricao:
+      "Quanto cada produto faturou no período, pelo preço da oferta. Inclui vendas depois reembolsadas; o reembolso é descontado na data em que acontece.",
     fatias: positivas(
       e.faturamento_por_produto.map((p, i) => ({
         nome: p.nome,
@@ -101,65 +120,104 @@ export function montarDetalhes(
     ),
   };
 
-  const descontos: Fatia[] = [
+  // Lucro: conta de chegada a partir do faturamento bruto. Percentuais sobre o
+  // faturamento bruto. Parceiros só entra quando houve comissão.
+  const pct = (v: number) => (e.faturamento_bruto > 0 ? v / e.faturamento_bruto : null);
+  const linhasLucro: LinhaDetalhe[] = [
+    {
+      nome: "Faturamento bruto",
+      valor: arred(e.faturamento_bruto),
+      sinal: "+",
+      pct: pct(e.faturamento_bruto),
+    },
     {
       nome: "Reembolsos e chargebacks",
       valor: arred(e.reembolsos),
-      cor: CORES_DETALHE.reembolsos,
+      sinal: "-",
+      pct: pct(e.reembolsos),
     },
     {
       nome: "Taxas do gateway",
       valor: arred(e.taxas_gateway),
-      cor: CORES_DETALHE.taxas_gateway,
+      sinal: "-",
+      pct: pct(e.taxas_gateway),
     },
-    { nome: "Parceiros", valor: arred(e.parceiros), cor: CORES_DETALHE.parceiros },
+    ...(e.parceiros > 0
+      ? [
+          {
+            nome: "Parceiros",
+            valor: arred(e.parceiros),
+            sinal: "-" as const,
+            pct: pct(e.parceiros),
+          },
+        ]
+      : []),
     {
       nome: "Impostos sobre o faturamento",
       valor: arred(e.impostos),
-      cor: CORES_DETALHE.impostos,
+      sinal: "-",
+      pct: pct(e.impostos),
+    },
+    {
+      nome: "Investimento",
+      valor: arred(e.investimento),
+      sinal: "-",
+      pct: pct(e.investimento),
+    },
+    {
+      nome: e.lucro < 0 ? "Prejuízo" : "Lucro",
+      valor: arred(Math.abs(e.lucro)),
+      sinal: e.lucro < 0 ? "-" : "+",
+      pct: pct(e.lucro),
+      total: true,
     },
   ];
-  const receita: DetalheMetrica = {
-    titulo: "Receita líquida",
-    descricao:
-      "O que sobrou do faturamento bruto e o que foi descontado: reembolsos, taxas do gateway, parceiros e impostos sobre o faturamento.",
-    fatias: positivas([
-      {
-        nome: "Receita líquida",
-        valor: arred(e.receita_liquida),
-        cor: CORES_DETALHE.receita_liquida,
-      },
-      ...descontos,
-    ]),
-    nota:
-      e.receita_liquida < 0
-        ? `Os descontos superaram o faturamento em ${moeda(Math.abs(e.receita_liquida), e.moeda)}.`
-        : undefined,
-  };
-
   const lucro: DetalheMetrica = {
     titulo: "Lucro",
+    descricao: "Do faturamento bruto até o lucro. Percentuais sobre o faturamento bruto.",
+    fatias: [],
+    linhas: linhasLucro,
+    colunas: ["", "Valor", "% do faturamento"],
+  };
+
+  // Taxa de reembolso: produtos reembolsados no período, valor e taxa do produto.
+  const faturamentoProduto = new Map(
+    e.faturamento_por_produto.map((p) => [p.chave, p.valor]),
+  );
+  const totalReembolsos = e.reembolsos_por_produto.reduce((s, p) => s + p.valor, 0);
+  const linhasReembolso: LinhaDetalhe[] = [
+    ...e.reembolsos_por_produto.map((p) => {
+      const fat = faturamentoProduto.get(p.chave) ?? 0;
+      return {
+        nome: p.nome,
+        valor: arred(p.valor),
+        sinal: "" as const,
+        pct: fat > 0 ? p.valor / fat : null,
+        detalhe:
+          fat > 0 ? `de ${moeda(fat, e.moeda)} faturados` : "sem faturamento no período",
+      };
+    }),
+    {
+      nome: "Total",
+      valor: arred(totalReembolsos),
+      sinal: "" as const,
+      pct: e.faturamento_bruto > 0 ? totalReembolsos / e.faturamento_bruto : null,
+      total: true,
+    },
+  ];
+  const taxaReembolso: DetalheMetrica = {
+    titulo: "Taxa de reembolso",
     descricao:
-      "Do faturamento bruto: quanto virou lucro e quanto foi para investimento, reembolsos, taxas, parceiros e impostos.",
-    fatias: positivas([
-      { nome: "Lucro", valor: arred(e.lucro), cor: CORES_DETALHE.lucro },
-      {
-        nome: "Investimento",
-        valor: arred(e.investimento),
-        cor: CORES_DETALHE.investimento,
-      },
-      ...descontos,
-    ]),
-    nota:
-      e.lucro < 0
-        ? `Prejuízo de ${moeda(Math.abs(e.lucro), e.moeda)}: os custos superaram o faturamento.`
-        : undefined,
+      "Produtos com reembolso ou chargeback no período, o valor devolvido e a taxa de reembolso do produto (devolvido ÷ faturado no período).",
+    fatias: [],
+    linhas: e.reembolsos_por_produto.length ? linhasReembolso : [],
+    colunas: ["Produto", "Reembolsado", "Taxa"],
   };
 
   return {
     investimento,
     faturamento_bruto: faturamento,
-    receita_liquida: receita,
     lucro,
+    taxa_reembolso: taxaReembolso,
   };
 }

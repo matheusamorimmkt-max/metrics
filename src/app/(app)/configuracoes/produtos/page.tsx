@@ -18,6 +18,7 @@ import { obterContexto } from "@/servidor/sessao";
 import { listarProdutos } from "@/servidor/consultas/produtos";
 import { listarIntegracoes } from "@/servidor/consultas/integracoes";
 import { LinhaProduto } from "./linha-produto";
+import type { BaseImposto } from "@/dominio/schemas/produto";
 
 export const metadata: Metadata = { title: "Produtos" };
 
@@ -34,8 +35,8 @@ export default async function PaginaProdutos() {
       <CardHeader>
         <CardTitle>Produtos</CardTitle>
         <CardDescription>
-          Importados do gateway. Aqui você informa só o que a API não traz: a alíquota e a
-          base do imposto de cada produto.
+          Importados do gateway. Todos seguem o imposto padrão do negócio (Configurações →
+          Geral); aqui você personaliza só os produtos que têm alíquota diferente.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -69,7 +70,14 @@ export default async function PaginaProdutos() {
             </TableHeader>
             <TableBody>
               {produtos.map((p) => (
-                <LinhaProduto key={p.id} produto={p} />
+                <LinhaProduto
+                  key={p.id}
+                  produto={p}
+                  padrao={{
+                    aliquota: organizacao.aliquota_imposto,
+                    base: organizacao.base_imposto as BaseImposto,
+                  }}
+                />
               ))}
             </TableBody>
           </Table>

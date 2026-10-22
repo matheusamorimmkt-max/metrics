@@ -3,6 +3,7 @@ import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { colunaAusente, tabelaAusente } from "@/servidor/supabase/erros";
 import { somarDias, type Periodo } from "@/dominio/periodo";
 import { deslocamento } from "./vendas";
+import type { Filtro, IndicadoresClientes } from "./home";
 
 export type RecompraPorFunil = {
   funil_entrada: string;
@@ -246,4 +247,54 @@ export async function obterDestaquesClientes(
     frequentes: top((a, b) => b.transacoes - a.transacoes || b.gasto - a.gasto),
     maior_valor: top((a, b) => b.gasto - a.gasto || b.transacoes - a.transacoes),
   };
+}
+
+/**
+ * Clientes únicos e recorrentes no período e no período anterior, para a Home.
+ * Identidade: mesmo CPF (quando há) ou mesmo e-mail = mesmo cliente. Com filtro de
+ * funil/categoria, conta só transações daquele funil.
+ */
+export async function obterIndicadoresClientes(
+  organizacaoId: string,
+  periodo: Periodo,
+  fuso: string,
+  filtro: Filtro,
+  categoriaDoFunil: Map<string, string>,
+): Promise<{ atual: IndicadoresClientes; anterior: IndicadoresClientes }> {
+  const supabase = await criarClienteServidor();
+  const off = deslocamento(fuso);
+  const { data, error } = await supabase
+    .from("transacoes")
+    .select("cliente_id, inicio, eh_recompra, funil_id, clientes(email, cpf)")
+    .eq("organizacao_id", organizacaoId)
+    .gte("inicio", `${periodo.anterior_de}T00:00:00${off}`)
+    .lt("inicio", `${somarDias(periodo.ate, 1)}T00:00:00${off}`)
+    .limit(LIMITE);
+  const vazio = { unicos: 0, recorrentes: 0 };
+  if (error && tabelaAusente(error)) return { atual: vazio, anterior: vazio };
+  if (error) throw new Error(`Falha ao carregar clientes: ${error.message}`);
+
+  const pertence = (funilId: string | null) => {
+    if (filtro.tipo === "negocio") return true;
+    if (!funilId) return false;
+    if (filtro.tipo === "funil") return funilId === filtro.id;
+    return categoriaDoFunil.get(funilId) === filtro.id;
+  };
+  const limiteAtual = `${periodo.de}T00:00:00${off}`;
+  const contar = (noAtual: boolean): IndicadoresClientes => {
+    const unicos = new Set<string>();
+    const recorrentes = new Set<string>();
+    for (const t of data ?? []) {
+      if (!pertence(t.funil_id)) continue;
+      const ehAtual = new Date(t.inicio) >= new Date(limiteAtual);
+      if (ehAtual !== noAtual) continue;
+      const chave = t.clientes?.cpf
+        ? `cpf:${t.clientes.cpf}`
+        : `email:${t.clientes?.email ?? t.cliente_id}`;
+      unicos.add(chave);
+      if (t.eh_recompra) recorrentes.add(chave);
+    }
+    return { unicos: unicos.size, recorrentes: recorrentes.size };
+  };
+  return { atual: contar(true), anterior: contar(false) };
 }

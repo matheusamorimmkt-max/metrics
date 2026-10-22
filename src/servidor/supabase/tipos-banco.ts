@@ -969,6 +969,8 @@ export type Database = {
       };
       organizacoes: {
         Row: {
+          aliquota_imposto: number;
+          base_imposto: string;
           created_at: string;
           fuso_horario: string;
           id: string;
@@ -980,6 +982,8 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          aliquota_imposto?: number;
+          base_imposto?: string;
           created_at?: string;
           fuso_horario?: string;
           id?: string;
@@ -990,6 +994,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          aliquota_imposto?: number;
+          base_imposto?: string;
           created_at?: string;
           fuso_horario?: string;
           id?: string;
@@ -1009,6 +1015,7 @@ export type Database = {
           created_at: string;
           id: string;
           id_externo: string;
+          imposto_personalizado: boolean;
           nome: string;
           organizacao_id: string;
           plataforma: string;
@@ -1022,6 +1029,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           id_externo: string;
+          imposto_personalizado?: boolean;
           nome: string;
           organizacao_id: string;
           plataforma: string;
@@ -1034,6 +1042,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           id_externo?: string;
+          imposto_personalizado?: boolean;
           nome?: string;
           organizacao_id?: string;
           plataforma?: string;
@@ -1533,6 +1542,7 @@ export type Database = {
           base_imposto: string | null;
           id: string | null;
           id_externo: string | null;
+          imposto_personalizado: boolean | null;
           nome: string | null;
           ofertas: number | null;
           organizacao_id: string | null;
@@ -1547,6 +1557,7 @@ export type Database = {
           base_imposto?: string | null;
           id?: string | null;
           id_externo?: string | null;
+          imposto_personalizado?: boolean | null;
           nome?: string | null;
           ofertas?: never;
           organizacao_id?: string | null;
@@ -1560,6 +1571,7 @@ export type Database = {
           base_imposto?: string | null;
           id?: string | null;
           id_externo?: string | null;
+          imposto_personalizado?: boolean | null;
           nome?: string | null;
           ofertas?: never;
           organizacao_id?: string | null;
@@ -1620,6 +1632,19 @@ export type Database = {
         Returns: string;
       };
       criar_organizacao: { Args: { p_nome: string }; Returns: string };
+      definir_imposto_organizacao: {
+        Args: { p_aliquota: number; p_base: string; p_organizacao_id: string };
+        Returns: number;
+      };
+      definir_imposto_produto: {
+        Args: {
+          p_aliquota?: number;
+          p_base?: string;
+          p_personalizado: boolean;
+          p_produto_id: string;
+        };
+        Returns: undefined;
+      };
       disparar_ciclo_agendado: { Args: { p_modo?: string }; Returns: number };
       guardar_credencial_integracao: {
         Args: {

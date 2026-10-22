@@ -51,7 +51,7 @@ function Celulas({ m, moeda }: { m: Metricas; moeda: string }) {
         {formatarMetrica(m.roas, "multiplicador")}
       </TableCell>
       <TableCell className="text-right tabular-nums">
-        {formatarMetrica(m.roi, "percentual")}
+        {formatarMetrica(m.roi, "multiplicador")}
       </TableCell>
     </>
   );

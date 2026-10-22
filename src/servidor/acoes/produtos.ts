@@ -10,53 +10,47 @@ import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resulta
 const CAMINHO = "/configuracoes/produtos";
 
 /**
- * Alíquota e base do imposto do produto. "Só daqui para frente": o trigger do banco
- * fecha a vigência atual e abre outra. "Recalcular histórico": a função do banco
- * substitui todas as vigências por uma só, desde a primeira venda.
+ * Imposto do produto: segue o padrão do negócio ou tem alíquota e base próprias.
+ * Qualquer mudança vale para todo o histórico (a função do banco refaz a vigência).
  */
 export async function salvarImpostoProduto(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
   const { organizacao } = await obterContexto();
+  const personalizado = texto(formData, "personalizado") === "true";
   const parse = schemaImpostoProduto.safeParse({
     produto_id: texto(formData, "produto_id"),
-    aliquota_imposto: textoParaFracao(texto(formData, "aliquota_imposto")) ?? Number.NaN,
-    base_imposto: texto(formData, "base_imposto"),
-    modo: texto(formData, "modo") || "daqui_para_frente",
+    personalizado,
+    aliquota_imposto: personalizado
+      ? (textoParaFracao(texto(formData, "aliquota_imposto")) ?? Number.NaN)
+      : undefined,
+    base_imposto: personalizado ? texto(formData, "base_imposto") : undefined,
   });
   if (!parse.success) return falhaValidacao(parse.error);
 
   const supabase = await criarClienteServidor();
-  const { data, error } = await supabase
+  const { data: produto } = await supabase
     .from("produtos")
-    .update({
-      aliquota_imposto: parse.data.aliquota_imposto,
-      base_imposto: parse.data.base_imposto,
-    })
+    .select("id")
     .eq("id", parse.data.produto_id)
     .eq("organizacao_id", organizacao.id)
-    .select("id")
     .maybeSingle();
-  if (error) return falha(`Não foi possível salvar: ${error.message}`);
-  if (!data) return falha("Produto não encontrado.");
+  if (!produto) return falha("Produto não encontrado.");
 
-  if (parse.data.modo === "recalcular_historico") {
-    const { error: erroRecalculo } = await supabase.rpc("recalcular_aliquota_historico", {
-      p_produto_id: parse.data.produto_id,
-    });
-    if (erroRecalculo) {
-      return falha(
-        `Alíquota salva, mas o histórico não foi recalculado: ${erroRecalculo.message}`,
-      );
-    }
-  }
+  const { error } = await supabase.rpc("definir_imposto_produto", {
+    p_produto_id: parse.data.produto_id,
+    p_personalizado: parse.data.personalizado,
+    p_aliquota: parse.data.aliquota_imposto,
+    p_base: parse.data.base_imposto,
+  });
+  if (error) return falha(`Não foi possível salvar: ${error.message}`);
 
   revalidatePath(CAMINHO);
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   return sucesso(
-    parse.data.modo === "recalcular_historico"
-      ? "Imposto salvo e aplicado a todo o histórico."
-      : "Imposto salvo. Vale para as vendas a partir de agora.",
+    parse.data.personalizado
+      ? "Imposto do produto salvo e aplicado a todo o histórico."
+      : "Produto voltou ao imposto padrão do negócio, em todo o histórico.",
   );
 }

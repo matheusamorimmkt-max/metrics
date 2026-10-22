@@ -15,6 +15,9 @@ export type Organizacao = {
   janela_transacao_min: number;
   fuso_horario: string;
   moeda: string;
+  /** Imposto sobre as vendas, padrão do negócio (fração). */
+  aliquota_imposto: number;
+  base_imposto: "bruto" | "liquido";
 };
 
 /** Usuário autenticado ou null. Validado no servidor do Supabase (getUser), não só pelo cookie. */
@@ -40,7 +43,8 @@ export const listarOrganizacoesDoUsuario = cache(async (): Promise<Organizacao[]
   const { data, error } = await supabase
     .from("membros")
     .select(
-      "created_at, organizacoes ( id, nome, taxa_anuncios, janela_transacao_min, fuso_horario, moeda )",
+      // `*` tolera a migration do imposto ainda não aplicada (colunas chegam como undefined).
+      "created_at, organizacoes ( * )",
     )
     .order("created_at", { ascending: true });
   if (error) throw new Error(`Falha ao carregar organizações: ${error.message}`);
@@ -48,9 +52,14 @@ export const listarOrganizacoesDoUsuario = cache(async (): Promise<Organizacao[]
     .map((m) => m.organizacoes)
     .filter((o): o is NonNullable<typeof o> => o !== null)
     .map((o) => ({
-      ...o,
+      id: o.id,
+      nome: o.nome,
       taxa_anuncios: Number(o.taxa_anuncios),
+      janela_transacao_min: o.janela_transacao_min,
+      fuso_horario: o.fuso_horario,
       moeda: o.moeda.trim(),
+      aliquota_imposto: Number(o.aliquota_imposto ?? 0),
+      base_imposto: o.base_imposto === "liquido" ? "liquido" : "bruto",
     }));
 });
 

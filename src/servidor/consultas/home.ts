@@ -99,9 +99,21 @@ export type ResumoHome = {
   categoriasDisponiveis: { id: string; nome: string }[];
 };
 
-function somar(linhas: LinhaDiaria[], taxaAnuncios: number): Metricas {
-  const e: EntradaMetricas = { ...ENTRADA_ZERADA, taxa_anuncios: taxaAnuncios };
+export type IndicadoresClientes = { unicos: number; recorrentes: number };
+
+function somar(
+  linhas: LinhaDiaria[],
+  taxaAnuncios: number,
+  clientes?: IndicadoresClientes,
+): Metricas {
+  const e: EntradaMetricas = {
+    ...ENTRADA_ZERADA,
+    taxa_anuncios: taxaAnuncios,
+    clientes_unicos: clientes?.unicos ?? 0,
+    clientes_recorrentes: clientes?.recorrentes ?? 0,
+  };
   for (const l of linhas) {
+    e.vendas += l.vendas;
     e.gasto_anuncios += l.gasto;
     e.faturamento_bruto += l.faturamento_bruto;
     e.reembolsos += l.reembolsos;
@@ -127,7 +139,7 @@ function semaforoDe(
   return "vermelho";
 }
 
-async function listarFunisInfo(organizacaoId: string): Promise<FunilInfo[]> {
+export async function listarFunisInfo(organizacaoId: string): Promise<FunilInfo[]> {
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase
     .from("funis")
@@ -193,6 +205,7 @@ export async function obterResumoHome(
   periodo: Periodo,
   filtro: Filtro,
   hoje: string,
+  clientes?: { atual: IndicadoresClientes; anterior: IndicadoresClientes },
 ): Promise<ResumoHome> {
   // Notificações: últimas 48 horas. Os dados são diários, então é hoje (parcial) + ontem.
   const ontem = somarDias(hoje, -1);
@@ -218,8 +231,8 @@ export async function obterResumoHome(
 
   const filtradas = todas.filter(pertence);
   const atuais = filtradas.filter(noPeriodo);
-  const atual = somar(atuais, taxaAnuncios);
-  const anterior = somar(filtradas.filter(noAnterior), taxaAnuncios);
+  const atual = somar(atuais, taxaAnuncios, clientes?.atual);
+  const anterior = somar(filtradas.filter(noAnterior), taxaAnuncios, clientes?.anterior);
 
   // Série por dia (preenche os dias sem linha com zero)
   const porDia = new Map<string, LinhaDiaria[]>();

@@ -10,6 +10,7 @@ export type ProdutoResumo = {
   id_externo: string;
   aliquota_imposto: number;
   base_imposto: BaseImposto;
+  imposto_personalizado: boolean;
   ativo: boolean;
   ofertas: number;
   vendas_30d: number;
@@ -32,6 +33,7 @@ export async function listarProdutos(organizacaoId: string): Promise<ProdutoResu
     id_externo: p.id_externo ?? "",
     aliquota_imposto: Number(p.aliquota_imposto ?? 0),
     base_imposto: (p.base_imposto ?? "bruto") as BaseImposto,
+    imposto_personalizado: p.imposto_personalizado ?? false,
     ativo: p.ativo ?? true,
     ofertas: Number(p.ofertas ?? 0),
     vendas_30d: Number(p.vendas_30d ?? 0),

@@ -12,6 +12,8 @@ export type Composicoes = {
   gasto_por_plataforma: Parcela[];
   /** Faturamento bruto por produto. */
   faturamento_por_produto: Parcela[];
+  /** Reembolsos e chargebacks ocorridos no período, por produto. */
+  reembolsos_por_produto: Parcela[];
 };
 
 const LIMITE = 20_000;
@@ -44,7 +46,7 @@ export async function obterComposicoes(
   };
   const off = deslocamento(fuso);
 
-  const [anuncios, vendas] = await Promise.all([
+  const [anuncios, vendas, reembolsos] = await Promise.all([
     supabase
       .from("metricas_anuncio_diarias")
       .select("gasto, campanhas(plataforma, funil_campanhas(funil_id))")
@@ -61,7 +63,22 @@ export async function obterComposicoes(
       .gte("vendida_em", `${periodo.de}T00:00:00${off}`)
       .lt("vendida_em", `${somarDias(periodo.ate, 1)}T00:00:00${off}`)
       .limit(LIMITE),
+    supabase
+      .from("vendas")
+      .select(
+        "valor_bruto, produto_id, produtos(nome), ofertas(funil_ofertas(funil_id, status))",
+      )
+      .eq("organizacao_id", organizacaoId)
+      .neq("status", "aprovada")
+      .gte("reembolsada_em", `${periodo.de}T00:00:00${off}`)
+      .lt("reembolsada_em", `${somarDias(periodo.ate, 1)}T00:00:00${off}`)
+      .limit(LIMITE),
   ]);
+  if (reembolsos.error && !tabelaAusente(reembolsos.error)) {
+    throw new Error(
+      `Falha ao carregar reembolsos por produto: ${reembolsos.error.message}`,
+    );
+  }
   if (anuncios.error && !tabelaAusente(anuncios.error)) {
     throw new Error(`Falha ao carregar gasto por plataforma: ${anuncios.error.message}`);
   }
@@ -98,10 +115,25 @@ export async function obterComposicoes(
     porProduto.set(chave, p);
   }
 
+  const porProdutoReembolso = new Map<string, Parcela>();
+  for (const v of reembolsos.data ?? []) {
+    const vinculo = v.ofertas?.funil_ofertas;
+    const funilId = vinculo?.status === "confirmado" ? vinculo.funil_id : null;
+    if (!pertence(funilId)) continue;
+    const p = porProdutoReembolso.get(v.produto_id) ?? {
+      chave: v.produto_id,
+      nome: v.produtos?.nome ?? "Produto",
+      valor: 0,
+    };
+    p.valor += Number(v.valor_bruto ?? 0);
+    porProdutoReembolso.set(v.produto_id, p);
+  }
+
   const ordenar = (m: Map<string, Parcela>) =>
     [...m.values()].filter((p) => p.valor > 0).sort((a, b) => b.valor - a.valor);
   return {
     gasto_por_plataforma: ordenar(porPlataforma),
     faturamento_por_produto: ordenar(porProduto),
+    reembolsos_por_produto: ordenar(porProdutoReembolso),
   };
 }

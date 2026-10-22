@@ -12,7 +12,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatarMetrica } from "@/dominio/metricas";
-import type { DetalheMetrica } from "@/dominio/detalhe-metrica";
+import type { DetalheMetrica, LinhaDetalhe } from "@/dominio/detalhe-metrica";
+import { cn } from "@/lib/utils";
 
 /** Ícone de olho no card: abre a pizza com as parcelas que compõem o número. */
 export function BotaoDetalheMetrica({
@@ -42,7 +43,19 @@ export function BotaoDetalheMetrica({
           <DialogTitle>{detalhe.titulo}</DialogTitle>
           <DialogDescription>{detalhe.descricao}</DialogDescription>
         </DialogHeader>
-        {detalhe.fatias.length === 0 || total <= 0 ? (
+        {detalhe.linhas ? (
+          detalhe.linhas.length === 0 ? (
+            <p className="text-muted-foreground py-8 text-center text-sm">
+              Sem reembolsos no período.
+            </p>
+          ) : (
+            <TabelaDetalhe
+              linhas={detalhe.linhas}
+              colunas={detalhe.colunas}
+              moeda={moeda}
+            />
+          )
+        ) : detalhe.fatias.length === 0 || total <= 0 ? (
           <p className="text-muted-foreground py-8 text-center text-sm">
             Sem movimento no período.
           </p>
@@ -58,6 +71,8 @@ export function BotaoDetalheMetrica({
                   outerRadius={90}
                   paddingAngle={2}
                   isAnimationActive={false}
+                  // Sem foco inicial nas fatias: o pop-up abria com a primeira já "selecionada".
+                  tabIndex={-1}
                 >
                   {detalhe.fatias.map((f) => (
                     <Cell key={f.nome} fill={f.cor} />
@@ -105,5 +120,63 @@ export function BotaoDetalheMetrica({
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Tabela com sinal, valor e percentual; a linha de total ganha separador e negrito. */
+function TabelaDetalhe({
+  linhas,
+  colunas,
+  moeda,
+}: {
+  linhas: LinhaDetalhe[];
+  colunas?: [string, string, string];
+  moeda: string;
+}) {
+  return (
+    <table className="w-full text-sm">
+      {colunas ? (
+        <thead>
+          <tr className="text-muted-foreground text-xs">
+            <th className="pb-1 text-left font-medium">{colunas[0]}</th>
+            <th className="pb-1 text-right font-medium">{colunas[1]}</th>
+            <th className="w-28 pb-1 text-right font-medium">{colunas[2]}</th>
+          </tr>
+        </thead>
+      ) : null}
+      <tbody>
+        {linhas.map((l) => (
+          <tr
+            key={l.nome}
+            className={cn(
+              l.total && "border-t-2 font-semibold",
+              !l.total && "border-b border-dashed",
+            )}
+          >
+            <td className="py-1.5 pr-2">
+              {l.nome}
+              {l.detalhe ? (
+                <span className="text-muted-foreground ml-2 text-xs font-normal">
+                  {l.detalhe}
+                </span>
+              ) : null}
+            </td>
+            <td
+              className={cn(
+                "py-1.5 text-right whitespace-nowrap tabular-nums",
+                l.sinal === "-" && "text-red-600",
+                l.sinal === "+" && "text-emerald-600",
+              )}
+            >
+              {l.sinal}
+              {formatarMetrica(l.valor, "moeda", moeda)}
+            </td>
+            <td className="text-muted-foreground py-1.5 text-right tabular-nums">
+              {formatarMetrica(l.pct, "percentual")}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

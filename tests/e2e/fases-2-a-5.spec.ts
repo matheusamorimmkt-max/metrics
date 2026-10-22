@@ -42,13 +42,17 @@ test.describe("Fases 2 a 5 — telas com conectores desligados", () => {
     for (const nome of [
       "Investimento",
       "Faturamento bruto",
-      "Receita líquida",
       "Lucro",
       "ROAS",
       "ROI",
+      "Taxa de reembolso",
+      "Clientes únicos",
       "Transações",
+      "Itens vendidos",
+      "Taxa de recompra",
       "Ticket médio",
       "CAC",
+      "LTV",
     ]) {
       await expect(page.getByText(nome, { exact: true }).first()).toBeVisible();
     }

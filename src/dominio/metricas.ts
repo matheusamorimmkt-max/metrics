@@ -20,6 +20,12 @@ export type EntradaMetricas = {
   transacoes: number;
   /** Clientes cuja primeira compra caiu no período. */
   clientes_novos: number;
+  /** Itens vendidos (cada venda aprovada do gateway: front, bump e upsell contam separados). */
+  vendas: number;
+  /** Clientes únicos no período (mesmo e-mail ou CPF = mesmo cliente). */
+  clientes_unicos: number;
+  /** Clientes com 2 ou mais transações no período. */
+  clientes_recorrentes: number;
 };
 
 export type Metricas = {
@@ -36,6 +42,15 @@ export type Metricas = {
   ticket_medio: number | null;
   /** Investimento / clientes novos. Null sem clientes novos. */
   cac: number | null;
+  /** Reembolsos e chargebacks / faturamento bruto. Null sem faturamento. */
+  taxa_reembolso: number | null;
+  clientes_unicos: number;
+  /** Itens vendidos. */
+  itens: number;
+  /** Clientes recorrentes / clientes únicos. Null sem clientes. */
+  taxa_recompra: number | null;
+  /** Faturamento bruto / clientes únicos: quanto cada cliente gastou em média. Null sem clientes. */
+  ltv: number | null;
   /** Lucro / faturamento bruto. Null sem faturamento. */
   margem: number | null;
   /** Lucro / transações. Null sem transações. */
@@ -61,6 +76,11 @@ export function calcularMetricas(e: EntradaMetricas): Metricas {
     transacoes: e.transacoes,
     ticket_medio: razao(e.faturamento_bruto, e.transacoes),
     cac: razao(investimento, e.clientes_novos),
+    taxa_reembolso: razao(e.reembolsos, e.faturamento_bruto),
+    clientes_unicos: e.clientes_unicos,
+    itens: e.vendas,
+    taxa_recompra: razao(e.clientes_recorrentes, e.clientes_unicos),
+    ltv: razao(e.faturamento_bruto, e.clientes_unicos),
     margem: razao(lucro, e.faturamento_bruto),
     lucro_por_transacao: razao(lucro, e.transacoes),
   };
@@ -76,6 +96,9 @@ export const ENTRADA_ZERADA: EntradaMetricas = {
   impostos: 0,
   transacoes: 0,
   clientes_novos: 0,
+  vendas: 0,
+  clientes_unicos: 0,
+  clientes_recorrentes: 0,
 };
 
 export type FormatoMetrica = "moeda" | "multiplicador" | "percentual" | "inteiro";
@@ -96,19 +119,15 @@ export const CARDS_HOME: {
   {
     chave: "faturamento_bruto",
     nome: "Faturamento bruto",
-    descricao: "Vendas aprovadas no gateway.",
-    formato: "moeda",
-  },
-  {
-    chave: "receita_liquida",
-    nome: "Receita líquida",
-    descricao: "Faturamento menos reembolsos, taxas, parceiros e impostos.",
+    descricao:
+      "Vendas aprovadas no gateway pelo preço da oferta, incluindo as que depois foram reembolsadas. O reembolso é descontado na data em que acontece.",
     formato: "moeda",
   },
   {
     chave: "lucro",
     nome: "Lucro",
-    descricao: "Receita líquida menos investimento.",
+    descricao:
+      "Faturamento menos reembolsos, taxas do gateway, parceiros, impostos e investimento.",
     formato: "moeda",
   },
   {
@@ -120,14 +139,41 @@ export const CARDS_HOME: {
   {
     chave: "roi",
     nome: "ROI",
-    descricao: "Lucro dividido pelo investimento.",
+    descricao:
+      "Lucro dividido pelo investimento. 2x = cada real investido voltou em dobro de lucro.",
+    formato: "multiplicador",
+  },
+  {
+    chave: "taxa_reembolso",
+    nome: "Taxa de reembolso",
+    descricao: "Reembolsos e chargebacks do período divididos pelo faturamento bruto.",
     formato: "percentual",
+  },
+  {
+    chave: "clientes_unicos",
+    nome: "Clientes únicos",
+    descricao:
+      "Pessoas diferentes que compraram no período. Mesmo e-mail ou mesmo CPF é o mesmo cliente.",
+    formato: "inteiro",
   },
   {
     chave: "transacoes",
     nome: "Transações",
     descricao: "Compras agrupadas pela janela de transação.",
     formato: "inteiro",
+  },
+  {
+    chave: "itens",
+    nome: "Itens vendidos",
+    descricao: "Cada item aprovado no gateway: front, bump e upsell contam separados.",
+    formato: "inteiro",
+  },
+  {
+    chave: "taxa_recompra",
+    nome: "Taxa de recompra",
+    descricao:
+      "Clientes com 2 ou mais transações no período divididos pelos clientes únicos.",
+    formato: "percentual",
   },
   {
     chave: "ticket_medio",
@@ -139,6 +185,13 @@ export const CARDS_HOME: {
     chave: "cac",
     nome: "CAC",
     descricao: "Investimento por cliente novo.",
+    formato: "moeda",
+  },
+  {
+    chave: "ltv",
+    nome: "LTV",
+    descricao:
+      "Quanto cada cliente gastou em média no período: faturamento bruto por cliente único.",
     formato: "moeda",
   },
 ];
@@ -153,7 +206,7 @@ export function formatarMetrica(
     case "moeda":
       return valor.toLocaleString("pt-BR", { style: "currency", currency: moeda });
     case "multiplicador":
-      return `${valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×`;
+      return `${valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`;
     case "percentual":
       return `${(valor * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
     case "inteiro":

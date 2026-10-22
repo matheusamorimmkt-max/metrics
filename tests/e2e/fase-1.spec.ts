@@ -55,7 +55,7 @@ test.describe("Fase 1 — Fundação", () => {
     await page.goto("/configuracoes");
     await page.getByLabel("Imposto sobre anúncios (%)").fill("10");
     await page.getByLabel("Janela de transação (minutos)").fill("7");
-    await page.getByRole("button", { name: "Salvar" }).click();
+    await page.getByRole("button", { name: "Salvar", exact: true }).click();
     await expect(page.getByText("Configurações salvas.")).toBeVisible();
     await page.reload();
     await expect(page.getByLabel("Imposto sobre anúncios (%)")).toHaveValue("10");

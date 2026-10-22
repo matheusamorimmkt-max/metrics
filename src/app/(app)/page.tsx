@@ -24,10 +24,12 @@ import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { listarIntegracoes } from "@/servidor/consultas/integracoes";
 import { obterResumoHome, type Filtro } from "@/servidor/consultas/home";
 import { obterComposicoes } from "@/servidor/consultas/composicao";
+import { obterIndicadoresClientes } from "@/servidor/consultas/clientes";
+import { listarFunisInfo } from "@/servidor/consultas/home";
 import { montarDetalhes } from "@/dominio/detalhe-metrica";
 import { BotaoDetalheMetrica } from "./home/detalhe-metrica";
 import { SeletorHome } from "./home/seletor";
-import { GraficoComposicao, GraficoSerie } from "./home/graficos";
+import { GraficoSerie } from "./home/graficos";
 import { TabelaFunis } from "./home/tabela-funis";
 import { cn } from "@/lib/utils";
 
@@ -75,10 +77,26 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
   const filtroTexto = typeof params.filtro === "string" ? params.filtro : "";
   const filtro = lerFiltro(filtroTexto);
 
-  const [integracoes, resumo] = await Promise.all([
+  const funisInfo = await listarFunisInfo(organizacao.id);
+  const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
+  const [integracoes, clientes] = await Promise.all([
     listarIntegracoes(organizacao.id),
-    obterResumoHome(organizacao.id, organizacao.taxa_anuncios, periodo, filtro, hoje),
+    obterIndicadoresClientes(
+      organizacao.id,
+      periodo,
+      organizacao.fuso_horario,
+      filtro,
+      categoriaDoFunil,
+    ),
   ]);
+  const resumo = await obterResumoHome(
+    organizacao.id,
+    organizacao.taxa_anuncios,
+    periodo,
+    filtro,
+    hoje,
+    clientes,
+  );
   const composicoes = await obterComposicoes(
     organizacao.id,
     periodo,
@@ -91,7 +109,6 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     taxa_anuncios: organizacao.taxa_anuncios,
     investimento: resumo.atual.investimento,
     faturamento_bruto: resumo.atual.faturamento_bruto,
-    receita_liquida: resumo.atual.receita_liquida,
     lucro: resumo.atual.lucro,
     reembolsos: resumo.composicao.reembolsos,
     taxas_gateway: resumo.composicao.taxas_gateway,
@@ -224,29 +241,15 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Para onde foi o dinheiro</CardTitle>
-            <CardDescription>
-              Faturamento bruto dividido entre investimento, parceiros, taxas, impostos,
-              reembolsos e lucro.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <GraficoComposicao composicao={resumo.composicao} moeda={organizacao.moeda} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Dia a dia</CardTitle>
-            <CardDescription>Investimento, faturamento e lucro por dia.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <GraficoSerie serie={resumo.serie} moeda={organizacao.moeda} />
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Dia a dia</CardTitle>
+          <CardDescription>Investimento, faturamento e lucro por dia.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GraficoSerie serie={resumo.serie} moeda={organizacao.moeda} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
