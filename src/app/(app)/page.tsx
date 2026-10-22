@@ -24,7 +24,10 @@ import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { listarIntegracoes } from "@/servidor/consultas/integracoes";
 import { obterResumoHome, type Filtro } from "@/servidor/consultas/home";
 import { obterComposicoes } from "@/servidor/consultas/composicao";
-import { obterIndicadoresClientes } from "@/servidor/consultas/clientes";
+import {
+  obterDetalhesClientes,
+  obterIndicadoresClientes,
+} from "@/servidor/consultas/clientes";
 import { listarFunisInfo } from "@/servidor/consultas/home";
 import { montarDetalhes } from "@/dominio/detalhe-metrica";
 import { BotaoDetalheMetrica } from "./home/detalhe-metrica";
@@ -49,9 +52,7 @@ function Variacao({
   anterior: number | null;
   formato: (typeof CARDS_HOME)[number]["formato"];
 }) {
-  if (atual === null || anterior === null || anterior === 0) {
-    return <span className="text-muted-foreground text-xs">sem comparação</span>;
-  }
+  if (atual === null || anterior === null || anterior === 0) return null;
   const delta = (atual - anterior) / Math.abs(anterior);
   const sobe = delta >= 0;
   const Icone = sobe ? ArrowUpRight : ArrowDownRight;
@@ -79,9 +80,16 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
 
   const funisInfo = await listarFunisInfo(organizacao.id);
   const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
-  const [integracoes, clientes] = await Promise.all([
+  const [integracoes, clientes, detalhesClientes] = await Promise.all([
     listarIntegracoes(organizacao.id),
     obterIndicadoresClientes(
+      organizacao.id,
+      periodo,
+      organizacao.fuso_horario,
+      filtro,
+      categoriaDoFunil,
+    ),
+    obterDetalhesClientes(
       organizacao.id,
       periodo,
       organizacao.fuso_horario,
@@ -114,6 +122,11 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     taxas_gateway: resumo.composicao.taxas_gateway,
     parceiros: resumo.composicao.parceiros,
     impostos: resumo.composicao.impostos,
+    transacoes: resumo.atual.transacoes,
+    itens: resumo.atual.itens,
+    clientes: detalhesClientes.clientes,
+    transacoes_por_itens: detalhesClientes.transacoes_por_itens,
+    recompradores: detalhesClientes.recompradores,
     moeda: organizacao.moeda,
   });
 

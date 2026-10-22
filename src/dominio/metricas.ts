@@ -177,8 +177,8 @@ export const CARDS_HOME: {
   },
   {
     chave: "ticket_medio",
-    nome: "Ticket médio",
-    descricao: "Faturamento bruto por transação.",
+    nome: "Ticket médio por transação",
+    descricao: "Faturamento bruto dividido pelo número de transações.",
     formato: "moeda",
   },
   {

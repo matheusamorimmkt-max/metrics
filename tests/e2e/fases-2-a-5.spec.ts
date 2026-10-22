@@ -50,7 +50,7 @@ test.describe("Fases 2 a 5 — telas com conectores desligados", () => {
       "Transações",
       "Itens vendidos",
       "Taxa de recompra",
-      "Ticket médio",
+      "Ticket médio por transação",
       "CAC",
       "LTV",
     ]) {

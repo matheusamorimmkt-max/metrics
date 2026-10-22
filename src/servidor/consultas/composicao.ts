@@ -5,7 +5,7 @@ import { somarDias, type Periodo } from "@/dominio/periodo";
 import type { Filtro, FunilInfo } from "./home";
 import { deslocamento } from "./vendas";
 
-export type Parcela = { chave: string; nome: string; valor: number };
+export type Parcela = { chave: string; nome: string; valor: number; quantidade: number };
 
 export type Composicoes = {
   /** Gasto em anúncios por plataforma (meta, google…), antes do imposto. */
@@ -95,8 +95,10 @@ export async function obterComposicoes(
       chave,
       nome: NOME_PLATAFORMA[chave] ?? chave,
       valor: 0,
+      quantidade: 0,
     };
     p.valor += Number(l.gasto ?? 0);
+    p.quantidade += 1;
     porPlataforma.set(chave, p);
   }
 
@@ -110,8 +112,10 @@ export async function obterComposicoes(
       chave,
       nome: v.produtos?.nome ?? "Produto",
       valor: 0,
+      quantidade: 0,
     };
     p.valor += Number(v.valor_bruto ?? 0);
+    p.quantidade += 1;
     porProduto.set(chave, p);
   }
 
@@ -124,13 +128,17 @@ export async function obterComposicoes(
       chave: v.produto_id,
       nome: v.produtos?.nome ?? "Produto",
       valor: 0,
+      quantidade: 0,
     };
     p.valor += Number(v.valor_bruto ?? 0);
+    p.quantidade += 1;
     porProdutoReembolso.set(v.produto_id, p);
   }
 
   const ordenar = (m: Map<string, Parcela>) =>
-    [...m.values()].filter((p) => p.valor > 0).sort((a, b) => b.valor - a.valor);
+    [...m.values()]
+      .filter((p) => p.valor > 0 || p.quantidade > 0)
+      .sort((a, b) => b.valor - a.valor);
   return {
     gasto_por_plataforma: ordenar(porPlataforma),
     faturamento_por_produto: ordenar(porProduto),

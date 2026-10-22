@@ -12,7 +12,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatarMetrica } from "@/dominio/metricas";
-import type { DetalheMetrica, LinhaDetalhe } from "@/dominio/detalhe-metrica";
+import type {
+  DetalheMetrica,
+  TabelaDetalhe as DadosTabela,
+} from "@/dominio/detalhe-metrica";
 import { cn } from "@/lib/utils";
 
 /** Ícone de olho no card: abre a pizza com as parcelas que compõem o número. */
@@ -43,17 +46,13 @@ export function BotaoDetalheMetrica({
           <DialogTitle>{detalhe.titulo}</DialogTitle>
           <DialogDescription>{detalhe.descricao}</DialogDescription>
         </DialogHeader>
-        {detalhe.linhas ? (
-          detalhe.linhas.length === 0 ? (
+        {detalhe.tabela ? (
+          detalhe.tabela.linhas.length === 0 ? (
             <p className="text-muted-foreground py-8 text-center text-sm">
-              Sem reembolsos no período.
+              {detalhe.tabela.vazio}
             </p>
           ) : (
-            <TabelaDetalhe
-              linhas={detalhe.linhas}
-              colunas={detalhe.colunas}
-              moeda={moeda}
-            />
+            <TabelaDetalhe dados={detalhe.tabela} />
           )
         ) : detalhe.fatias.length === 0 || total <= 0 ? (
           <p className="text-muted-foreground py-8 text-center text-sm">
@@ -123,60 +122,58 @@ export function BotaoDetalheMetrica({
   );
 }
 
-/** Tabela com sinal, valor e percentual; a linha de total ganha separador e negrito. */
-function TabelaDetalhe({
-  linhas,
-  colunas,
-  moeda,
-}: {
-  linhas: LinhaDetalhe[];
-  colunas?: [string, string, string];
-  moeda: string;
-}) {
+/** Tabela genérica: primeira coluna à esquerda, demais à direita; linha de total em negrito. */
+function TabelaDetalhe({ dados }: { dados: DadosTabela }) {
   return (
-    <table className="w-full text-sm">
-      {colunas ? (
-        <thead>
+    <div className="max-h-[60vh] overflow-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-background sticky top-0">
           <tr className="text-muted-foreground text-xs">
-            <th className="pb-1 text-left font-medium">{colunas[0]}</th>
-            <th className="pb-1 text-right font-medium">{colunas[1]}</th>
-            <th className="w-28 pb-1 text-right font-medium">{colunas[2]}</th>
+            {dados.cabecalho.map((c, i) => (
+              <th
+                key={i}
+                className={cn("pb-1 font-medium", i === 0 ? "text-left" : "text-right")}
+              >
+                {c}
+              </th>
+            ))}
           </tr>
         </thead>
-      ) : null}
-      <tbody>
-        {linhas.map((l) => (
-          <tr
-            key={l.nome}
-            className={cn(
-              l.total && "border-t-2 font-semibold",
-              !l.total && "border-b border-dashed",
-            )}
-          >
-            <td className="py-1.5 pr-2">
-              {l.nome}
-              {l.detalhe ? (
-                <span className="text-muted-foreground ml-2 text-xs font-normal">
-                  {l.detalhe}
-                </span>
-              ) : null}
-            </td>
-            <td
+        <tbody>
+          {dados.linhas.map((l, li) => (
+            <tr
+              key={li}
               className={cn(
-                "py-1.5 text-right whitespace-nowrap tabular-nums",
-                l.sinal === "-" && "text-red-600",
-                l.sinal === "+" && "text-emerald-600",
+                l.total ? "border-t-2 font-semibold" : "border-b border-dashed",
               )}
             >
-              {l.sinal}
-              {formatarMetrica(l.valor, "moeda", moeda)}
-            </td>
-            <td className="text-muted-foreground py-1.5 text-right tabular-nums">
-              {formatarMetrica(l.pct, "percentual")}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+              {l.celulas.map((c, ci) => (
+                <td
+                  key={ci}
+                  className={cn(
+                    "py-1.5 align-top whitespace-nowrap",
+                    ci === 0
+                      ? "max-w-72 pr-3 whitespace-normal"
+                      : "pl-3 text-right tabular-nums",
+                    c.alinhar === "left" && "text-left",
+                    c.alinhar === "right" && "text-right",
+                    c.cor === "negativo" && "text-red-600",
+                    c.cor === "positivo" && "text-emerald-600",
+                    c.cor === "discreto" && "text-muted-foreground",
+                  )}
+                >
+                  {c.texto}
+                  {c.detalhe ? (
+                    <span className="text-muted-foreground block text-xs font-normal">
+                      {c.detalhe}
+                    </span>
+                  ) : null}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
