@@ -6,6 +6,8 @@ import { origemDoApp } from "@/servidor/origem";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { criarClienteAdmin } from "@/servidor/supabase/admin";
+import { createClient } from "@supabase/supabase-js";
+import { envServidor } from "@/servidor/env";
 import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
 
 const CAMINHO = "/configuracoes/usuarios";
@@ -25,6 +27,26 @@ async function encontrarUsuarioPorEmail(email: string) {
     if (data.users.length < 200) return null;
     pagina += 1;
   }
+}
+
+/**
+ * Para quem já tem conta no Auth, o convite do Supabase não envia e-mail nenhum. Manda
+ * então o e-mail de redefinição de senha, que leva a /auth/callback e /definir-senha.
+ * Usa um cliente de fluxo implícito: o PKCE guardaria o verificador no navegador de
+ * quem convida, e o link só abriria nele.
+ */
+async function enviarLinkDeAcesso(email: string): Promise<string | null> {
+  const env = envServidor();
+  const auth = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+    auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false },
+  });
+  const { error } = await auth.auth.resetPasswordForEmail(email, {
+    redirectTo: `${await origemDoApp()}/auth/callback`,
+  });
+  if (!error) return null;
+  if (error.code === "over_email_send_rate_limit")
+    return "o Supabase recusou o envio por excesso de e-mails (o serviço padrão manda 2 por hora); tente de novo mais tarde";
+  return error.message;
 }
 
 export async function convidarMembro(
@@ -64,17 +86,28 @@ export async function convidarMembro(
   const { error: erroMembro } = await admin
     .from("membros")
     .insert({ organizacao_id: organizacao.id, user_id: userId, papel: "diretor" });
-  if (erroMembro) {
-    if (erroMembro.code === "23505")
-      return falha("Essa pessoa já faz parte desta organização.");
+  const jaEraMembro = erroMembro?.code === "23505";
+  if (erroMembro && !jaEraMembro) {
     return falha(`Convite enviado, mas não foi possível vincular: ${erroMembro.message}`);
   }
 
   revalidatePath(CAMINHO);
+  if (novoUsuario) {
+    return sucesso(
+      `Convite enviado para ${email}. A pessoa receberá um e-mail para definir a senha.`,
+    );
+  }
+
+  const erroEnvio = await enviarLinkDeAcesso(email);
+  if (erroEnvio) {
+    return falha(
+      `${email} já tinha conta${jaEraMembro ? " e já faz parte da organização" : ""}, mas não foi possível enviar o link de acesso: ${erroEnvio}.`,
+    );
+  }
   return sucesso(
-    novoUsuario
-      ? `Convite enviado para ${email}. A pessoa receberá um e-mail para definir a senha.`
-      : `${email} já tinha conta e agora faz parte de ${organizacao.nome}.`,
+    jaEraMembro
+      ? `${email} já faz parte de ${organizacao.nome}. Reenviamos um e-mail com o link para entrar e definir a senha.`
+      : `${email} já tinha conta e agora faz parte de ${organizacao.nome}. Enviamos um e-mail com o link para entrar e definir a senha.`,
   );
 }
 
