@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PAPEIS } from "@/dominio/papeis";
 
 /**
  * E-mail aparado e em minúsculas. O trim vem antes da validação de formato:
@@ -26,8 +27,16 @@ export const schemaDefinirSenha = z
     path: ["confirmacao"],
   });
 
+export const campoPapel = z.enum(PAPEIS, { message: "Escolha o papel." });
+
 export const schemaConvite = z.object({
   email: campoEmail,
+  papel: campoPapel,
+});
+
+export const schemaPapelMembro = z.object({
+  id: z.uuid({ message: "Membro inválido." }),
+  papel: campoPapel,
 });
 
 export const schemaRecuperarSenha = z.object({

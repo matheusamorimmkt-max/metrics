@@ -62,20 +62,28 @@ export function TabelaFunis({
   categorias,
   moeda,
   base = "/",
+  podeEditar = false,
 }: {
   categorias: ResumoCategoria[];
   moeda: string;
   /** "/" = links filtram a Home; "/funis" = links abrem a página do funil. */
   base?: string;
+  /** Administrador vê o link para cadastrar funis. */
+  podeEditar?: boolean;
 }) {
   if (categorias.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
-        Nenhum funil cadastrado.{" "}
-        <Link href="/configuracoes/funis" className="underline underline-offset-4">
-          Cadastrar funis
-        </Link>
-        .
+        Nenhum funil cadastrado.
+        {podeEditar ? (
+          <>
+            {" "}
+            <Link href="/configuracoes/funis" className="underline underline-offset-4">
+              Cadastrar funis
+            </Link>
+            .
+          </>
+        ) : null}
       </p>
     );
   }

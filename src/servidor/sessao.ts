@@ -3,6 +3,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
+import { papelDe, podeEditar as papelPodeEditar, type Papel } from "@/dominio/papeis";
 
 export const COOKIE_ORGANIZACAO = "organizacao";
 
@@ -18,6 +19,8 @@ export type Organizacao = {
   /** Imposto sobre as vendas, padrão do negócio (fração). */
   aliquota_imposto: number;
   base_imposto: "bruto" | "liquido";
+  /** Papel do usuário atual nesta organização. */
+  papel: Papel;
 };
 
 /** Usuário autenticado ou null. Validado no servidor do Supabase (getUser), não só pelo cookie. */
@@ -44,14 +47,14 @@ export const listarOrganizacoesDoUsuario = cache(async (): Promise<Organizacao[]
     .from("membros")
     .select(
       // `*` tolera a migration do imposto ainda não aplicada (colunas chegam como undefined).
-      "created_at, organizacoes ( * )",
+      "created_at, papel, organizacoes ( * )",
     )
     .order("created_at", { ascending: true });
   if (error) throw new Error(`Falha ao carregar organizações: ${error.message}`);
   return data
-    .map((m) => m.organizacoes)
-    .filter((o): o is NonNullable<typeof o> => o !== null)
-    .map((o) => ({
+    .filter((m) => m.organizacoes !== null)
+    .map((m) => ({ o: m.organizacoes!, papel: papelDe(m.papel) }))
+    .map(({ o, papel }) => ({
       id: o.id,
       nome: o.nome,
       taxa_anuncios: Number(o.taxa_anuncios),
@@ -60,6 +63,7 @@ export const listarOrganizacoesDoUsuario = cache(async (): Promise<Organizacao[]
       moeda: o.moeda.trim(),
       aliquota_imposto: Number(o.aliquota_imposto ?? 0),
       base_imposto: o.base_imposto === "liquido" ? "liquido" : "bruto",
+      papel,
     }));
 });
 
@@ -67,6 +71,8 @@ export type Contexto = {
   usuario: Usuario;
   organizacao: Organizacao;
   organizacoes: Organizacao[];
+  /** Administrador edita; visualizador só vê. */
+  podeEditar: boolean;
 };
 
 /**
@@ -83,5 +89,5 @@ export const obterContexto = cache(async (): Promise<Contexto> => {
   const preferida = cookieStore.get(COOKIE_ORGANIZACAO)?.value;
   const organizacao = organizacoes.find((o) => o.id === preferida) ?? organizacoes[0];
 
-  return { usuario, organizacao, organizacoes };
+  return { usuario, organizacao, organizacoes, podeEditar: papelPodeEditar(organizacao.papel) };
 });

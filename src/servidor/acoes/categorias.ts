@@ -9,7 +9,7 @@ import {
 } from "@/dominio/schemas/categoria";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
+import { falha, falhaValidacao, sucesso, texto, type Resultado, semPermissao } from "./resultado";
 
 const CAMINHO = "/configuracoes/categorias";
 
@@ -24,7 +24,9 @@ export async function criarCategoria(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaCriarCategoria.safeParse({
     nome: texto(formData, "nome"),
     tem_semaforo: formData.get("tem_semaforo") === "on",
@@ -56,7 +58,9 @@ export async function renomearCategoria(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaRenomearCategoria.safeParse({
     id: texto(formData, "id"),
     nome: texto(formData, "nome"),
@@ -77,7 +81,9 @@ export async function renomearCategoria(
 }
 
 export async function definirSemaforo(id: string, ligado: boolean): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaIdCategoria.safeParse({ id });
   if (!parse.success) return falhaValidacao(parse.error);
 
@@ -97,7 +103,9 @@ export async function moverCategoria(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaMoverCategoria.safeParse({
     id: texto(formData, "id"),
     direcao: texto(formData, "direcao"),
@@ -140,7 +148,9 @@ export async function excluirCategoria(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaIdCategoria.safeParse({ id: texto(formData, "id") });
   if (!parse.success) return falhaValidacao(parse.error);
 

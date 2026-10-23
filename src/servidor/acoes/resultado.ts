@@ -18,6 +18,14 @@ export function falha(erro: string): Resultado<never> {
   return { ok: false, erro };
 }
 
+export const MENSAGEM_SEM_PERMISSAO =
+  "Só administradores podem alterar isso. Peça a um administrador da organização.";
+
+/** Resposta padrão quando um visualizador tenta uma ação de edição. */
+export function semPermissao(): Resultado<never> {
+  return { ok: false, erro: MENSAGEM_SEM_PERMISSAO };
+}
+
 export function falhaValidacao(erro: ZodError): Resultado<never> {
   return { ok: false, erros: errosDoZod(erro), erro: "Confira os campos destacados." };
 }

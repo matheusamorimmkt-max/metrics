@@ -47,7 +47,7 @@ export default async function PaginaFunil({
 }: PageProps<"/funis/[id]">) {
   const { id } = await params;
   const busca = await searchParams;
-  const { organizacao } = await obterContexto();
+  const { organizacao, podeEditar } = await obterContexto();
   const funil = await obterFunil(organizacao.id, id);
   if (!funil) notFound();
 
@@ -249,13 +249,18 @@ export default async function PaginaFunil({
         <CardContent>
           {campanhas.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Nenhuma campanha vinculada a este funil.{" "}
-              <Link
-                href="/configuracoes/campanhas"
-                className="underline underline-offset-4"
-              >
-                Vincular campanhas
-              </Link>
+              Nenhuma campanha vinculada a este funil.
+              {podeEditar ? (
+                <>
+                  {" "}
+                  <Link
+                    href="/configuracoes/campanhas"
+                    className="underline underline-offset-4"
+                  >
+                    Vincular campanhas
+                  </Link>
+                </>
+              ) : null}
             </p>
           ) : (
             <Table>

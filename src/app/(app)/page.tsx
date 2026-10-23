@@ -72,7 +72,7 @@ function Variacao({
 
 export default async function PaginaHome({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
-  const { organizacao } = await obterContexto();
+  const { organizacao, podeEditar } = await obterContexto();
   const hoje = hojeNoFuso(organizacao.fuso_horario);
   const periodo = await periodoDaUrl(organizacao, params);
   const filtroTexto = typeof params.filtro === "string" ? params.filtro : "";
@@ -169,14 +169,16 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
               Faltando: {pendentes.map((t) => INTEGRACOES[t].nome).join(" e ")}. O
               faturamento vem do gateway e o investimento vem do Meta Ads.
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              render={<Link href="/configuracoes/integracoes" />}
-            >
-              Conectar integrações <ArrowRight aria-hidden />
-            </Button>
+            {podeEditar ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                render={<Link href="/configuracoes/integracoes" />}
+              >
+                Conectar integrações <ArrowRight aria-hidden />
+              </Button>
+            ) : null}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -225,13 +227,18 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
             {resumo.gasto_nao_vinculado > 0 ? (
               <p>
                 {formatarMetrica(resumo.gasto_nao_vinculado, "moeda", organizacao.moeda)}{" "}
-                gastos em campanhas não vinculadas.{" "}
-                <Link
-                  href="/configuracoes/campanhas"
-                  className="underline underline-offset-4"
-                >
-                  Vincular campanhas
-                </Link>
+                gastos em campanhas não vinculadas.
+                {podeEditar ? (
+                  <>
+                    {" "}
+                    <Link
+                      href="/configuracoes/campanhas"
+                      className="underline underline-offset-4"
+                    >
+                      Vincular campanhas
+                    </Link>
+                  </>
+                ) : null}
               </p>
             ) : null}
             {resumo.faturamento_nao_vinculado > 0 ? (
@@ -241,13 +248,18 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
                   "moeda",
                   organizacao.moeda,
                 )}{" "}
-                vendidos em ofertas não vinculadas.{" "}
-                <Link
-                  href="/configuracoes/ofertas"
-                  className="underline underline-offset-4"
-                >
-                  Vincular ofertas
-                </Link>
+                vendidos em ofertas não vinculadas.
+                {podeEditar ? (
+                  <>
+                    {" "}
+                    <Link
+                      href="/configuracoes/ofertas"
+                      className="underline underline-offset-4"
+                    >
+                      Vincular ofertas
+                    </Link>
+                  </>
+                ) : null}
               </p>
             ) : null}
           </AlertDescription>
@@ -273,7 +285,11 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TabelaFunis categorias={resumo.categorias} moeda={organizacao.moeda} />
+          <TabelaFunis
+            categorias={resumo.categorias}
+            moeda={organizacao.moeda}
+            podeEditar={podeEditar}
+          />
         </CardContent>
       </Card>
     </div>

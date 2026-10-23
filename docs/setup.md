@@ -60,7 +60,7 @@ Testes de ponta a ponta (Playwright): `pnpm test:e2e` com `E2E_EMAIL` e `E2E_SEN
 
 ## 6. Convites
 
-Na tela **Configurações → Usuários**, "Convidar diretor" dispara o e-mail padrão do Supabase. O link leva para `/auth/callback`, que grava a sessão e abre "Definir senha".
+Na tela **Configurações → Usuários**, "Convidar usuário" escolhe o papel (**Administrador** vê e edita tudo; **Visualizador** só vê os relatórios, sem Configurações nem chaves liga/desliga) e dispara o e-mail padrão do Supabase. Se o Supabase recusar o envio por limite, a tela mostra um link de acesso (uso único, 1 hora) para o administrador entregar à pessoa. O link leva para `/auth/callback`, que grava a sessão e abre "Definir senha".
 
 Se quiser que o link funcione sem JavaScript no navegador, troque o template **Invite user** (Authentication → Email Templates) para apontar para
 `{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=invite`. O app aceita os dois formatos.

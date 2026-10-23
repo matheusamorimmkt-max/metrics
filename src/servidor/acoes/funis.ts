@@ -6,7 +6,7 @@ import { schemaFunil, schemaIdFunil } from "@/dominio/schemas/funil";
 import { textoParaFracao } from "@/dominio/percentual";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
+import { falha, falhaValidacao, sucesso, texto, type Resultado, semPermissao } from "./resultado";
 
 const CAMINHO = "/configuracoes/funis";
 
@@ -33,7 +33,9 @@ export async function criarFunil(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = lerFormulario(formData);
   if (!parse.success) return falhaValidacao(parse.error);
 
@@ -54,7 +56,9 @@ export async function atualizarFunil(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const idParse = schemaIdFunil.safeParse({ id });
   if (!idParse.success) return falha("Funil inválido.");
   const parse = lerFormulario(formData);
@@ -74,7 +78,9 @@ export async function atualizarFunil(
 }
 
 export async function definirAtivoFunil(id: string, ativo: boolean): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaIdFunil.safeParse({ id });
   if (!parse.success) return falha("Funil inválido.");
 
@@ -95,7 +101,9 @@ export async function excluirFunil(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaIdFunil.safeParse({ id: texto(formData, "id") });
   if (!parse.success) return falha("Funil inválido.");
 

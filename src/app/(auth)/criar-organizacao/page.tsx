@@ -24,7 +24,7 @@ export default async function PaginaCriarOrganizacao() {
         <CardDescription>
           Você entrou como <strong>{usuario.email}</strong>, mas ainda não faz parte de
           nenhuma empresa. Crie a sua para começar. Se a sua empresa já existe, peça a um
-          diretor que convide você.
+          administrador que convide você.
         </CardDescription>
       </CardHeader>
       <CardContent>

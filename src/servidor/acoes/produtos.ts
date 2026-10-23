@@ -5,7 +5,7 @@ import { schemaImpostoProduto } from "@/dominio/schemas/produto";
 import { textoParaFracao } from "@/dominio/percentual";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
+import { falha, falhaValidacao, sucesso, texto, type Resultado, semPermissao } from "./resultado";
 
 const CAMINHO = "/configuracoes/produtos";
 
@@ -17,7 +17,9 @@ export async function salvarImpostoProduto(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const personalizado = texto(formData, "personalizado") === "true";
   const parse = schemaImpostoProduto.safeParse({
     produto_id: texto(formData, "produto_id"),

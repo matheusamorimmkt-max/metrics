@@ -7,13 +7,15 @@ import { textoParaFracao } from "@/dominio/percentual";
 import { fusoValido } from "@/dominio/fuso-horario";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
+import { falha, falhaValidacao, sucesso, texto, type Resultado, semPermissao } from "./resultado";
 
 export async function atualizarConfiguracoesGerais(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
 
   const taxa = textoParaFracao(texto(formData, "taxa_anuncios"));
   const janela = Number.parseInt(texto(formData, "janela_transacao_min"), 10);
@@ -49,7 +51,9 @@ export async function salvarImpostoOrganizacao(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaImpostoOrganizacao.safeParse({
     aliquota_imposto: textoParaFracao(texto(formData, "aliquota_imposto")) ?? Number.NaN,
     base_imposto: texto(formData, "base_imposto"),

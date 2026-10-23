@@ -48,12 +48,15 @@ export function TabelaTrafego({
   moeda,
   rotuloNivel,
   selecao,
+  podeEditar,
 }: {
   linhas: LinhaTrafego[];
   nomePai: Record<string, string>;
   moeda: string;
   rotuloNivel: string;
   selecao?: { parametro: "campanhas" | "conjuntos"; selecionados: string[] };
+  /** Visualizador não vê a chave liga/desliga. */
+  podeEditar: boolean;
 }) {
   const [colunas, definirColunas] = useColunasTrafego();
   const [larguras, definirLargura] = useLargurasTrafego();
@@ -237,7 +240,7 @@ export function TabelaTrafego({
                     style={{ left: esquerdaNome }}
                   >
                     <div className="flex items-center gap-3">
-                      {l.veiculacao ? (
+                      {l.veiculacao && podeEditar ? (
                         <ChaveVeiculacao
                           nivel={l.nivel}
                           id={l.veiculacao.id}

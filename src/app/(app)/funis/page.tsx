@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "Funis" };
 
 export default async function PaginaFunis({ searchParams }: PageProps<"/funis">) {
   const params = await searchParams;
-  const { organizacao } = await obterContexto();
+  const { organizacao, podeEditar } = await obterContexto();
   const hoje = hojeNoFuso(organizacao.fuso_horario);
   const periodo = await periodoDaUrl(organizacao, params);
   const resumo = await obterResumoHome(
@@ -51,14 +51,20 @@ export default async function PaginaFunis({ searchParams }: PageProps<"/funis">)
         <CardHeader>
           <CardTitle>Por categoria e funil</CardTitle>
           <CardDescription>
-            As notificações dos funis de Front-end olham as últimas 48 horas.{" "}
-            <Link href="/configuracoes/funis" className="underline underline-offset-4">
-              Gerenciar funis
-            </Link>
+            As notificações dos funis de Front-end olham as últimas 48 horas.
+            {podeEditar ? (
+              <>
+                {" "}
+                <Link href="/configuracoes/funis" className="underline underline-offset-4">
+                  Gerenciar funis
+                </Link>
+              </>
+            ) : null}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <TabelaFunis
+            podeEditar={podeEditar}
             categorias={resumo.categorias}
             moeda={organizacao.moeda}
             base="/funis"

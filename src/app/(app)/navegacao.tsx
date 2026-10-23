@@ -41,7 +41,7 @@ function ativo(pathname: string, href: string, exato: boolean) {
   return exato ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Navegacao() {
+export function Navegacao({ podeEditar }: { podeEditar: boolean }) {
   const pathname = usePathname();
   // O grupo Configurações abre sozinho quando a rota está dentro dele; o usuário pode
   // recolher ou abrir à mão, e essa escolha vale até a rota mudar.
@@ -54,7 +54,7 @@ export function Navegacao() {
       aria-label="Principal"
       className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:pb-4"
     >
-      {ITENS.map((item) => {
+      {ITENS.filter((item) => podeEditar || item.href !== "/configuracoes").map((item) => {
         const Icone = item.icone;
         const estaAtivo = ativo(pathname, item.href, item.href === "/");
         const temFilhos = "filhos" in item;

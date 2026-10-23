@@ -28,7 +28,7 @@ const NIVEIS = [
 
 export default async function PaginaTrafego({ searchParams }: PageProps<"/trafego">) {
   const params = await searchParams;
-  const { organizacao } = await obterContexto();
+  const { organizacao, podeEditar } = await obterContexto();
   const periodo = await periodoDaUrl(organizacao, params);
   const nivel = (
     NIVEIS.some((n) => n.chave === params.nivel) ? params.nivel : "campanha"
@@ -154,19 +154,26 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
               {selCampanhas.length || selConjuntos.length
                 ? "Nada dentro da seleção neste nível. "
                 : "Sem dados de anúncios no período. "}
-              Conecte o Meta Ads em{" "}
-              <Link
-                href="/configuracoes/integracoes"
-                className="underline underline-offset-4"
-              >
-                Integrações
-              </Link>{" "}
-              e clique em &ldquo;Atualizar agora&rdquo;.
+              {podeEditar ? (
+                <>
+                  Conecte o Meta Ads em{" "}
+                  <Link
+                    href="/configuracoes/integracoes"
+                    className="underline underline-offset-4"
+                  >
+                    Integrações
+                  </Link>{" "}
+                  e clique em &ldquo;Atualizar agora&rdquo;.
+                </>
+              ) : (
+                "Peça a um administrador para conectar o Meta Ads."
+              )}
             </p>
           ) : (
             <TabelaTrafego
               linhas={visiveis}
               nomePai={nomePai}
+              podeEditar={podeEditar}
               moeda={organizacao.moeda}
               rotuloNivel={
                 NIVEIS.find((n) => n.chave === nivel)?.rotulo.slice(0, -1) ?? ""

@@ -64,7 +64,7 @@ export function FormularioLogin({
       </BotaoEnviar>
 
       <p className="text-muted-foreground text-center text-xs">
-        Sem acesso? Peça um convite a um diretor da sua empresa.
+        Sem acesso? Peça um convite a um administrador da sua empresa.
       </p>
     </form>
   );

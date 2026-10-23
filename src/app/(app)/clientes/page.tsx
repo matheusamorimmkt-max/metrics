@@ -35,7 +35,7 @@ function dias(valor: number | null): string {
 
 export default async function PaginaClientes({ searchParams }: PageProps<"/clientes">) {
   const params = await searchParams;
-  const { organizacao } = await obterContexto();
+  const { organizacao, podeEditar } = await obterContexto();
   const periodo = await periodoDaUrl(organizacao, params);
   const [r, destaques] = await Promise.all([
     obterResumoClientes(organizacao.id, periodo, organizacao.fuso_horario),
@@ -123,14 +123,21 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
         <CardContent>
           {r.por_funil_entrada.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Sem transações no período. As vendas chegam pela Greenn em{" "}
-              <Link
-                href="/configuracoes/integracoes"
-                className="underline underline-offset-4"
-              >
-                Integrações
-              </Link>
-              .
+              Sem transações no período.{" "}
+              {podeEditar ? (
+                <>
+                  As vendas chegam pela Greenn em{" "}
+                  <Link
+                    href="/configuracoes/integracoes"
+                    className="underline underline-offset-4"
+                  >
+                    Integrações
+                  </Link>
+                  .
+                </>
+              ) : (
+                "As vendas chegam pela Greenn, conectada por um administrador."
+              )}
             </p>
           ) : (
             <Table>

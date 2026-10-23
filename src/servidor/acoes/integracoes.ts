@@ -9,7 +9,7 @@ import {
 } from "@/dominio/schemas/integracao";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { falha, falhaValidacao, sucesso, texto, type Resultado } from "./resultado";
+import { falha, falhaValidacao, sucesso, texto, type Resultado, semPermissao } from "./resultado";
 
 const CAMINHO = "/configuracoes/integracoes";
 
@@ -21,7 +21,9 @@ export async function conectarIntegracao(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
 
   const parse = schemaConectarIntegracao.safeParse({
     tipo: texto(formData, "tipo"),
@@ -50,7 +52,9 @@ export async function desconectarIntegracao(
   _anterior: Resultado,
   formData: FormData,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
 
   const parse = schemaTipoIntegracao.safeParse({ tipo: texto(formData, "tipo") });
   if (!parse.success) return falhaValidacao(parse.error);

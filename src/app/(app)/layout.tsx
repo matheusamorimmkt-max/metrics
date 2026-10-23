@@ -33,7 +33,7 @@ export default async function LayoutApp({ children }: LayoutProps<"/">) {
         <div className="flex h-14 items-center px-4">
           <span className="font-semibold tracking-tight">Metric Analytics</span>
         </div>
-        <Navegacao />
+        <Navegacao podeEditar={contexto.podeEditar} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <Cabecalho

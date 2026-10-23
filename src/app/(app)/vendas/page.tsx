@@ -25,7 +25,7 @@ export const metadata: Metadata = { title: "Vendas" };
 
 export default async function PaginaVendas({ searchParams }: PageProps<"/vendas">) {
   const params = await searchParams;
-  const { organizacao } = await obterContexto();
+  const { organizacao, podeEditar } = await obterContexto();
   const periodo = await periodoDaUrl(organizacao, params);
   const r = await obterResumoVendas(organizacao.id, periodo, organizacao.fuso_horario);
   const moeda = organizacao.moeda;
@@ -73,14 +73,21 @@ export default async function PaginaVendas({ searchParams }: PageProps<"/vendas"
 
       {r.total_vendas === 0 ? (
         <p className="text-muted-foreground text-sm">
-          Sem vendas no período. As vendas chegam pela Greenn em{" "}
-          <Link
-            href="/configuracoes/integracoes"
-            className="underline underline-offset-4"
-          >
-            Integrações
-          </Link>
-          .
+          Sem vendas no período.{" "}
+          {podeEditar ? (
+            <>
+              As vendas chegam pela Greenn em{" "}
+              <Link
+                href="/configuracoes/integracoes"
+                className="underline underline-offset-4"
+              >
+                Integrações
+              </Link>
+              .
+            </>
+          ) : (
+            "As vendas chegam pela Greenn, conectada por um administrador."
+          )}
         </p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">

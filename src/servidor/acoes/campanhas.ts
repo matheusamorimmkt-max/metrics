@@ -5,7 +5,7 @@ import { z } from "zod";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { criarClienteAdmin } from "@/servidor/supabase/admin";
-import { falha, sucesso, type Resultado } from "./resultado";
+import { falha, sucesso, type Resultado, semPermissao } from "./resultado";
 
 const CAMINHO = "/configuracoes/campanhas";
 /** Conectores que aceitam ações, por plataforma da campanha. */
@@ -21,7 +21,9 @@ export async function vincularCampanha(
   campanhaId: string,
   funilId: string | null,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schema.safeParse({ campanha_id: campanhaId, funil_id: funilId || null });
   if (!parse.success) return falha(parse.error.issues[0]?.message ?? "Dados inválidos.");
 
@@ -88,7 +90,9 @@ export async function alterarStatusVeiculacao(
   id: string,
   ativar: boolean,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaVeiculacao.safeParse({ nivel, id });
   if (!parse.success) return falha(parse.error.issues[0]?.message ?? "Dados inválidos.");
 

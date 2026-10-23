@@ -9,7 +9,7 @@ import {
 } from "@/dominio/schemas/funil-oferta";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { falha, sucesso, type Resultado } from "./resultado";
+import { falha, sucesso, type Resultado, semPermissao } from "./resultado";
 
 function revalidar(funilId?: string | null) {
   revalidatePath("/configuracoes/ofertas");
@@ -40,7 +40,9 @@ export async function vincularOferta(
   funilId: string,
   papel: string,
 ): Promise<Resultado<{ conflito_funil_id?: string }>> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaVincularOferta.safeParse({
     oferta_id: ofertaId,
     funil_id: funilId,
@@ -84,7 +86,9 @@ export async function confirmarSugestao(
   ofertaId: string,
   papel?: string,
 ): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaOfertaId.safeParse({ oferta_id: ofertaId });
   if (!parse.success) return falha("Oferta inválida.");
   const papelOk = z.enum(PAPEIS_OFERTA).safeParse(papel);
@@ -105,7 +109,9 @@ export async function confirmarSugestao(
 
 /** Descarta a sugestão: sai do funil e não volta a ser sugerida para esse papel. */
 export async function descartarSugestao(ofertaId: string): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaOfertaId.safeParse({ oferta_id: ofertaId });
   if (!parse.success) return falha("Oferta inválida.");
 
@@ -144,7 +150,9 @@ export async function descartarSugestao(ofertaId: string): Promise<Resultado> {
 
 /** Tira a oferta do funil (volta a "não vinculada"). */
 export async function removerOfertaDoFunil(ofertaId: string): Promise<Resultado> {
-  const { organizacao } = await obterContexto();
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
   const parse = schemaOfertaId.safeParse({ oferta_id: ofertaId });
   if (!parse.success) return falha("Oferta inválida.");
 
