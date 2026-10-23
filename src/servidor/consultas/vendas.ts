@@ -2,6 +2,7 @@ import "server-only";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
 import { somarDias, type Periodo } from "@/dominio/periodo";
+import { rotuloMeioPagamento } from "@/dominio/pagamentos";
 
 export type Agrupado = {
   chave: string;
@@ -28,13 +29,6 @@ export type ResumoVendas = {
 
 const LIMITE = 20_000;
 
-const ROTULO_MEIO: Record<string, string> = {
-  CREDIT_CARD: "Cartão de crédito",
-  BOLETO: "Boleto",
-  PIX: "Pix",
-  DEBIT_CARD: "Cartão de débito",
-  PAYPAL: "PayPal",
-};
 
 function acumular(
   mapa: Map<string, Agrupado>,
@@ -131,7 +125,7 @@ export async function obterResumoVendas(
     );
     acumular(porProduto, v.produto_id, v.produtos?.nome ?? "Produto", valor);
     const meio = v.meio_pagamento ?? "desconhecido";
-    acumular(porMeio, meio, ROTULO_MEIO[meio] ?? meio, valor);
+    acumular(porMeio, meio, rotuloMeioPagamento(v.meio_pagamento), valor);
     const parcelas = Number(v.parcelas ?? 1);
     acumular(
       porParcelas,

@@ -1,7 +1,14 @@
 import "server-only";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
-import type { Periodo } from "@/dominio/periodo";
+import { somarDias, type Periodo } from "@/dominio/periodo";
+import {
+  agruparPorMeioPagamento,
+  agruparPorPais,
+  type GrupoPagamento,
+  type VendaParaAgrupar,
+} from "@/dominio/pagamentos";
+import { deslocamento } from "./vendas";
 import { listarOfertasDoFunil, type OfertaResumo } from "./ofertas";
 import { listarCampanhas, type CampanhaResumo } from "./campanhas";
 
@@ -113,4 +120,57 @@ export async function listarCampanhasDoFunilNoPeriodo(
       };
     })
     .sort((a, b) => b.gasto_periodo - a.gasto_periodo);
+}
+
+export type PagamentosDoFunil = {
+  por_meio: GrupoPagamento[];
+  por_pais: GrupoPagamento[];
+  truncado: boolean;
+};
+
+const LIMITE_VENDAS = 20_000;
+
+/**
+ * Vendas do funil no período (pela oferta confirmada, data da venda no fuso da
+ * organização) agrupadas por forma de pagamento e por país estimado pela moeda.
+ */
+export async function obterPagamentosDoFunil(
+  organizacaoId: string,
+  funilId: string,
+  periodo: Periodo,
+  fuso: string,
+): Promise<PagamentosDoFunil> {
+  const vazio: PagamentosDoFunil = { por_meio: [], por_pais: [], truncado: false };
+  const ofertas = await listarOfertasDoFunil(organizacaoId, funilId);
+  if (ofertas.length === 0) return vazio;
+
+  const supabase = await criarClienteServidor();
+  const inicio = `${periodo.de}T00:00:00${deslocamento(fuso)}`;
+  const fim = `${somarDias(periodo.ate, 1)}T00:00:00${deslocamento(fuso)}`;
+  const { data, error } = await supabase
+    .from("vendas")
+    .select("id, transacao_id, meio_pagamento, moeda, valor_bruto")
+    .eq("organizacao_id", organizacaoId)
+    .in(
+      "oferta_id",
+      ofertas.map((o) => o.id),
+    )
+    .gte("vendida_em", inicio)
+    .lt("vendida_em", fim)
+    .limit(LIMITE_VENDAS);
+  if (error && tabelaAusente(error)) return vazio;
+  if (error) throw new Error(`Falha ao carregar formas de pagamento: ${error.message}`);
+
+  const vendas: VendaParaAgrupar[] = (data ?? []).map((v) => ({
+    id: v.id,
+    transacao_id: v.transacao_id,
+    meio_pagamento: v.meio_pagamento,
+    moeda: v.moeda,
+    valor_bruto: Number(v.valor_bruto ?? 0),
+  }));
+  return {
+    por_meio: agruparPorMeioPagamento(vendas),
+    por_pais: agruparPorPais(vendas),
+    truncado: vendas.length >= LIMITE_VENDAS,
+  };
 }

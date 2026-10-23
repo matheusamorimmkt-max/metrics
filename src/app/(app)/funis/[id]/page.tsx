@@ -32,7 +32,10 @@ import { TabelaDiaria } from "../tabela-diaria";
 import {
   listarCampanhasDoFunilNoPeriodo,
   listarOfertasDoFunilNoPeriodo,
+  obterPagamentosDoFunil,
 } from "@/servidor/consultas/funil-detalhe";
+import { BarrasPaises, PizzaPagamentos } from "../graficos-pagamentos";
+import { TabelaGrupos } from "../tabela-grupos";
 import { SeletorHome } from "../../home/seletor";
 import { GraficoSerie } from "../../home/graficos";
 import { EtapasFunil } from "../etapas-funil";
@@ -56,7 +59,7 @@ export default async function PaginaFunil({
 
   const funisInfo = await listarFunisInfo(organizacao.id);
   const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
-  const [clientes, ofertas, campanhas] = await Promise.all([
+  const [clientes, ofertas, campanhas, pagamentos] = await Promise.all([
     obterIndicadoresClientes(
       organizacao.id,
       periodo,
@@ -66,6 +69,7 @@ export default async function PaginaFunil({
     ),
     listarOfertasDoFunilNoPeriodo(organizacao.id, id, periodo),
     listarCampanhasDoFunilNoPeriodo(organizacao.id, id, periodo),
+    obterPagamentosDoFunil(organizacao.id, id, periodo, organizacao.fuso_horario),
   ]);
   const resumo = await obterResumoHome(
     organizacao.id,
@@ -173,6 +177,69 @@ export default async function PaginaFunil({
           );
         })}
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardDescription>Formas de pagamento ativas</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {pagamentos.por_meio.length}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-xs">
+              Formas com pelo menos uma venda neste funil no período.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Países com vendas</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {pagamentos.por_pais.length}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-xs">
+              Estimado pela moeda da venda: a Greenn não informa o país do comprador.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Formas de pagamento</CardTitle>
+          <CardDescription>
+            Participação de cada forma no faturamento do funil no período.
+            {pagamentos.truncado
+              ? " Consulta limitada a 20 mil vendas; os números podem estar incompletos."
+              : ""}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <PizzaPagamentos grupos={pagamentos.por_meio} moeda={organizacao.moeda} />
+          <TabelaGrupos
+            grupos={pagamentos.por_meio}
+            moeda={organizacao.moeda}
+            rotulo="Forma de pagamento"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Países</CardTitle>
+          <CardDescription>
+            Países com mais faturamento, estimados pela moeda em que o cliente pagou. Quem
+            paga em dólar ou euro aparece sem país.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <BarrasPaises grupos={pagamentos.por_pais} moeda={organizacao.moeda} />
+          <TabelaGrupos grupos={pagamentos.por_pais} moeda={organizacao.moeda} rotulo="País" />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
