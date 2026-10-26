@@ -6,6 +6,12 @@ import { deslocamento } from "./vendas";
 import type { Filtro, IndicadoresClientes } from "./home";
 import type { ClienteRecompra } from "@/dominio/detalhe-metrica";
 import type { ClientePeriodo } from "@/dominio/clientes-periodo";
+import {
+  montarFicha,
+  type FichaCliente,
+  type OrigemVenda,
+  type StatusVenda,
+} from "@/dominio/ficha-cliente";
 
 export type RecompraPorFunil = {
   funil_entrada: string;
@@ -447,4 +453,207 @@ export async function obterDetalhesClientes(
       };
     }),
   };
+}
+
+export type ClienteLista = {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string | null;
+  funil_entrada: string | null;
+  primeira_compra_em: string | null;
+  ultima_compra_em: string | null;
+  transacoes: number;
+  itens: number;
+  gasto: number;
+};
+
+const LIMITE_CLIENTES = 5_000;
+
+/**
+ * Todos os clientes da organização (até 5 mil), com totais da vida, filtrados pela
+ * busca (nome, e-mail ou telefone) e ordenados do maior gasto para o menor.
+ */
+export async function listarTodosClientes(
+  organizacaoId: string,
+  busca: string,
+): Promise<{ clientes: ClienteLista[]; truncado: boolean }> {
+  const supabase = await criarClienteServidor();
+  const consultar = (comTelefone: boolean) =>
+    supabase
+      .from("clientes")
+      .select(
+        comTelefone
+          ? "id, nome, email, telefone, primeira_compra_em, funis(nome)"
+          : "id, nome, email, primeira_compra_em, funis(nome)",
+      )
+      .eq("organizacao_id", organizacaoId)
+      .limit(LIMITE_CLIENTES);
+  let resposta = await consultar(true);
+  if (resposta.error && colunaAusente(resposta.error)) resposta = await consultar(false);
+  if (resposta.error && tabelaAusente(resposta.error)) return { clientes: [], truncado: false };
+  if (resposta.error)
+    throw new Error(`Falha ao carregar clientes: ${resposta.error.message}`);
+  const linhas = (resposta.data ?? []) as unknown as {
+    id: string;
+    nome: string | null;
+    email: string;
+    telefone?: string | null;
+    primeira_compra_em: string | null;
+    funis: { nome: string } | null;
+  }[];
+
+  const { data: transacoes, error: erroT } = await supabase
+    .from("transacoes")
+    .select("cliente_id, inicio, valor_total, quantidade_vendas")
+    .eq("organizacao_id", organizacaoId)
+    .limit(LIMITE);
+  if (erroT && !tabelaAusente(erroT))
+    throw new Error(`Falha ao carregar transações: ${erroT.message}`);
+  const totais = new Map<
+    string,
+    { transacoes: number; itens: number; gasto: number; ultima: string | null }
+  >();
+  for (const t of transacoes ?? []) {
+    const a = totais.get(t.cliente_id) ?? { transacoes: 0, itens: 0, gasto: 0, ultima: null };
+    a.transacoes += 1;
+    a.itens += Number(t.quantidade_vendas ?? 0);
+    a.gasto += Number(t.valor_total ?? 0);
+    if (!a.ultima || t.inicio > a.ultima) a.ultima = t.inicio;
+    totais.set(t.cliente_id, a);
+  }
+
+  const termo = busca.trim().toLowerCase();
+  const clientes = linhas
+    .map((c) => {
+      const t = totais.get(c.id) ?? { transacoes: 0, itens: 0, gasto: 0, ultima: null };
+      return {
+        id: c.id,
+        nome: c.nome?.trim() || c.email,
+        email: c.email,
+        telefone: c.telefone ?? null,
+        funil_entrada: c.funis?.nome ?? null,
+        primeira_compra_em: c.primeira_compra_em,
+        ultima_compra_em: t.ultima,
+        transacoes: t.transacoes,
+        itens: t.itens,
+        gasto: t.gasto,
+      };
+    })
+    .filter(
+      (c) =>
+        !termo ||
+        c.nome.toLowerCase().includes(termo) ||
+        c.email.toLowerCase().includes(termo) ||
+        (c.telefone ?? "").replace(/\D/g, "").includes(termo.replace(/\D/g, "") || "\u0000"),
+    )
+    .sort((a, b) => b.gasto - a.gasto || b.transacoes - a.transacoes || a.nome.localeCompare(b.nome));
+  return { clientes, truncado: linhas.length >= LIMITE_CLIENTES };
+}
+
+/** Ficha completa: dados cadastrais, totais da vida e cada venda de cada transação. */
+export async function obterFichaCliente(
+  organizacaoId: string,
+  clienteId: string,
+): Promise<FichaCliente | null> {
+  const supabase = await criarClienteServidor();
+  const consultar = (comTelefone: boolean) =>
+    supabase
+      .from("clientes")
+      .select(
+        comTelefone
+          ? "id, nome, email, telefone, cpf, plataforma, id_externo, created_at, primeira_compra_em, funis(nome)"
+          : "id, nome, email, cpf, plataforma, id_externo, created_at, primeira_compra_em, funis(nome)",
+      )
+      .eq("organizacao_id", organizacaoId)
+      .eq("id", clienteId)
+      .maybeSingle();
+  let resposta = await consultar(true);
+  if (resposta.error && colunaAusente(resposta.error)) resposta = await consultar(false);
+  if (resposta.error) throw new Error(`Falha ao carregar cliente: ${resposta.error.message}`);
+  const c = resposta.data as unknown as {
+    id: string;
+    nome: string | null;
+    email: string;
+    telefone?: string | null;
+    cpf: string | null;
+    plataforma: string | null;
+    id_externo: string | null;
+    created_at: string;
+    primeira_compra_em: string | null;
+    funis: { nome: string } | null;
+  } | null;
+  if (!c) return null;
+
+  const [transacoes, vendas] = await Promise.all([
+    supabase
+      .from("transacoes")
+      .select("id, inicio, ordem, eh_recompra, valor_total, quantidade_vendas, funis(nome)")
+      .eq("organizacao_id", organizacaoId)
+      .eq("cliente_id", clienteId)
+      .limit(LIMITE),
+    supabase
+      .from("vendas")
+      .select(
+        "id, id_externo, plataforma, transacao_id, vendida_em, valor_bruto, moeda, status, reembolsada_em, meio_pagamento, parcelas, origem, cupom, taxa_gateway, valor_parceiros, utm, produtos(nome), ofertas(nome), comissoes(tipo, parceiro_nome, parceiro_id_externo, valor)",
+      )
+      .eq("organizacao_id", organizacaoId)
+      .eq("cliente_id", clienteId)
+      .limit(LIMITE),
+  ]);
+  if (transacoes.error) throw new Error(`Falha ao carregar transações: ${transacoes.error.message}`);
+  if (vendas.error) throw new Error(`Falha ao carregar vendas: ${vendas.error.message}`);
+
+  return montarFicha(
+    {
+      id: c.id,
+      nome: c.nome,
+      email: c.email,
+      telefone: c.telefone ?? null,
+      cpf: c.cpf,
+      plataforma: c.plataforma,
+      id_externo: c.id_externo,
+      cadastrado_em: c.created_at,
+      primeira_compra_em: c.primeira_compra_em,
+      funil_entrada: c.funis?.nome ?? null,
+    },
+    (transacoes.data ?? []).map((t) => ({
+      id: t.id,
+      inicio: t.inicio,
+      ordem: t.ordem,
+      eh_recompra: t.eh_recompra,
+      funil: t.funis?.nome ?? null,
+      valor_total: Number(t.valor_total ?? 0),
+      quantidade_vendas: Number(t.quantidade_vendas ?? 0),
+    })),
+    (vendas.data ?? []).map((v) => ({
+      id: v.id,
+      id_externo: v.id_externo,
+      plataforma: v.plataforma,
+      transacao_id: v.transacao_id,
+      vendida_em: v.vendida_em,
+      produto: v.produtos?.nome ?? "Produto",
+      oferta: v.ofertas?.nome ?? "Oferta",
+      valor_bruto: Number(v.valor_bruto ?? 0),
+      moeda: (v.moeda ?? "BRL").trim(),
+      status: v.status as StatusVenda,
+      reembolsada_em: v.reembolsada_em,
+      meio_pagamento: v.meio_pagamento,
+      parcelas: Number(v.parcelas ?? 1),
+      origem: v.origem as OrigemVenda,
+      cupom: v.cupom,
+      taxa_gateway: Number(v.taxa_gateway ?? 0),
+      valor_parceiros: Number(v.valor_parceiros ?? 0),
+      utm: (v.utm && typeof v.utm === "object" && !Array.isArray(v.utm)
+        ? Object.fromEntries(
+            Object.entries(v.utm as Record<string, unknown>).map(([k, val]) => [k, String(val)]),
+          )
+        : {}) as Record<string, string>,
+      comissoes: (v.comissoes ?? []).map((co) => ({
+        tipo: co.tipo,
+        parceiro: co.parceiro_nome ?? co.parceiro_id_externo ?? "Parceiro",
+        valor: Number(co.valor ?? 0),
+      })),
+    })),
+  );
 }

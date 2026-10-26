@@ -149,7 +149,7 @@ export async function obterPagamentosDoFunil(
   const fim = `${somarDias(periodo.ate, 1)}T00:00:00${deslocamento(fuso)}`;
   const { data, error } = await supabase
     .from("vendas")
-    .select("id, transacao_id, meio_pagamento, moeda, valor_bruto")
+    .select("id, transacao_id, meio_pagamento, moeda, valor_bruto, origem")
     .eq("organizacao_id", organizacaoId)
     .in(
       "oferta_id",
@@ -167,6 +167,7 @@ export async function obterPagamentosDoFunil(
     meio_pagamento: v.meio_pagamento,
     moeda: v.moeda,
     valor_bruto: Number(v.valor_bruto ?? 0),
+    conta_item: v.origem !== "recorrencia",
   }));
   return {
     por_meio: agruparPorMeioPagamento(vendas),

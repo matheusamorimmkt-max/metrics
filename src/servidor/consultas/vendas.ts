@@ -36,9 +36,10 @@ function acumular(
   nome: string,
   valor: number,
   detalhe?: string,
+  contaItem = true,
 ) {
   const a = mapa.get(chave) ?? { chave, nome, detalhe, vendas: 0, valor: 0 };
-  a.vendas += 1;
+  if (contaItem) a.vendas += 1;
   a.valor += valor;
   mapa.set(chave, a);
 }
@@ -66,7 +67,7 @@ export async function obterResumoVendas(
     supabase
       .from("vendas")
       .select(
-        "id, status, valor_bruto, taxa_gateway, valor_parceiros, meio_pagamento, parcelas, oferta_id, produto_id, ofertas(nome), produtos(nome), comissoes(tipo, parceiro_nome, parceiro_id_externo, valor)",
+        "id, status, origem, valor_bruto, taxa_gateway, valor_parceiros, meio_pagamento, parcelas, oferta_id, produto_id, ofertas(nome), produtos(nome), comissoes(tipo, parceiro_nome, parceiro_id_externo, valor)",
       )
       .eq("organizacao_id", organizacaoId)
       .gte("vendida_em", `${inicio}${deslocamento(fuso)}`)
@@ -112,7 +113,9 @@ export async function obterResumoVendas(
 
   for (const v of vendidas.data ?? []) {
     const valor = Number(v.valor_bruto ?? 0);
-    r.total_vendas += 1;
+    // Cobrança recorrente de assinatura: soma no valor, mas não é item novo.
+    const item = v.origem !== "recorrencia";
+    if (item) r.total_vendas += 1;
     r.faturamento_bruto += valor;
     r.taxas_gateway += Number(v.taxa_gateway ?? 0);
     r.parceiros += Number(v.valor_parceiros ?? 0);
@@ -122,16 +125,19 @@ export async function obterResumoVendas(
       v.ofertas?.nome ?? "Oferta",
       valor,
       v.produtos?.nome ?? undefined,
+      item,
     );
-    acumular(porProduto, v.produto_id, v.produtos?.nome ?? "Produto", valor);
+    acumular(porProduto, v.produto_id, v.produtos?.nome ?? "Produto", valor, undefined, item);
     const meio = v.meio_pagamento ?? "desconhecido";
-    acumular(porMeio, meio, rotuloMeioPagamento(v.meio_pagamento), valor);
+    acumular(porMeio, meio, rotuloMeioPagamento(v.meio_pagamento), valor, undefined, item);
     const parcelas = Number(v.parcelas ?? 1);
     acumular(
       porParcelas,
       String(parcelas),
       parcelas === 1 ? "À vista" : `${parcelas}x`,
       valor,
+      undefined,
+      item,
     );
     for (const c of v.comissoes ?? []) {
       const chave = `${c.tipo}:${c.parceiro_id_externo ?? c.parceiro_nome ?? "?"}`;

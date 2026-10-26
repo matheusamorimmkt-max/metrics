@@ -74,6 +74,8 @@ export type VendaParaAgrupar = {
   transacao_id: string | null;
   /** Usado como transação quando a venda ainda não foi agrupada. */
   id: string;
+  /** Falso para cobrança recorrente de assinatura: soma no valor, não conta item. */
+  conta_item?: boolean;
 };
 
 export type GrupoPagamento = {
@@ -97,7 +99,7 @@ function agrupar(
   for (const v of vendas) {
     const chave = chaveDe(v);
     const g = grupos.get(chave) ?? { itens: 0, faturamento: 0, transacoes: new Set<string>() };
-    g.itens += 1;
+    if (v.conta_item !== false) g.itens += 1;
     g.faturamento += v.valor_bruto;
     g.transacoes.add(v.transacao_id ?? v.id);
     grupos.set(chave, g);

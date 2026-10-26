@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -66,12 +68,19 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
-        <p className="text-muted-foreground">
-          Clientes únicos, novos e recorrentes, transações, taxa de recompra e para onde
-          os clientes de cada front-end ascendem. O olho de cada card mostra quem são.
-        </p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
+          <p className="text-muted-foreground">
+            Clientes únicos, novos e recorrentes, transações, taxa de recompra e para onde
+            os clientes de cada front-end ascendem. O olho de cada card mostra quem são;
+            clique no nome de um cliente para abrir a ficha completa.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" render={<Link href="/clientes/todos" />}>
+          <Users data-icon="inline-start" />
+          Ver todos os clientes
+        </Button>
       </div>
 
       <SeletorHome

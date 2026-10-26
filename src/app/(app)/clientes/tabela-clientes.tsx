@@ -17,6 +17,7 @@ import {
 import { formatarMetrica } from "@/dominio/metricas";
 import { dataHora, type ClienteResumido } from "@/dominio/clientes-periodo";
 import { cn } from "@/lib/utils";
+import { BotaoFichaCliente } from "./ficha-cliente";
 
 const CABECALHO = "bg-card sticky top-0 z-10";
 
@@ -73,7 +74,9 @@ export function TabelaClientes({
                       <TableCell className="text-muted-foreground tabular-nums">
                         {i + 1}
                       </TableCell>
-                      <TableCell className="font-medium whitespace-nowrap">{c.nome}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <BotaoFichaCliente id={c.id} nome={c.nome} fuso={fuso} />
+                      </TableCell>
                       <TableCell className="whitespace-nowrap">{c.telefone || "—"}</TableCell>
                       <TableCell className="whitespace-nowrap">{c.email || "—"}</TableCell>
                       <TableCell className="whitespace-nowrap tabular-nums">
