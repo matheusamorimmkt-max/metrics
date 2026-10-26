@@ -195,7 +195,11 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
                 <CardDescription>{card.nome}</CardDescription>
                 {detalhe ? (
                   <CardAction>
-                    <BotaoDetalheMetrica detalhe={detalhe} moeda={organizacao.moeda} />
+                    <BotaoDetalheMetrica
+                      detalhe={detalhe}
+                      moeda={organizacao.moeda}
+                      fuso={organizacao.fuso_horario}
+                    />
                   </CardAction>
                 ) : null}
                 <CardTitle

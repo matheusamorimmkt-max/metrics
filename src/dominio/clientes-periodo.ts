@@ -106,7 +106,10 @@ export function montarDetalhesClientes(
   const m = (v: number) => formatarMetrica(v, "moeda", opcoes.moeda);
   const n = (v: number) => formatarMetrica(v, "inteiro");
   const cliente = (c: ClienteResumido): Celula =>
-    texto(c.nome, { detalhe: [c.email, c.telefone].filter(Boolean).join(" · ") });
+    texto(c.nome, {
+      detalhe: [c.email, c.telefone].filter(Boolean).join(" · "),
+      cliente_id: c.id,
+    });
 
   const listaClientes = (
     lista: ClienteResumido[],
@@ -180,7 +183,7 @@ export function montarDetalhesClientes(
   const transacoesVisiveis = transacoes.slice(0, LIMITE_LINHAS_OLHO);
   const linhasTransacoes: LinhaTabela[] = transacoesVisiveis.map(({ c, t }) => ({
     celulas: [
-      texto(c.nome, { detalhe: t.produtos.join(", ") || undefined }),
+      texto(c.nome, { detalhe: t.produtos.join(", ") || undefined, cliente_id: c.id }),
       texto(dataHora(t.inicio, opcoes.fuso)),
       texto(t.eh_recompra ? "Recompra" : t.ordem === 1 ? "Primeira" : `${t.ordem}ª`, {
         cor: "discreto",

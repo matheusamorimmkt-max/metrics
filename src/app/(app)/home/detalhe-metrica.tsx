@@ -17,14 +17,18 @@ import type {
   TabelaDetalhe as DadosTabela,
 } from "@/dominio/detalhe-metrica";
 import { cn } from "@/lib/utils";
+import { BotaoFichaCliente } from "../clientes/ficha-cliente";
 
 /** Ícone de olho no card: abre a pizza com as parcelas que compõem o número. */
 export function BotaoDetalheMetrica({
   detalhe,
   moeda,
+  fuso,
 }: {
   detalhe: DetalheMetrica;
   moeda: string;
+  /** Fuso da organização, para as fichas de cliente abertas a partir da lista. */
+  fuso?: string;
 }) {
   const total = detalhe.fatias.reduce((s, f) => s + f.valor, 0);
   return (
@@ -52,7 +56,7 @@ export function BotaoDetalheMetrica({
               {detalhe.tabela.vazio}
             </p>
           ) : (
-            <TabelaDetalhe dados={detalhe.tabela} />
+            <TabelaDetalhe dados={detalhe.tabela} fuso={fuso} />
           )
         ) : detalhe.fatias.length === 0 || total <= 0 ? (
           <p className="text-muted-foreground py-8 text-center text-sm">
@@ -123,7 +127,7 @@ export function BotaoDetalheMetrica({
 }
 
 /** Tabela genérica: primeira coluna à esquerda, demais à direita; linha de total em negrito. */
-function TabelaDetalhe({ dados }: { dados: DadosTabela }) {
+function TabelaDetalhe({ dados, fuso }: { dados: DadosTabela; fuso?: string }) {
   return (
     <div className="max-h-[60vh] overflow-auto">
       <table className="w-full text-sm">
@@ -162,7 +166,15 @@ function TabelaDetalhe({ dados }: { dados: DadosTabela }) {
                     c.cor === "discreto" && "text-muted-foreground",
                   )}
                 >
-                  {c.texto}
+                  {c.cliente_id ? (
+                    <BotaoFichaCliente
+                      id={c.cliente_id}
+                      nome={c.texto}
+                      fuso={fuso ?? "America/Sao_Paulo"}
+                    />
+                  ) : (
+                    c.texto
+                  )}
                   {c.detalhe ? (
                     <span className="text-muted-foreground block text-xs font-normal">
                       {c.detalhe}

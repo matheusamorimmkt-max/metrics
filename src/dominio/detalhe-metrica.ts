@@ -14,6 +14,8 @@ export type Celula = {
   cor?: "positivo" | "negativo" | "discreto";
   /** Texto auxiliar abaixo do principal (e-mail do cliente, por exemplo). */
   detalhe?: string;
+  /** Quando é um cliente: o nome abre a ficha completa. */
+  cliente_id?: string;
 };
 
 export type LinhaTabela = { celulas: Celula[]; total?: boolean };
@@ -39,6 +41,7 @@ export type DetalheMetrica = {
 export type Parcela = { chave: string; nome: string; valor: number; quantidade: number };
 
 export type ClienteRecompra = {
+  cliente_id: string;
   nome: string;
   email: string;
   transacoes_periodo: number;
@@ -362,7 +365,7 @@ export function montarDetalhes(
         ? [
             ...lista.map((c) => ({
               celulas: [
-                texto(c.nome, { detalhe: c.email }),
+                texto(c.nome, { detalhe: c.email, cliente_id: c.cliente_id }),
                 texto(n(c.transacoes_periodo)),
                 texto(m(c.gasto_periodo)),
                 texto(m(c.gasto_total), {
@@ -410,7 +413,7 @@ export function montarDetalhes(
         ? [
             ...e.recompradores.map((c) => ({
               celulas: [
-                texto(c.nome, { detalhe: c.email }),
+                texto(c.nome, { detalhe: c.email, cliente_id: c.cliente_id }),
                 texto(n(c.transacoes_periodo)),
                 texto(m(c.gasto_periodo)),
                 texto(m(c.gasto_total), {

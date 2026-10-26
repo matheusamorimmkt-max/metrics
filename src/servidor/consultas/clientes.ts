@@ -460,6 +460,7 @@ export async function obterDetalhesClientes(
         { gasto: 0, transacoes: 0 },
       );
       return {
+        cliente_id: [...c.ids][0],
         nome: c.nome,
         email: c.email,
         transacoes_periodo: c.transacoes,

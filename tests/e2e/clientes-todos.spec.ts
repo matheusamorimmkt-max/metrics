@@ -19,7 +19,7 @@ test.describe("Lista de clientes do período", () => {
     await page.goto("/clientes");
     await expect(page.getByText("Todos os clientes do período")).toBeVisible();
     await expect(page.getByLabel("Buscar cliente")).toBeVisible();
-    await expect(page.getByLabel("Mínimo de transações")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Baixar CSV" })).toBeVisible();
     await page.getByLabel("Tipo de cliente").selectOption("recorrentes");
     await expect(page.getByText(/Nenhum cliente/)).toBeVisible();
   });

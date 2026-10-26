@@ -87,9 +87,15 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
           <Card key={card.chave}>
             <CardHeader>
               <CardDescription>{card.nome}</CardDescription>
-              <CardAction>
-                <BotaoDetalheMetrica detalhe={detalhes[card.chave]} moeda={moeda} />
-              </CardAction>
+              {card.chave !== "taxa_recompra" ? (
+                <CardAction>
+                  <BotaoDetalheMetrica
+                    detalhe={detalhes[card.chave]}
+                    moeda={moeda}
+                    fuso={organizacao.fuso_horario}
+                  />
+                </CardAction>
+              ) : null}
               <CardTitle className="text-xl tabular-nums">{valores[card.chave]}</CardTitle>
             </CardHeader>
             <CardContent>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -76,7 +77,6 @@ export function ListaClientes({
   fuso: string;
 }) {
   const [busca, setBusca] = useState("");
-  const [minimo, setMinimo] = useState("");
   const [tipo, setTipo] = useState<Tipo>("todos");
   const [ordem, setOrdem] = useState<{ coluna: Coluna; desc: boolean }>({
     coluna: "gasto",
@@ -95,11 +95,9 @@ export function ListaClientes({
   const visiveis = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const digitos = termo.replace(/\D/g, "");
-    const min = Number(minimo) || 0;
     const filtrados = clientes.filter((c) => {
       if (tipo === "novos" && !c.novo) return false;
       if (tipo === "recorrentes" && !c.recorrente) return false;
-      if (c.total_transacoes < min) return false;
       if (!termo) return true;
       return (
         c.nome.toLowerCase().includes(termo) ||
@@ -117,7 +115,47 @@ export function ListaClientes({
           : String(va).localeCompare(String(vb), "pt-BR");
       return cmp * sinal || b.gasto - a.gasto;
     });
-  }, [clientes, busca, minimo, tipo, ordem]);
+  }, [clientes, busca, tipo, ordem]);
+
+  function baixarCsv() {
+    const cabecalho = [
+      "Nome",
+      "E-mail",
+      "Telefone",
+      "Última compra",
+      "Produtos da última compra",
+      "Transações",
+      "Itens",
+      "Gasto",
+      "Novo",
+      "Recorrente",
+    ];
+    const escapar = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+    const linhas = visiveis.map((c) =>
+      [
+        c.nome,
+        c.email,
+        c.telefone ?? "",
+        dataHora(c.ultima_compra, fuso),
+        c.produtos_ultima.join(", "),
+        c.total_transacoes,
+        c.itens,
+        c.gasto.toFixed(2).replace(".", ","),
+        c.novo ? "sim" : "não",
+        c.recorrente ? "sim" : "não",
+      ]
+        .map(escapar)
+        .join(";"),
+    );
+    // BOM + ponto e vírgula: o Excel em português abre direto com as colunas certas.
+    const conteudo = "\ufeff" + [cabecalho.map(escapar).join(";"), ...linhas].join("\r\n");
+    const url = URL.createObjectURL(new Blob([conteudo], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clientes-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const totais = visiveis.reduce(
     (s, c) => ({
@@ -141,18 +179,6 @@ export function ListaClientes({
           />
         </label>
         <label className="space-y-1 text-sm">
-          <span className="text-muted-foreground text-xs">Mínimo de transações</span>
-          <Input
-            type="number"
-            min={1}
-            value={minimo}
-            onChange={(e) => setMinimo(e.target.value)}
-            placeholder="Todas"
-            aria-label="Mínimo de transações"
-            className="w-36"
-          />
-        </label>
-        <label className="space-y-1 text-sm">
           <span className="text-muted-foreground text-xs">Tipo de cliente</span>
           <select
             value={tipo}
@@ -165,6 +191,16 @@ export function ListaClientes({
             <option value="recorrentes">Só recorrentes (recompraram)</option>
           </select>
         </label>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={baixarCsv}
+          disabled={visiveis.length === 0}
+          title="Baixa os clientes listados, com os filtros aplicados"
+        >
+          <Download data-icon="inline-start" />
+          Baixar CSV
+        </Button>
       </div>
 
       <p className="text-muted-foreground text-sm">
