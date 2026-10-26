@@ -5,6 +5,7 @@ import { somarDias, type Periodo } from "@/dominio/periodo";
 import { deslocamento } from "./vendas";
 import type { Filtro, IndicadoresClientes } from "./home";
 import type { ClienteRecompra } from "@/dominio/detalhe-metrica";
+import type { ClientePeriodo } from "@/dominio/clientes-periodo";
 
 export type RecompraPorFunil = {
   funil_entrada: string;
@@ -167,87 +168,96 @@ export async function obterResumoClientes(
   };
 }
 
-export type ClienteDestaque = {
-  id: string;
-  nome: string;
-  email: string;
-  telefone: string | null;
-  transacoes: number;
-  itens: number;
-  gasto: number;
-  ultima_compra: string;
-};
-
-export type DestaquesClientes = {
-  recentes: ClienteDestaque[];
-  frequentes: ClienteDestaque[];
-  maior_valor: ClienteDestaque[];
-};
-
 /**
- * Listas de destaque da aba Clientes, no período: os 3 últimos a comprar, os 3 com
- * mais transações e os 3 que mais gastaram. Só transações (vendas aprovadas).
+ * Clientes com transação no período, cada um com suas transações e os produtos de cada
+ * uma (vendas do período agrupadas por transação). Base das listas de destaque e dos
+ * olhos da aba Clientes. Só transações (vendas aprovadas).
  */
-export async function obterDestaquesClientes(
+export async function listarClientesDoPeriodo(
   organizacaoId: string,
   periodo: Periodo,
   fuso: string,
-): Promise<DestaquesClientes> {
+): Promise<{ clientes: ClientePeriodo[]; truncado: boolean }> {
   const supabase = await criarClienteServidor();
   const off = deslocamento(fuso);
+  const inicio = `${periodo.de}T00:00:00${off}`;
+  const fim = `${somarDias(periodo.ate, 1)}T00:00:00${off}`;
   const consultar = (comTelefone: boolean) =>
     supabase
       .from("transacoes")
       .select(
         comTelefone
-          ? "cliente_id, inicio, valor_total, quantidade_vendas, clientes(nome, email, telefone)"
-          : "cliente_id, inicio, valor_total, quantidade_vendas, clientes(nome, email)",
+          ? "id, cliente_id, inicio, ordem, eh_recompra, valor_total, quantidade_vendas, clientes(nome, email, telefone, primeira_compra_em)"
+          : "id, cliente_id, inicio, ordem, eh_recompra, valor_total, quantidade_vendas, clientes(nome, email, primeira_compra_em)",
       )
       .eq("organizacao_id", organizacaoId)
-      .gte("inicio", `${periodo.de}T00:00:00${off}`)
-      .lt("inicio", `${somarDias(periodo.ate, 1)}T00:00:00${off}`)
+      .gte("inicio", inicio)
+      .lt("inicio", fim)
+      .order("inicio", { ascending: true })
       .limit(LIMITE);
   let resposta = await consultar(true);
   // Migration do telefone (20261013000006) ainda não aplicada: segue sem a coluna.
   if (resposta.error && colunaAusente(resposta.error)) resposta = await consultar(false);
   const { error } = resposta;
   const data = (resposta.data ?? []) as {
+    id: string;
     cliente_id: string;
     inicio: string;
+    ordem: number;
+    eh_recompra: boolean;
     valor_total: number | null;
     quantidade_vendas: number | null;
-    clientes: { nome: string | null; email: string; telefone?: string | null } | null;
+    clientes: {
+      nome: string | null;
+      email: string;
+      telefone?: string | null;
+      primeira_compra_em: string | null;
+    } | null;
   }[];
-  const vazio = { recentes: [], frequentes: [], maior_valor: [] };
-  if (error && tabelaAusente(error)) return vazio;
-  if (error) throw new Error(`Falha ao carregar destaques: ${error.message}`);
+  if (error && tabelaAusente(error)) return { clientes: [], truncado: false };
+  if (error) throw new Error(`Falha ao carregar clientes do período: ${error.message}`);
+  if (!data.length) return { clientes: [], truncado: false };
 
-  const porCliente = new Map<string, ClienteDestaque>();
-  for (const t of data ?? []) {
+  // Produtos de cada transação: vendas do período agrupadas por transacao_id.
+  const { data: vendas, error: erroVendas } = await supabase
+    .from("vendas")
+    .select("transacao_id, produtos(nome)")
+    .eq("organizacao_id", organizacaoId)
+    .gte("vendida_em", inicio)
+    .lt("vendida_em", fim)
+    .limit(LIMITE);
+  if (erroVendas && !tabelaAusente(erroVendas))
+    throw new Error(`Falha ao carregar produtos das transações: ${erroVendas.message}`);
+  const produtosPorTransacao = new Map<string, Set<string>>();
+  for (const v of vendas ?? []) {
+    if (!v.transacao_id) continue;
+    const nomes = produtosPorTransacao.get(v.transacao_id) ?? new Set<string>();
+    if (v.produtos?.nome) nomes.add(v.produtos.nome);
+    produtosPorTransacao.set(v.transacao_id, nomes);
+  }
+
+  const porCliente = new Map<string, ClientePeriodo>();
+  for (const t of data) {
     const c = porCliente.get(t.cliente_id) ?? {
       id: t.cliente_id,
       nome: t.clientes?.nome?.trim() || t.clientes?.email || "Cliente",
       email: t.clientes?.email ?? "",
       telefone: t.clientes?.telefone ?? null,
-      transacoes: 0,
-      itens: 0,
-      gasto: 0,
-      ultima_compra: t.inicio,
+      primeira_compra_em: t.clientes?.primeira_compra_em ?? null,
+      transacoes: [],
     };
-    c.transacoes += 1;
-    c.itens += Number(t.quantidade_vendas ?? 0);
-    c.gasto += Number(t.valor_total ?? 0);
-    if (t.inicio > c.ultima_compra) c.ultima_compra = t.inicio;
+    c.transacoes.push({
+      id: t.id,
+      inicio: t.inicio,
+      ordem: t.ordem,
+      eh_recompra: t.eh_recompra,
+      itens: Number(t.quantidade_vendas ?? 0),
+      valor: Number(t.valor_total ?? 0),
+      produtos: [...(produtosPorTransacao.get(t.id) ?? [])],
+    });
     porCliente.set(t.cliente_id, c);
   }
-  const todos = [...porCliente.values()];
-  const top = (ordem: (a: ClienteDestaque, b: ClienteDestaque) => number) =>
-    [...todos].sort(ordem).slice(0, 3);
-  return {
-    recentes: top((a, b) => b.ultima_compra.localeCompare(a.ultima_compra)),
-    frequentes: top((a, b) => b.transacoes - a.transacoes || b.gasto - a.gasto),
-    maior_valor: top((a, b) => b.gasto - a.gasto || b.transacoes - a.transacoes),
-  };
+  return { clientes: [...porCliente.values()], truncado: data.length >= LIMITE };
 }
 
 /**

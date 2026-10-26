@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -19,10 +20,17 @@ import { formatarMetrica } from "@/dominio/metricas";
 import { obterContexto } from "@/servidor/sessao";
 import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import {
-  obterDestaquesClientes,
+  listarClientesDoPeriodo,
   obterResumoClientes,
 } from "@/servidor/consultas/clientes";
-import { DestaquesClientes } from "./destaques";
+import {
+  CARDS_CLIENTES,
+  montarDetalhesClientes,
+  resumirCliente,
+  topClientes,
+} from "@/dominio/clientes-periodo";
+import { BotaoDetalheMetrica } from "../home/detalhe-metrica";
+import { TabelaClientes } from "./tabela-clientes";
 import { SeletorHome } from "../home/seletor";
 
 export const metadata: Metadata = { title: "Clientes" };
@@ -37,19 +45,32 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
   const params = await searchParams;
   const { organizacao, podeEditar } = await obterContexto();
   const periodo = await periodoDaUrl(organizacao, params);
-  const [r, destaques] = await Promise.all([
+  const [r, lista] = await Promise.all([
     obterResumoClientes(organizacao.id, periodo, organizacao.fuso_horario),
-    obterDestaquesClientes(organizacao.id, periodo, organizacao.fuso_horario),
+    listarClientesDoPeriodo(organizacao.id, periodo, organizacao.fuso_horario),
   ]);
   const moeda = organizacao.moeda;
+  const clientes = lista.clientes.map(resumirCliente);
+  const detalhes = montarDetalhesClientes(clientes, {
+    moeda,
+    fuso: organizacao.fuso_horario,
+  });
+  const valores: Record<(typeof CARDS_CLIENTES)[number]["chave"], string> = {
+    clientes_unicos: formatarMetrica(r.clientes_unicos, "inteiro"),
+    clientes_novos: formatarMetrica(r.clientes_novos, "inteiro"),
+    recorrentes: formatarMetrica(r.recorrentes, "inteiro"),
+    transacoes: formatarMetrica(r.transacoes, "inteiro"),
+    taxa_recompra: formatarMetrica(r.taxa_recompra, "percentual"),
+    tempo_recompra: dias(r.dias_ate_recompra_mediana),
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
         <p className="text-muted-foreground">
-          Clientes únicos, transações, ticket médio, taxa de recompra e para onde os
-          clientes de cada front-end ascendem.
+          Clientes únicos, novos e recorrentes, transações, taxa de recompra e para onde
+          os clientes de cada front-end ascendem. O olho de cada card mostra quem são.
         </p>
       </div>
 
@@ -62,53 +83,42 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        <Resumo
-          nome="Clientes únicos"
-          valor={formatarMetrica(r.clientes_unicos, "inteiro")}
-        />
-        <Resumo
-          nome="Clientes novos"
-          valor={formatarMetrica(r.clientes_novos, "inteiro")}
-        />
-        <Resumo nome="Transações" valor={formatarMetrica(r.transacoes, "inteiro")} />
-        <Resumo
-          nome="Ticket médio"
-          valor={formatarMetrica(r.ticket_medio, "moeda", moeda)}
-        />
-        <Resumo
-          nome="Taxa de recompra"
-          valor={formatarMetrica(r.taxa_recompra, "percentual")}
-          detalhe={`${r.recorrentes} recorrentes`}
-        />
-        <Resumo
-          nome="Tempo até a recompra"
-          valor={dias(r.dias_ate_recompra_mediana)}
-          detalhe="mediana"
-        />
+        {CARDS_CLIENTES.map((card) => (
+          <Card key={card.chave}>
+            <CardHeader>
+              <CardDescription>{card.nome}</CardDescription>
+              <CardAction>
+                <BotaoDetalheMetrica detalhe={detalhes[card.chave]} moeda={moeda} />
+              </CardAction>
+              <CardTitle className="text-xl tabular-nums">{valores[card.chave]}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-xs">{card.descricao}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <DestaquesClientes
+      <TabelaClientes
         titulo="Clientes mais recentes"
-        descricao="Os últimos a comprar no período."
-        clientes={destaques.recentes}
+        descricao="Os 10 últimos a comprar no período."
+        clientes={topClientes(clientes, "recentes")}
         moeda={moeda}
-        destaque="ultima_compra"
         fuso={organizacao.fuso_horario}
       />
-      <DestaquesClientes
+      <TabelaClientes
         titulo="Clientes mais frequentes"
-        descricao="Os que mais registraram transações no período."
-        clientes={destaques.frequentes}
+        descricao="Os 10 com mais transações no período, com cada transação aberta."
+        clientes={topClientes(clientes, "frequentes")}
         moeda={moeda}
-        destaque="transacoes"
         fuso={organizacao.fuso_horario}
+        modo="transacoes"
       />
-      <DestaquesClientes
+      <TabelaClientes
         titulo="Clientes de maior valor"
-        descricao="Os que mais gastaram no período, só transações pagas."
-        clientes={destaques.maior_valor}
+        descricao="Os 10 que mais gastaram no período, só transações pagas."
+        clientes={topClientes(clientes, "maior_valor")}
         moeda={moeda}
-        destaque="gasto"
         fuso={organizacao.fuso_horario}
       />
 
@@ -187,29 +197,5 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function Resumo({
-  nome,
-  valor,
-  detalhe,
-}: {
-  nome: string;
-  valor: string;
-  detalhe?: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardDescription>{nome}</CardDescription>
-        <CardTitle className="text-xl tabular-nums">{valor}</CardTitle>
-      </CardHeader>
-      {detalhe ? (
-        <CardContent>
-          <p className="text-muted-foreground text-xs">{detalhe}</p>
-        </CardContent>
-      ) : null}
-    </Card>
   );
 }
