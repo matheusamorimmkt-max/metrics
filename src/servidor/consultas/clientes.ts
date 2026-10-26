@@ -282,12 +282,12 @@ export async function obterIndicadoresClientes(
   const off = deslocamento(fuso);
   const { data, error } = await supabase
     .from("transacoes")
-    .select("cliente_id, inicio, eh_recompra, funil_id, clientes(email, cpf)")
+    .select("cliente_id, inicio, ordem, eh_recompra, funil_id, clientes(email, cpf)")
     .eq("organizacao_id", organizacaoId)
     .gte("inicio", `${periodo.anterior_de}T00:00:00${off}`)
     .lt("inicio", `${somarDias(periodo.ate, 1)}T00:00:00${off}`)
     .limit(LIMITE);
-  const vazio = { unicos: 0, recorrentes: 0 };
+  const vazio = { unicos: 0, novos: 0, recorrentes: 0 };
   if (error && tabelaAusente(error)) return { atual: vazio, anterior: vazio };
   if (error) throw new Error(`Falha ao carregar clientes: ${error.message}`);
 
@@ -301,6 +301,7 @@ export async function obterIndicadoresClientes(
   const contar = (noAtual: boolean): IndicadoresClientes => {
     const unicos = new Set<string>();
     const recorrentes = new Set<string>();
+    const primeiras = new Set<string>();
     for (const t of data ?? []) {
       if (!pertence(t.funil_id)) continue;
       const ehAtual = new Date(t.inicio) >= new Date(limiteAtual);
@@ -310,8 +311,11 @@ export async function obterIndicadoresClientes(
         : `email:${t.clientes?.email ?? t.cliente_id}`;
       unicos.add(chave);
       if (t.eh_recompra) recorrentes.add(chave);
+      if (t.ordem === 1) primeiras.add(chave);
     }
-    return { unicos: unicos.size, recorrentes: recorrentes.size };
+    // Novo: primeira compra da vida no período e nenhuma recompra no período.
+    const novos = [...primeiras].filter((c) => !recorrentes.has(c)).length;
+    return { unicos: unicos.size, novos, recorrentes: recorrentes.size };
   };
   return { atual: contar(true), anterior: contar(false) };
 }
@@ -320,6 +324,8 @@ export type DetalhesClientes = {
   clientes: { unicos: number; novos: number; antigos: number };
   transacoes_por_itens: { itens: number; quantidade: number }[];
   recompradores: ClienteRecompra[];
+  /** Quem comprou pela primeira vez no período (até 50, maior gasto primeiro). */
+  novos: ClienteRecompra[];
 };
 
 /**
@@ -349,6 +355,7 @@ export async function obterDetalhesClientes(
     clientes: { unicos: 0, novos: 0, antigos: 0 },
     transacoes_por_itens: [],
     recompradores: [],
+    novos: [],
   };
   if (error && tabelaAusente(error)) return vazio;
   if (error) throw new Error(`Falha ao carregar detalhes de clientes: ${error.message}`);
@@ -402,9 +409,13 @@ export async function obterDetalhesClientes(
     .filter((c) => c.recomprou)
     .sort((a, b) => b.gasto - a.gasto)
     .slice(0, 50);
+  const novos = todos
+    .filter((c) => c.novo && !c.recomprou)
+    .sort((a, b) => b.gasto - a.gasto)
+    .slice(0, 50);
 
-  // Gasto na vida dos que recompraram (todas as transações, sem filtro de período).
-  const idsVida = recompradores.flatMap((c) => [...c.ids]);
+  // Gasto na vida dos listados (todas as transações, sem filtro de período).
+  const idsVida = [...recompradores, ...novos].flatMap((c) => [...c.ids]);
   const vida = new Map<string, { gasto: number; transacoes: number }>();
   if (idsVida.length) {
     const { data: todasVida } = await supabase
@@ -432,7 +443,12 @@ export async function obterDetalhesClientes(
     transacoes_por_itens: [...porItens.entries()]
       .map(([itens, quantidade]) => ({ itens, quantidade }))
       .sort((a, b) => a.itens - b.itens),
-    recompradores: recompradores.map((c) => {
+    recompradores: recompradores.map(comVida),
+    novos: novos.map(comVida),
+  };
+
+  function comVida(c: Acum): ClienteRecompra {
+    {
       const soma = [...c.ids].reduce(
         (s, id) => {
           const v = vida.get(id);
@@ -451,8 +467,8 @@ export async function obterDetalhesClientes(
         gasto_total: Math.round(soma.gasto * 100) / 100,
         transacoes_total: soma.transacoes,
       };
-    }),
-  };
+    }
+  }
 }
 
 /** Ficha completa: dados cadastrais, totais da vida e cada venda de cada transação. */

@@ -45,6 +45,10 @@ export type Metricas = {
   /** Reembolsos e chargebacks / faturamento bruto. Null sem faturamento. */
   taxa_reembolso: number | null;
   clientes_unicos: number;
+  /** Primeira compra da vida dentro do período. */
+  clientes_novos: number;
+  /** Já tinham comprado antes e compraram de novo no período. */
+  clientes_recorrentes: number;
   /** Itens vendidos. */
   itens: number;
   /** Clientes recorrentes / clientes únicos. Null sem clientes. */
@@ -78,6 +82,8 @@ export function calcularMetricas(e: EntradaMetricas): Metricas {
     cac: razao(investimento, e.clientes_novos),
     taxa_reembolso: razao(e.reembolsos, e.faturamento_bruto),
     clientes_unicos: e.clientes_unicos,
+    clientes_novos: e.clientes_novos,
+    clientes_recorrentes: e.clientes_recorrentes,
     itens: e.vendas,
     taxa_recompra: razao(e.clientes_recorrentes, e.clientes_unicos),
     ltv: razao(e.faturamento_bruto, e.clientes_unicos),
@@ -154,6 +160,18 @@ export const CARDS_HOME: {
     nome: "Clientes únicos",
     descricao:
       "Pessoas diferentes que compraram no período. Mesmo e-mail ou mesmo CPF é o mesmo cliente.",
+    formato: "inteiro",
+  },
+  {
+    chave: "clientes_novos",
+    nome: "Clientes novos",
+    descricao: "Primeira compra da vida dentro do período.",
+    formato: "inteiro",
+  },
+  {
+    chave: "clientes_recorrentes",
+    nome: "Clientes recorrentes",
+    descricao: "Já tinham comprado antes e compraram de novo no período.",
     formato: "inteiro",
   },
   {

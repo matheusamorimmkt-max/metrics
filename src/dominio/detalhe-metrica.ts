@@ -71,6 +71,7 @@ export type EntradaDetalhes = {
   };
   transacoes_por_itens: { itens: number; quantidade: number }[];
   recompradores: ClienteRecompra[];
+  novos: ClienteRecompra[];
   moeda: string;
 };
 
@@ -344,6 +345,58 @@ export function montarDetalhes(
     },
   };
 
+  // ---- Lista de clientes (novos e recorrentes): nome, transações e gasto
+  const listaClientes = (
+    lista: ClienteRecompra[],
+    titulo: string,
+    descricao: string,
+    vazio: string,
+  ): DetalheMetrica => ({
+    titulo,
+    descricao,
+    fatias: [],
+    tabela: {
+      cabecalho: ["Cliente", "Transações no período", "Gasto no período", "Gasto total"],
+      vazio,
+      linhas: lista.length
+        ? [
+            ...lista.map((c) => ({
+              celulas: [
+                texto(c.nome, { detalhe: c.email }),
+                texto(n(c.transacoes_periodo)),
+                texto(m(c.gasto_periodo)),
+                texto(m(c.gasto_total), {
+                  detalhe: `${n(c.transacoes_total)} transações na vida`,
+                }),
+              ],
+            })),
+            {
+              total: true,
+              celulas: [
+                texto(`${n(lista.length)} clientes`),
+                texto(n(lista.reduce((s, c) => s + c.transacoes_periodo, 0))),
+                texto(m(lista.reduce((s, c) => s + c.gasto_periodo, 0))),
+                texto(m(lista.reduce((s, c) => s + c.gasto_total, 0))),
+              ],
+            },
+          ]
+        : [],
+    },
+    nota: lista.length >= 50 ? "Mostrando os 50 clientes que mais gastaram no período." : undefined,
+  });
+  const clientesNovos = listaClientes(
+    e.novos,
+    "Clientes novos",
+    "Quem fez a primeira compra da vida dentro do período.",
+    "Nenhum cliente novo no período.",
+  );
+  const clientesRecorrentes = listaClientes(
+    e.recompradores,
+    "Clientes recorrentes",
+    "Quem já tinha comprado antes e comprou de novo no período.",
+    "Ninguém recomprou no período.",
+  );
+
   // ---- Taxa de recompra: quem recomprou e quanto gastou
   const taxaRecompra: DetalheMetrica = {
     titulo: "Taxa de recompra",
@@ -389,6 +442,8 @@ export function montarDetalhes(
     lucro,
     taxa_reembolso: taxaReembolso,
     clientes_unicos: clientesUnicos,
+    clientes_novos: clientesNovos,
+    clientes_recorrentes: clientesRecorrentes,
     transacoes,
     itens,
     taxa_recompra: taxaRecompra,

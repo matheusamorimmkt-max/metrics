@@ -127,6 +127,7 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     clientes: detalhesClientes.clientes,
     transacoes_por_itens: detalhesClientes.transacoes_por_itens,
     recompradores: detalhesClientes.recompradores,
+    novos: detalhesClientes.novos,
     moeda: organizacao.moeda,
   });
 

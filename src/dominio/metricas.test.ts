@@ -21,6 +21,8 @@ describe("calcularMetricas", () => {
     expect(m.taxa_reembolso).toBeCloseTo(200 / 5000, 6);
     expect(m.itens).toBe(60);
     expect(m.clientes_unicos).toBe(45);
+    expect(m.clientes_novos).toBe(40);
+    expect(m.clientes_recorrentes).toBe(9);
     expect(m.taxa_recompra).toBeCloseTo(9 / 45, 6);
     expect(m.ltv).toBeCloseTo(5000 / 45, 6);
     expect(m.receita_liquida).toBe(3980);

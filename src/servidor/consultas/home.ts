@@ -101,7 +101,7 @@ export type ResumoHome = {
   categoriasDisponiveis: { id: string; nome: string }[];
 };
 
-export type IndicadoresClientes = { unicos: number; recorrentes: number };
+export type IndicadoresClientes = { unicos: number; novos: number; recorrentes: number };
 
 function somar(
   linhas: LinhaDiaria[],
@@ -125,6 +125,8 @@ function somar(
     e.transacoes += l.transacoes;
     e.clientes_novos += l.clientes_novos;
   }
+  // Com os indicadores de clientes (identidade por CPF ou e-mail), eles mandam.
+  if (clientes) e.clientes_novos = clientes.novos;
   return calcularMetricas(e);
 }
 
