@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   montarDetalhesClientes,
   resumirCliente,
-  topClientes,
   type ClientePeriodo,
 } from "./clientes-periodo";
 
@@ -40,15 +39,6 @@ describe("resumirCliente", () => {
     expect(a.novo).toBe(true);
     expect(a.recorrente).toBe(true);
     expect(clientes[1].recorrente).toBe(false);
-  });
-});
-
-describe("topClientes", () => {
-  it("aplica cada critério", () => {
-    expect(topClientes(clientes, "recentes").map((c) => c.id)).toEqual(["b", "a"]);
-    expect(topClientes(clientes, "frequentes").map((c) => c.id)).toEqual(["a", "b"]);
-    expect(topClientes(clientes, "maior_valor").map((c) => c.id)).toEqual(["b", "a"]);
-    expect(topClientes(clientes, "maior_valor", 1)).toHaveLength(1);
   });
 });
 

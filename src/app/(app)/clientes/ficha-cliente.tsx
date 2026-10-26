@@ -98,11 +98,6 @@ function ConteudoFicha({ ficha, fuso }: { ficha: FichaCliente; fuso: string }) {
         <Dado rotulo="Telefone" valor={ficha.telefone || "—"} />
         <Dado rotulo="CPF/CNPJ" valor={formatarDocumento(ficha.cpf)} />
         <Dado
-          rotulo="Endereço"
-          valor="Não informado pela plataforma"
-          nota="A API da Greenn não envia o endereço do comprador."
-        />
-        <Dado
           rotulo="Cadastro no gateway"
           valor={
             ficha.plataforma
@@ -112,10 +107,9 @@ function ConteudoFicha({ ficha, fuso }: { ficha: FichaCliente; fuso: string }) {
         />
         <Dado rotulo="Primeira compra" valor={dataHora(ficha.primeira_compra_em ?? "", fuso)} />
         <Dado rotulo="Funil de entrada" valor={ficha.funil_entrada ?? "Sem funil"} />
-        <Dado rotulo="Importado em" valor={dataCurta(ficha.cadastrado_em, fuso)} />
       </section>
 
-      <section className="grid gap-3 rounded-md border p-3 sm:grid-cols-3 lg:grid-cols-6">
+      <section className="grid gap-3 rounded-md border p-3 sm:grid-cols-3 lg:grid-cols-5">
         <Total rotulo="Transações" valor={formatarMetrica(ficha.totais.transacoes, "inteiro")} />
         <Total rotulo="Itens" valor={formatarMetrica(ficha.totais.itens, "inteiro")} />
         <Total rotulo="Total gasto" valor={m(ficha.totais.gasto)} destaque />
@@ -127,7 +121,6 @@ function ConteudoFicha({ ficha, fuso }: { ficha: FichaCliente; fuso: string }) {
           rotulo="Reembolsos"
           valor={`${formatarMetrica(ficha.totais.reembolsos.quantidade, "inteiro")} · ${m(ficha.totais.reembolsos.valor)}`}
         />
-        <Total rotulo="Taxas do gateway" valor={m(ficha.totais.taxas_gateway)} />
       </section>
 
       <section className="space-y-4">
@@ -177,9 +170,6 @@ function ListaVendas({ vendas, fuso }: { vendas: VendaFicha[]; fuso: string }) {
           rotuloMeioPagamento(v.meio_pagamento),
           v.parcelas > 1 ? `${v.parcelas}x` : "à vista",
           v.cupom ? `cupom ${v.cupom}` : null,
-          v.taxa_gateway > 0
-            ? `taxa ${formatarMetrica(v.taxa_gateway, "moeda", v.moeda)}`
-            : null,
           ...v.comissoes.map(
             (c) => `${c.tipo} ${c.parceiro}: ${formatarMetrica(c.valor, "moeda", v.moeda)}`,
           ),
@@ -212,12 +202,11 @@ function ListaVendas({ vendas, fuso }: { vendas: VendaFicha[]; fuso: string }) {
   );
 }
 
-function Dado({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: string }) {
+function Dado({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div>
       <dt className="text-muted-foreground text-xs">{rotulo}</dt>
       <dd className="font-medium break-words">{valor}</dd>
-      {nota ? <dd className="text-muted-foreground text-xs">{nota}</dd> : null}
     </div>
   );
 }

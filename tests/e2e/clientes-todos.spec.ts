@@ -11,18 +11,16 @@ async function entrar(page: Page) {
   await expect(page.getByRole("group", { name: "Período" })).toBeVisible({ timeout: 30_000 });
 }
 
-test.describe("Lista completa de clientes", () => {
+test.describe("Lista de clientes do período", () => {
   test.skip(!email || !senha, "Defina E2E_EMAIL e E2E_SENHA.");
 
-  test("abre pela aba Clientes, busca e mostra a situação vazia", async ({ page }) => {
+  test("mostra os filtros e a situação vazia", async ({ page }) => {
     await entrar(page);
     await page.goto("/clientes");
-    await page.getByRole("link", { name: "Ver todos os clientes" }).click();
-    await expect(page.getByRole("heading", { name: "Todos os clientes" })).toBeVisible();
-    await page.getByLabel("Buscar cliente").fill("ninguem@teste.invalido");
-    await page.getByRole("button", { name: "Buscar" }).click();
+    await expect(page.getByText("Todos os clientes do período")).toBeVisible();
+    await expect(page.getByLabel("Buscar cliente")).toBeVisible();
+    await expect(page.getByLabel("Mínimo de transações")).toBeVisible();
+    await page.getByLabel("Tipo de cliente").selectOption("recorrentes");
     await expect(page.getByText(/Nenhum cliente/)).toBeVisible();
-    await page.getByRole("link", { name: "Limpar" }).click();
-    await expect(page).toHaveURL(/\/clientes\/todos$/);
   });
 });

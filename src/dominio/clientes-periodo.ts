@@ -57,26 +57,6 @@ export function resumirCliente(c: ClientePeriodo): ClienteResumido {
   };
 }
 
-export type CriterioDestaque = "recentes" | "frequentes" | "maior_valor";
-
-const ORDENS: Record<
-  CriterioDestaque,
-  (a: ClienteResumido, b: ClienteResumido) => number
-> = {
-  recentes: (a, b) => b.ultima_compra.localeCompare(a.ultima_compra),
-  frequentes: (a, b) => b.total_transacoes - a.total_transacoes || b.gasto - a.gasto,
-  maior_valor: (a, b) => b.gasto - a.gasto || b.total_transacoes - a.total_transacoes,
-};
-
-/** Top N clientes pelo critério. */
-export function topClientes(
-  clientes: ClienteResumido[],
-  criterio: CriterioDestaque,
-  quantidade = 10,
-): ClienteResumido[] {
-  return [...clientes].sort(ORDENS[criterio]).slice(0, quantidade);
-}
-
 export function dataHora(iso: string, fuso: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("pt-BR", {
