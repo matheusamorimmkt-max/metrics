@@ -6,6 +6,7 @@ import {
   PAPEIS_OFERTA,
   schemaOfertaId,
   schemaVincularOferta,
+  schemaVincularOfertasEmLote,
 } from "@/dominio/schemas/funil-oferta";
 import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
@@ -29,6 +30,78 @@ async function funilAtualDaOferta(ofertaId: string) {
   return data
     ? { funil_id: data.funil_id, status: data.status, nome: data.funis?.nome ?? "" }
     : null;
+}
+
+/**
+ * Vincula várias ofertas de uma vez ao mesmo funil e papel. Ofertas já confirmadas em
+ * outro funil são puladas e listadas na mensagem; as demais são vinculadas (ou movidas,
+ * se eram só sugestão).
+ */
+export async function vincularOfertasEmLote(
+  ofertaIds: string[],
+  funilId: string,
+  papel: string,
+): Promise<Resultado<{ vinculadas: number; puladas: string[] }>> {
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
+  const parse = schemaVincularOfertasEmLote.safeParse({
+    oferta_ids: ofertaIds,
+    funil_id: funilId,
+    papel,
+  });
+  if (!parse.success) return falha(parse.error.issues[0]?.message ?? "Dados inválidos.");
+
+  const supabase = await criarClienteServidor();
+  const { data: atuais, error: erroAtuais } = await supabase
+    .from("funil_ofertas")
+    .select("oferta_id, funil_id, status, funis(nome), ofertas(nome)")
+    .eq("organizacao_id", organizacao.id)
+    .in("oferta_id", parse.data.oferta_ids);
+  if (erroAtuais) return falha(`Não foi possível conferir os vínculos: ${erroAtuais.message}`);
+
+  const puladas: string[] = [];
+  const funisAfetados = new Set<string>([parse.data.funil_id]);
+  const bloqueadas = new Set<string>();
+  for (const a of atuais ?? []) {
+    if (a.funil_id !== parse.data.funil_id && a.status === "confirmado") {
+      bloqueadas.add(a.oferta_id);
+      puladas.push(`${a.ofertas?.nome ?? "oferta"} (já em "${a.funis?.nome ?? "outro funil"}")`);
+    } else if (a.funil_id !== parse.data.funil_id) {
+      funisAfetados.add(a.funil_id);
+    }
+  }
+  const paraVincular = parse.data.oferta_ids.filter((id) => !bloqueadas.has(id));
+  if (paraVincular.length) {
+    const { error } = await supabase.from("funil_ofertas").upsert(
+      paraVincular.map((oferta_id) => ({
+        organizacao_id: organizacao.id,
+        oferta_id,
+        funil_id: parse.data.funil_id,
+        papel: parse.data.papel,
+        status: "confirmado" as const,
+      })),
+      { onConflict: "oferta_id" },
+    );
+    if (error) {
+      if (error.code === "23503")
+        return falha("Alguma oferta ou o funil não foi encontrado nesta organização.");
+      return falha(`Não foi possível vincular: ${error.message}`);
+    }
+  }
+  for (const f of funisAfetados) revalidar(f);
+
+  const n = paraVincular.length;
+  const mensagem =
+    n === 0
+      ? "Nenhuma oferta vinculada."
+      : `${n} ${n === 1 ? "oferta vinculada" : "ofertas vinculadas"}.`;
+  return sucesso(
+    puladas.length
+      ? `${mensagem} Puladas por já estarem confirmadas em outro funil: ${puladas.join("; ")}.`
+      : mensagem,
+    { vinculadas: n, puladas },
+  );
 }
 
 /**

@@ -2,6 +2,8 @@ import "server-only";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
 import type { PapelOferta } from "@/dominio/schemas/funil-oferta";
+import { hojeNoFuso } from "@/dominio/periodo";
+import { deslocamento } from "./vendas";
 
 export type OfertaResumo = {
   id: string;
@@ -19,6 +21,9 @@ export type OfertaResumo = {
   vendas: number;
   faturamento: number;
   ultima_venda: string | null;
+  /** Movimento no mês corrente (fuso da organização); vem de `listarOfertasComMes`. */
+  vendas_mes: number;
+  faturamento_mes: number;
 };
 
 function mapear(o: Record<string, unknown>): OfertaResumo {
@@ -38,7 +43,47 @@ function mapear(o: Record<string, unknown>): OfertaResumo {
     vendas: Number(o.vendas ?? 0),
     faturamento: Number(o.faturamento ?? 0),
     ultima_venda: (o.ultima_venda as string | null) ?? null,
+    vendas_mes: 0,
+    faturamento_mes: 0,
   };
+}
+
+/**
+ * Ofertas com vendas e faturamento do mês corrente, para ver o que tem movimento.
+ * Ordena pelo faturamento do mês e depois pelo acumulado.
+ */
+export async function listarOfertasComMes(
+  organizacaoId: string,
+  fuso: string,
+): Promise<OfertaResumo[]> {
+  const supabase = await criarClienteServidor();
+  const inicioMes = `${hojeNoFuso(fuso).slice(0, 7)}-01T00:00:00${deslocamento(fuso)}`;
+  const [ofertas, mes] = await Promise.all([
+    listarOfertas(organizacaoId),
+    supabase
+      .from("vendas")
+      .select("oferta_id, valor_bruto, origem")
+      .eq("organizacao_id", organizacaoId)
+      .eq("status", "aprovada")
+      .gte("vendida_em", inicioMes)
+      .limit(20_000),
+  ]);
+  if (mes.error && !tabelaAusente(mes.error))
+    throw new Error(`Falha ao carregar vendas do mês: ${mes.error.message}`);
+  const porOferta = new Map<string, { vendas: number; faturamento: number }>();
+  for (const v of mes.data ?? []) {
+    const a = porOferta.get(v.oferta_id) ?? { vendas: 0, faturamento: 0 };
+    if (v.origem !== "recorrencia") a.vendas += 1;
+    a.faturamento += Number(v.valor_bruto ?? 0);
+    porOferta.set(v.oferta_id, a);
+  }
+  return ofertas
+    .map((o) => ({
+      ...o,
+      vendas_mes: porOferta.get(o.id)?.vendas ?? 0,
+      faturamento_mes: porOferta.get(o.id)?.faturamento ?? 0,
+    }))
+    .sort((a, b) => b.faturamento_mes - a.faturamento_mes || b.faturamento - a.faturamento);
 }
 
 /** Todas as ofertas da organização, mais vendidas primeiro. */

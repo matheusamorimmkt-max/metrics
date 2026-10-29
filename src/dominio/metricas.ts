@@ -165,13 +165,13 @@ export const CARDS_HOME: {
   {
     chave: "clientes_novos",
     nome: "Clientes novos",
-    descricao: "Primeira compra da vida dentro do período.",
+    descricao: "Primeira compra da vida dentro do período, mesmo que tenha comprado de novo em seguida.",
     formato: "inteiro",
   },
   {
     chave: "clientes_recorrentes",
     nome: "Clientes recorrentes",
-    descricao: "Já tinham comprado antes e compraram de novo no período.",
+    descricao: "Já compravam antes do período e compraram de novo nele.",
     formato: "inteiro",
   },
   {
@@ -190,7 +190,7 @@ export const CARDS_HOME: {
     chave: "taxa_recompra",
     nome: "Taxa de recompra",
     descricao:
-      "Clientes com 2 ou mais transações no período divididos pelos clientes únicos.",
+      "Clientes que já compravam antes do período e compraram de novo nele, divididos pelos clientes únicos.",
     formato: "percentual",
   },
   {

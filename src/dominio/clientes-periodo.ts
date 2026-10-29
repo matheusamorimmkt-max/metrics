@@ -53,7 +53,8 @@ export function resumirCliente(c: ClientePeriodo): ClienteResumido {
     ultima_compra: ultima?.inicio ?? "",
     produtos_ultima: ultima?.produtos ?? [],
     novo: transacoes.some((t) => t.ordem === 1),
-    recorrente: transacoes.some((t) => t.eh_recompra),
+    // Recorrente só quem já comprava antes do período: novo que recompra continua novo.
+    recorrente: !transacoes.some((t) => t.ordem === 1) && transacoes.some((t) => t.eh_recompra),
   };
 }
 
@@ -84,8 +85,8 @@ export type ChaveCardClientes =
 
 export const CARDS_CLIENTES: { chave: ChaveCardClientes; nome: string; descricao: string }[] = [
   { chave: "clientes_unicos", nome: "Clientes únicos", descricao: "Clientes com transação no período." },
-  { chave: "clientes_novos", nome: "Clientes novos", descricao: "Primeira compra da vida dentro do período." },
-  { chave: "recorrentes", nome: "Clientes recorrentes", descricao: "Já tinham comprado antes e compraram de novo no período." },
+  { chave: "clientes_novos", nome: "Clientes novos", descricao: "Primeira compra da vida dentro do período, mesmo que tenha comprado de novo em seguida." },
+  { chave: "recorrentes", nome: "Clientes recorrentes", descricao: "Já compravam antes do período e compraram de novo nele." },
   { chave: "transacoes", nome: "Transações", descricao: "Compras do mesmo cliente dentro da janela contam uma vez." },
   { chave: "taxa_recompra", nome: "Taxa de recompra", descricao: "Recorrentes ÷ clientes únicos do período." },
   { chave: "tempo_recompra", nome: "Tempo até a recompra", descricao: "Mediana entre a primeira compra e a segunda, para quem recomprou no período." },
@@ -172,7 +173,7 @@ export function montarDetalhesClientes(
   const recorrentesDetalhe = listaClientes(
     recorrentes,
     "Clientes recorrentes",
-    "Quem já tinha comprado antes e comprou de novo no período.",
+    "Quem já comprava antes do período e comprou de novo nele.",
     "Ninguém recomprou no período.",
   );
 

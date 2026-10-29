@@ -10,19 +10,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { formatarMetrica } from "@/dominio/metricas";
 import { obterContexto } from "@/servidor/sessao";
-import { listarOfertas } from "@/servidor/consultas/ofertas";
+import { listarOfertasComMes } from "@/servidor/consultas/ofertas";
 import { listarFunisParaVinculo } from "@/servidor/consultas/campanhas";
 import { listarIntegracoes } from "@/servidor/consultas/integracoes";
-import { LinhaOferta } from "./linha-oferta";
+import { TabelaOfertas } from "./tabela-ofertas";
 
 export const metadata: Metadata = { title: "Ofertas" };
 
@@ -33,7 +26,7 @@ export default async function PaginaOfertas({
   const soNaoVinculadas = params.filtro === "nao_vinculadas";
   const { organizacao } = await obterContexto();
   const [todas, funis, integracoes] = await Promise.all([
-    listarOfertas(organizacao.id),
+    listarOfertasComMes(organizacao.id, organizacao.fuso_horario),
     listarFunisParaVinculo(organizacao.id),
     listarIntegracoes(organizacao.id),
   ]);
@@ -49,7 +42,8 @@ export default async function PaginaOfertas({
           <CardTitle>Ofertas</CardTitle>
           <CardDescription>
             O ID da oferta no gateway decide a qual funil cada venda pertence. Uma oferta
-            só pode estar em um funil.
+            só pode estar em um funil. As colunas &ldquo;este mês&rdquo; mostram quais
+            ofertas tiveram movimento no mês corrente.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -102,27 +96,7 @@ export default async function PaginaOfertas({
                   Não vinculadas ({naoVinculadas.length})
                 </Button>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Oferta</TableHead>
-                    <TableHead className="text-right">Preço</TableHead>
-                    <TableHead className="text-right">Vendas</TableHead>
-                    <TableHead className="text-right">Faturamento</TableHead>
-                    <TableHead className="w-72">Funil e papel</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ofertas.map((o) => (
-                    <LinhaOferta
-                      key={o.id}
-                      oferta={o}
-                      funis={funis}
-                      moeda={organizacao.moeda}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+              <TabelaOfertas ofertas={ofertas} funis={funis} moeda={organizacao.moeda} />
             </>
           )}
         </CardContent>

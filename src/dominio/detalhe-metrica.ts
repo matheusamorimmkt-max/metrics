@@ -18,7 +18,7 @@ export type Celula = {
   cliente_id?: string;
 };
 
-export type LinhaTabela = { celulas: Celula[]; total?: boolean };
+export type LinhaTabela = { celulas: Celula[]; total?: boolean; grupo?: boolean };
 
 export type TabelaDetalhe = {
   cabecalho: string[];
@@ -39,6 +39,9 @@ export type DetalheMetrica = {
 };
 
 export type Parcela = { chave: string; nome: string; valor: number; quantidade: number };
+
+/** Produto dentro de uma categoria de funil (ou "Sem funil"). */
+export type ParcelaCategoria = Parcela & { categoria: string; categoria_ordem: number };
 
 export type ClienteRecompra = {
   cliente_id: string;
@@ -61,9 +64,35 @@ export type ReembolsoCliente = {
   tipo: "reembolso" | "chargeback";
 };
 
+/** Categorias na ordem da organização, cada uma com os produtos do maior para o menor. */
+export function agruparPorCategoria(parcelas: ParcelaCategoria[]) {
+  const grupos = new Map<
+    string,
+    { categoria: string; ordem: number; valor: number; quantidade: number; produtos: Parcela[] }
+  >();
+  for (const p of parcelas) {
+    const g = grupos.get(p.categoria) ?? {
+      categoria: p.categoria,
+      ordem: p.categoria_ordem,
+      valor: 0,
+      quantidade: 0,
+      produtos: [],
+    };
+    g.valor += p.valor;
+    g.quantidade += p.quantidade;
+    g.produtos.push(p);
+    grupos.set(p.categoria, g);
+  }
+  return [...grupos.values()]
+    .map((g) => ({ ...g, produtos: [...g.produtos].sort((a, b) => b.valor - a.valor) }))
+    .sort((a, b) => a.ordem - b.ordem || b.valor - a.valor);
+}
+
 export type EntradaDetalhes = {
   gasto_por_plataforma: Parcela[];
   faturamento_por_produto: Parcela[];
+  /** Mesmos produtos, separados pela categoria do funil da oferta. */
+  faturamento_por_categoria: ParcelaCategoria[];
   reembolsos_por_produto: Parcela[];
   reembolsos_clientes: ReembolsoCliente[];
   /** Fuso da organização, para datas nas tabelas. */
@@ -135,21 +164,33 @@ export function montarDetalhes(
   const faturamento: DetalheMetrica = {
     titulo: "Faturamento bruto",
     descricao:
-      "Quanto cada produto faturou no período, pelo preço da oferta. Inclui vendas depois reembolsadas (o reembolso é descontado na data em que acontece). Ticket médio aqui é por item vendido.",
+      "Quanto cada produto faturou no período, pelo preço da oferta, agrupado pela categoria do funil da oferta. Inclui vendas depois reembolsadas (o reembolso é descontado na data em que acontece). Ticket médio aqui é por item vendido.",
     fatias: [],
     tabela: {
       cabecalho: ["Produto", "Faturamento", "%", "Itens", "Ticket médio"],
       vazio: "Sem vendas no período.",
       linhas: [
-        ...e.faturamento_por_produto.map((p) => ({
-          celulas: [
-            texto(p.nome),
-            texto(m(p.valor)),
-            texto(pc(razao(p.valor, e.faturamento_bruto)), { cor: "discreto" }),
-            texto(n(p.quantidade)),
-            texto(m(razao(p.valor, p.quantidade))),
-          ],
-        })),
+        ...agruparPorCategoria(e.faturamento_por_categoria).flatMap((g) => [
+          {
+            grupo: true,
+            celulas: [
+              texto(g.categoria),
+              texto(m(g.valor)),
+              texto(pc(razao(g.valor, e.faturamento_bruto)), { cor: "discreto" }),
+              texto(n(g.quantidade)),
+              texto(m(razao(g.valor, g.quantidade))),
+            ],
+          },
+          ...g.produtos.map((p) => ({
+            celulas: [
+              texto(p.nome, { detalhe: undefined }),
+              texto(m(p.valor)),
+              texto(pc(razao(p.valor, e.faturamento_bruto)), { cor: "discreto" }),
+              texto(n(p.quantidade)),
+              texto(m(razao(p.valor, p.quantidade))),
+            ],
+          })),
+        ]),
         {
           total: true,
           celulas: [
@@ -412,7 +453,7 @@ export function montarDetalhes(
   const clientesRecorrentes = listaClientes(
     e.recompradores,
     "Clientes recorrentes",
-    "Quem já tinha comprado antes e comprou de novo no período.",
+    "Quem já comprava antes do período e comprou de novo nele.",
     "Ninguém recomprou no período.",
   );
 

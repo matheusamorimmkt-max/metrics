@@ -1,18 +1,20 @@
 import "server-only";
-import type { ReembolsoCliente } from "@/dominio/detalhe-metrica";
+import type { Parcela, ParcelaCategoria, ReembolsoCliente } from "@/dominio/detalhe-metrica";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
 import { somarDias, type Periodo } from "@/dominio/periodo";
 import type { Filtro, FunilInfo } from "./home";
 import { deslocamento } from "./vendas";
 
-export type Parcela = { chave: string; nome: string; valor: number; quantidade: number };
+export type { Parcela };
 
 export type Composicoes = {
   /** Gasto em anúncios por plataforma (meta, google…), antes do imposto. */
   gasto_por_plataforma: Parcela[];
   /** Faturamento bruto por produto. */
   faturamento_por_produto: Parcela[];
+  /** Faturamento bruto por produto dentro da categoria do funil da oferta ("Sem funil" quando não vinculada). */
+  faturamento_por_categoria: ParcelaCategoria[];
   /** Reembolsos e chargebacks ocorridos no período, por produto. */
   reembolsos_por_produto: Parcela[];
   /** Cada reembolso ou chargeback do período, com o cliente (mais recente primeiro, até 200). */
@@ -106,10 +108,26 @@ export async function obterComposicoes(
   }
 
   const porProduto = new Map<string, Parcela>();
+  const porCategoriaProduto = new Map<string, ParcelaCategoria>();
+  const funilPorId = new Map(funis.map((f) => [f.id, f]));
   for (const v of vendas.data ?? []) {
     const vinculo = v.ofertas?.funil_ofertas;
     const funilId = vinculo?.status === "confirmado" ? vinculo.funil_id : null;
     if (!pertence(funilId)) continue;
+    const funil = funilId ? funilPorId.get(funilId) : undefined;
+    const categoria = funil?.categoria_nome || "Sem funil";
+    const chaveCat = `${categoria}|${v.produto_id}`;
+    const pc = porCategoriaProduto.get(chaveCat) ?? {
+      chave: chaveCat,
+      nome: v.produtos?.nome ?? "Produto",
+      valor: 0,
+      quantidade: 0,
+      categoria,
+      categoria_ordem: funil ? funil.categoria_ordem : Number.MAX_SAFE_INTEGER,
+    };
+    pc.valor += Number(v.valor_bruto ?? 0);
+    pc.quantidade += 1;
+    porCategoriaProduto.set(chaveCat, pc);
     const chave = v.produto_id;
     const p = porProduto.get(chave) ?? {
       chave,
@@ -155,6 +173,9 @@ export async function obterComposicoes(
   return {
     gasto_por_plataforma: ordenar(porPlataforma),
     faturamento_por_produto: ordenar(porProduto),
+    faturamento_por_categoria: [...porCategoriaProduto.values()].filter(
+      (p) => p.valor > 0 || p.quantidade > 0,
+    ),
     reembolsos_por_produto: ordenar(porProdutoReembolso),
     reembolsos_clientes: reembolsosClientes
       .sort((a, b) => b.data.localeCompare(a.data))

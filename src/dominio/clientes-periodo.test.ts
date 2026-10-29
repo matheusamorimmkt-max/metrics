@@ -37,7 +37,7 @@ describe("resumirCliente", () => {
     expect(a.ultima_compra).toBe("2026-10-10T12:00:00Z");
     expect(a.produtos_ultima).toEqual(["Imersão"]);
     expect(a.novo).toBe(true);
-    expect(a.recorrente).toBe(true);
+    expect(a.recorrente).toBe(false); // primeira compra no período: novo, mesmo recomprando
     expect(clientes[1].recorrente).toBe(false);
   });
 });
@@ -48,8 +48,8 @@ describe("montarDetalhesClientes", () => {
     expect(d.clientes_unicos.tabela?.linhas).toHaveLength(3); // 2 clientes + total
     expect(d.clientes_unicos.tabela?.linhas[0].celulas[0].texto).toBe("Bia"); // maior gasto primeiro
     expect(d.clientes_novos.tabela?.linhas).toHaveLength(3);
-    expect(d.recorrentes.tabela?.linhas).toHaveLength(2);
-    expect(d.recorrentes.tabela?.linhas[0].celulas[0].detalhe).toBe("ana@x.com · 11 9999");
+    expect(d.recorrentes.tabela?.linhas).toHaveLength(0);
+    expect(d.clientes_novos.tabela?.linhas[1].celulas[0].detalhe).toBe("ana@x.com · 11 9999");
   });
   it("lista transações da mais recente para a mais antiga", () => {
     const linhas = d.transacoes.tabela!.linhas;

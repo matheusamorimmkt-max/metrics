@@ -130,10 +130,15 @@ export async function obterResumoClientes(
       dias: [],
     };
     grupo.clientes.add(clienteId);
+    // Quem fez a primeira compra da vida dentro do período é "novo", mesmo que tenha
+    // comprado de novo em seguida; recorrente é quem já comprava antes do período.
+    const novoNoPeriodo = lista.some((t) => t.ordem === 1);
     for (const t of lista) {
       if (!t.eh_recompra) continue;
-      recorrentes.add(clienteId);
-      grupo.recompraram.add(clienteId);
+      if (!novoNoPeriodo) {
+        recorrentes.add(clienteId);
+        grupo.recompraram.add(clienteId);
+      }
       const destino = nome(t.funil_id);
       grupo.destinos.set(destino, (grupo.destinos.get(destino) ?? 0) + 1);
       const primeira = t.clientes?.primeira_compra_em;
@@ -317,9 +322,10 @@ export async function obterIndicadoresClientes(
       if (t.eh_recompra) recorrentes.add(chave);
       if (t.ordem === 1) primeiras.add(chave);
     }
-    // Novo: primeira compra da vida no período e nenhuma recompra no período.
-    const novos = [...primeiras].filter((c) => !recorrentes.has(c)).length;
-    return { unicos: unicos.size, novos, recorrentes: recorrentes.size };
+    // Novo: primeira compra da vida no período (mesmo que tenha recomprado em seguida).
+    // Recorrente: já comprava antes do período e comprou de novo nele.
+    const recorrentesAntigos = [...recorrentes].filter((c) => !primeiras.has(c)).length;
+    return { unicos: unicos.size, novos: primeiras.size, recorrentes: recorrentesAntigos };
   };
   return { atual: contar(true), anterior: contar(false) };
 }
@@ -409,12 +415,14 @@ export async function obterDetalhesClientes(
   }
 
   const todos = [...porCliente.values()];
+  // Novo: primeira compra da vida no período, ainda que tenha recomprado em seguida.
+  // Recorrente: já comprava antes do período e comprou de novo nele.
   const recompradores = todos
-    .filter((c) => c.recomprou)
+    .filter((c) => c.recomprou && !c.novo)
     .sort((a, b) => b.gasto - a.gasto)
     .slice(0, 50);
   const novos = todos
-    .filter((c) => c.novo && !c.recomprou)
+    .filter((c) => c.novo)
     .sort((a, b) => b.gasto - a.gasto)
     .slice(0, 50);
 
@@ -439,10 +447,8 @@ export async function obterDetalhesClientes(
   return {
     clientes: {
       unicos: todos.length,
-      // "Novo" só quando a primeira compra da vida caiu no período e não houve recompra
-      // antes; quem recomprou no período já era cliente.
-      novos: todos.filter((c) => c.novo && !c.recomprou).length,
-      antigos: todos.filter((c) => c.recomprou || !c.novo).length,
+      novos: todos.filter((c) => c.novo).length,
+      antigos: todos.filter((c) => !c.novo).length,
     },
     transacoes_por_itens: [...porItens.entries()]
       .map(([itens, quantidade]) => ({ itens, quantidade }))

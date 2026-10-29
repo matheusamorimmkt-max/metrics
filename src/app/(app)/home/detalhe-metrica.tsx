@@ -148,7 +148,11 @@ function TabelaDetalhe({ dados, fuso }: { dados: DadosTabela; fuso?: string }) {
             <tr
               key={li}
               className={cn(
-                l.total ? "border-t-2 font-semibold" : "border-b border-dashed",
+                l.total
+                  ? "border-t-2 font-semibold"
+                  : l.grupo
+                    ? "bg-muted/50 font-semibold"
+                    : "border-b border-dashed",
               )}
             >
               {l.celulas.map((c, ci) => (
