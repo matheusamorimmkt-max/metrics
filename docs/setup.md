@@ -77,7 +77,8 @@ O SMTP padrão do Supabase envia poucos e-mails por hora; se o link não chegar,
 ## 7. Deploy na Vercel
 
 1. Importe o repositório na Vercel.
-2. Cadastre as mesmas variáveis do passo 2 (menos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`, que só o CLI usa) e também `NEXT_PUBLIC_SITE_URL=https://seu-dominio`. Cole cada valor sem aspas, sem espaços e sem quebra de linha, e marque os ambientes Production e Preview.
+2. O `vercel.json` fixa a região das funções em `gru1` (São Paulo), a mesma do Supabase (`sa-east-1`): cada tela faz várias consultas em sequência e a distância entre as duas regiões era o maior custo de carregamento. Se um dia o projeto do Supabase mudar de região, ajuste ali.
+3. Cadastre as mesmas variáveis do passo 2 (menos `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`, que só o CLI usa) e também `NEXT_PUBLIC_SITE_URL=https://seu-dominio`. Cole cada valor sem aspas, sem espaços e sem quebra de linha, e marque os ambientes Production e Preview.
 3. As variáveis `NEXT_PUBLIC_*` são embutidas no build. Depois de criar ou corrigir qualquer uma delas, faça um novo deploy (Deployments → Redeploy); só salvar a variável não muda o site que já está no ar.
 4. Volte ao Supabase e atualize **Site URL** e **Redirect URLs** com o domínio da Vercel.
 

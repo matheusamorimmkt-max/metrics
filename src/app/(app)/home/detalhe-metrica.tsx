@@ -118,6 +118,12 @@ export function BotaoDetalheMetrica({
             </ul>
           </div>
         )}
+        {detalhe.tabelas_extras?.map((extra) => (
+          <div key={extra.titulo} className="space-y-2">
+            <h4 className="text-sm font-semibold">{extra.titulo}</h4>
+            <TabelaDetalhe dados={extra.tabela} fuso={fuso} />
+          </div>
+        ))}
         {detalhe.nota ? (
           <p className="text-muted-foreground text-xs">{detalhe.nota}</p>
         ) : null}

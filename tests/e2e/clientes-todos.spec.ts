@@ -20,7 +20,10 @@ test.describe("Lista de clientes do período", () => {
     await expect(page.getByText("Todos os clientes do período")).toBeVisible();
     await expect(page.getByLabel("Buscar cliente")).toBeVisible();
     await expect(page.getByRole("button", { name: "Baixar CSV" })).toBeVisible();
+    await page.getByRole("button", { name: "Filtros" }).click();
     await page.getByLabel("Tipo de cliente").selectOption("recorrentes");
+    await page.keyboard.press("Escape");
+    await expect(page.getByTitle("Remover este filtro")).toBeVisible();
     await expect(page.getByText(/Nenhum cliente/)).toBeVisible();
   });
 });

@@ -1,10 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, SlidersHorizontal, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -14,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatarMetrica } from "@/dominio/metricas";
-import { dataHora, type ClienteResumido } from "@/dominio/clientes-periodo";
+import { dataCurta, dataHora, type ClienteResumido } from "@/dominio/clientes-periodo";
 import { BotaoFichaCliente } from "./ficha-cliente";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +31,7 @@ type Coluna =
   | "nome"
   | "email"
   | "telefone"
+  | "primeira_compra"
   | "ultima_compra"
   | "produtos"
   | "total_transacoes"
@@ -32,6 +42,7 @@ const COLUNAS: { chave: Coluna; rotulo: string; numerica?: boolean }[] = [
   { chave: "nome", rotulo: "Nome" },
   { chave: "email", rotulo: "E-mail" },
   { chave: "telefone", rotulo: "Telefone" },
+  { chave: "primeira_compra", rotulo: "Primeira compra", numerica: true },
   { chave: "ultima_compra", rotulo: "Última compra", numerica: true },
   { chave: "produtos", rotulo: "Produto(s) da última compra" },
   { chave: "total_transacoes", rotulo: "Transações", numerica: true },
@@ -41,6 +52,22 @@ const COLUNAS: { chave: Coluna; rotulo: string; numerica?: boolean }[] = [
 
 type Tipo = "todos" | "novos" | "recorrentes";
 
+type Filtros = {
+  tipo: Tipo;
+  /** Nome do produto comprado no período; "" = qualquer. */
+  produto: string;
+  gastoMin: string;
+  gastoMax: string;
+};
+
+const SEM_FILTROS: Filtros = { tipo: "todos", produto: "", gastoMin: "", gastoMax: "" };
+
+const ROTULO_TIPO: Record<Tipo, string> = {
+  todos: "Todos",
+  novos: "Só novos",
+  recorrentes: "Só recorrentes",
+};
+
 function valorDe(c: ClienteResumido, coluna: Coluna): string | number {
   switch (coluna) {
     case "nome":
@@ -49,6 +76,8 @@ function valorDe(c: ClienteResumido, coluna: Coluna): string | number {
       return c.email.toLowerCase();
     case "telefone":
       return c.telefone ?? "";
+    case "primeira_compra":
+      return c.primeira_compra_em ?? "";
     case "ultima_compra":
       return c.ultima_compra;
     case "produtos":
@@ -62,10 +91,15 @@ function valorDe(c: ClienteResumido, coluna: Coluna): string | number {
   }
 }
 
+function numeroOuNulo(texto: string): number | null {
+  const n = Number(texto.replace(",", "."));
+  return texto.trim() === "" || Number.isNaN(n) ? null : n;
+}
+
 /**
- * Todos os clientes com transação no período: busca, filtros (mínimo de transações,
- * novos ou recorrentes) e ordenação clicando no cabeçalho. Texto ordena A→Z no
- * primeiro clique; número e data, do maior para o menor.
+ * Todos os clientes com transação no período: busca sempre visível; os demais filtros
+ * (tipo, produto comprado, faixa de gasto) ficam num pop-up. Cabeçalho clicável ordena:
+ * texto A→Z no primeiro clique; número e data, do maior para o menor; o segundo inverte.
  */
 export function ListaClientes({
   clientes,
@@ -77,27 +111,39 @@ export function ListaClientes({
   fuso: string;
 }) {
   const [busca, setBusca] = useState("");
-  const [tipo, setTipo] = useState<Tipo>("todos");
+  const [filtros, setFiltros] = useState<Filtros>(SEM_FILTROS);
   const [ordem, setOrdem] = useState<{ coluna: Coluna; desc: boolean }>({
     coluna: "gasto",
     desc: true,
   });
 
+  const produtos = useMemo(
+    () =>
+      [...new Set(clientes.flatMap((c) => c.transacoes.flatMap((t) => t.produtos)))].sort(
+        (a, b) => a.localeCompare(b, "pt-BR"),
+      ),
+    [clientes],
+  );
+
   function ordenarPor(coluna: Coluna) {
     const numerica = COLUNAS.find((c) => c.chave === coluna)?.numerica ?? false;
     setOrdem((atual) =>
-      atual.coluna === coluna
-        ? { coluna, desc: !atual.desc }
-        : { coluna, desc: numerica },
+      atual.coluna === coluna ? { coluna, desc: !atual.desc } : { coluna, desc: numerica },
     );
   }
 
   const visiveis = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const digitos = termo.replace(/\D/g, "");
+    const min = numeroOuNulo(filtros.gastoMin);
+    const max = numeroOuNulo(filtros.gastoMax);
     const filtrados = clientes.filter((c) => {
-      if (tipo === "novos" && !c.novo) return false;
-      if (tipo === "recorrentes" && !c.recorrente) return false;
+      if (filtros.tipo === "novos" && !c.novo) return false;
+      if (filtros.tipo === "recorrentes" && !c.recorrente) return false;
+      if (filtros.produto && !c.transacoes.some((t) => t.produtos.includes(filtros.produto)))
+        return false;
+      if (min !== null && c.gasto < min) return false;
+      if (max !== null && c.gasto > max) return false;
       if (!termo) return true;
       return (
         c.nome.toLowerCase().includes(termo) ||
@@ -115,13 +161,37 @@ export function ListaClientes({
           : String(va).localeCompare(String(vb), "pt-BR");
       return cmp * sinal || b.gasto - a.gasto;
     });
-  }, [clientes, busca, tipo, ordem]);
+  }, [clientes, busca, filtros, ordem]);
+
+  const totais = visiveis.reduce(
+    (s, c) => ({
+      transacoes: s.transacoes + c.total_transacoes,
+      itens: s.itens + c.itens,
+      gasto: s.gasto + c.gasto,
+    }),
+    { transacoes: 0, itens: 0, gasto: 0 },
+  );
+
+  const chips: { chave: keyof Filtros; rotulo: string }[] = [];
+  if (filtros.tipo !== "todos") chips.push({ chave: "tipo", rotulo: ROTULO_TIPO[filtros.tipo] });
+  if (filtros.produto) chips.push({ chave: "produto", rotulo: `Comprou ${filtros.produto}` });
+  if (numeroOuNulo(filtros.gastoMin) !== null)
+    chips.push({
+      chave: "gastoMin",
+      rotulo: `Gastou a partir de ${formatarMetrica(numeroOuNulo(filtros.gastoMin)!, "moeda", moeda)}`,
+    });
+  if (numeroOuNulo(filtros.gastoMax) !== null)
+    chips.push({
+      chave: "gastoMax",
+      rotulo: `Gastou até ${formatarMetrica(numeroOuNulo(filtros.gastoMax)!, "moeda", moeda)}`,
+    });
 
   function baixarCsv() {
     const cabecalho = [
       "Nome",
       "E-mail",
       "Telefone",
+      "Primeira compra",
       "Última compra",
       "Produtos da última compra",
       "Transações",
@@ -136,6 +206,7 @@ export function ListaClientes({
         c.nome,
         c.email,
         c.telefone ?? "",
+        dataCurta(c.primeira_compra_em, fuso),
         dataHora(c.ultima_compra, fuso),
         c.produtos_ultima.join(", "),
         c.total_transacoes,
@@ -148,7 +219,7 @@ export function ListaClientes({
         .join(";"),
     );
     // BOM + ponto e vírgula: o Excel em português abre direto com as colunas certas.
-    const conteudo = "\ufeff" + [cabecalho.map(escapar).join(";"), ...linhas].join("\r\n");
+    const conteudo = "﻿" + [cabecalho.map(escapar).join(";"), ...linhas].join("\r\n");
     const url = URL.createObjectURL(new Blob([conteudo], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
@@ -157,51 +228,126 @@ export function ListaClientes({
     URL.revokeObjectURL(url);
   }
 
-  const totais = visiveis.reduce(
-    (s, c) => ({
-      transacoes: s.transacoes + c.total_transacoes,
-      itens: s.itens + c.itens,
-      gasto: s.gasto + c.gasto,
-    }),
-    { transacoes: 0, itens: 0, gasto: 0 },
-  );
-
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 md:flex-row md:items-end">
-        <label className="flex-1 space-y-1 text-sm">
-          <span className="text-muted-foreground text-xs">Buscar</span>
-          <Input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Nome, e-mail ou telefone"
-            aria-label="Buscar cliente"
-          />
-        </label>
-        <label className="space-y-1 text-sm">
-          <span className="text-muted-foreground text-xs">Tipo de cliente</span>
-          <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as Tipo)}
-            aria-label="Tipo de cliente"
-            className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm md:w-44"
-          >
-            <option value="todos">Todos</option>
-            <option value="novos">Só novos (1ª compra no período)</option>
-            <option value="recorrentes">Só recorrentes (recompraram)</option>
-          </select>
-        </label>
+      <div className="flex flex-col gap-2 md:flex-row md:items-center">
+        <Input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome, e-mail ou telefone"
+          aria-label="Buscar cliente"
+          className="md:max-w-md"
+        />
+        <Dialog>
+          <DialogTrigger render={<Button variant="outline" />}>
+            <SlidersHorizontal data-icon="inline-start" />
+            Filtros
+            {chips.length ? (
+              <Badge variant="secondary" className="ml-1">
+                {chips.length}
+              </Badge>
+            ) : null}
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Filtrar clientes</DialogTitle>
+              <DialogDescription>
+                Os filtros valem para a lista, os totais e o CSV.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="filtro-tipo">Tipo de cliente</Label>
+                <select
+                  id="filtro-tipo"
+                  value={filtros.tipo}
+                  onChange={(e) => setFiltros({ ...filtros, tipo: e.target.value as Tipo })}
+                  className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="novos">Só novos (1ª compra no período)</option>
+                  <option value="recorrentes">Só recorrentes (recompraram)</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="filtro-produto">Comprou o produto</Label>
+                <select
+                  id="filtro-produto"
+                  value={filtros.produto}
+                  onChange={(e) => setFiltros({ ...filtros, produto: e.target.value })}
+                  className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
+                >
+                  <option value="">Qualquer produto</option>
+                  {produtos.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="filtro-gasto-min">Gastou a partir de</Label>
+                  <Input
+                    id="filtro-gasto-min"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={filtros.gastoMin}
+                    onChange={(e) => setFiltros({ ...filtros, gastoMin: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="filtro-gasto-max">Gastou até</Label>
+                  <Input
+                    id="filtro-gasto-max"
+                    inputMode="decimal"
+                    placeholder="Sem limite"
+                    value={filtros.gastoMax}
+                    onChange={(e) => setFiltros({ ...filtros, gastoMax: e.target.value })}
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setFiltros(SEM_FILTROS)}
+                disabled={chips.length === 0}
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Button
           type="button"
           variant="outline"
           onClick={baixarCsv}
           disabled={visiveis.length === 0}
           title="Baixa os clientes listados, com os filtros aplicados"
+          className="md:ml-auto"
         >
           <Download data-icon="inline-start" />
           Baixar CSV
         </Button>
       </div>
+
+      {chips.length ? (
+        <div className="flex flex-wrap gap-2">
+          {chips.map((chip) => (
+            <button
+              key={chip.chave}
+              type="button"
+              onClick={() => setFiltros({ ...filtros, [chip.chave]: SEM_FILTROS[chip.chave] })}
+              className="bg-muted hover:bg-muted/70 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs"
+              title="Remover este filtro"
+            >
+              {chip.rotulo}
+              <X className="size-3" aria-hidden />
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <p className="text-muted-foreground text-sm">
         {visiveis.length === 0
@@ -213,7 +359,7 @@ export function ListaClientes({
 
       {visiveis.length ? (
         <div className="quadro-rolagem">
-          <Table className="min-w-[1100px]">
+          <Table className="min-w-[1250px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="bg-card sticky top-0 z-10 w-10">#</TableHead>
@@ -224,10 +370,7 @@ export function ListaClientes({
                     <TableHead
                       key={col.chave}
                       aria-sort={ativa ? (ordem.desc ? "descending" : "ascending") : "none"}
-                      className={cn(
-                        "bg-card sticky top-0 z-10 p-0",
-                        col.numerica && "text-right",
-                      )}
+                      className={cn("bg-card sticky top-0 z-10 p-0", col.numerica && "text-right")}
                     >
                       <button
                         type="button"
@@ -240,10 +383,7 @@ export function ListaClientes({
                         title={`Ordenar por ${col.rotulo.toLowerCase()}`}
                       >
                         {col.rotulo}
-                        <Icone
-                          className={cn("size-3.5 shrink-0", !ativa && "opacity-40")}
-                          aria-hidden
-                        />
+                        <Icone className={cn("size-3.5 shrink-0", !ativa && "opacity-40")} aria-hidden />
                       </button>
                     </TableHead>
                   );
@@ -260,6 +400,9 @@ export function ListaClientes({
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{c.email || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{c.telefone || "—"}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">
+                    {dataCurta(c.primeira_compra_em, fuso)}
+                  </TableCell>
                   <TableCell className="text-right whitespace-nowrap tabular-nums">
                     {dataHora(c.ultima_compra, fuso)}
                   </TableCell>

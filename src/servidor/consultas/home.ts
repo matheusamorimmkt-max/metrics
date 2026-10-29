@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
 import {
@@ -143,7 +144,8 @@ function semaforoDe(
   return "vermelho";
 }
 
-export async function listarFunisInfo(organizacaoId: string): Promise<FunilInfo[]> {
+/** Funis da organização. `cache`: uma ida ao banco por requisição, mesmo chamado de vários lugares. */
+export const listarFunisInfo = cache(async (organizacaoId: string): Promise<FunilInfo[]> => {
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase
     .from("funis")
@@ -162,7 +164,7 @@ export async function listarFunisInfo(organizacaoId: string): Promise<FunilInfo[
     categoria_ordem: f.categorias?.ordem ?? 0,
     tem_semaforo: f.categorias?.tem_semaforo ?? false,
   }));
-}
+});
 
 async function listarLinhas(
   organizacaoId: string,

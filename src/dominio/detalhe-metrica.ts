@@ -34,6 +34,8 @@ export type DetalheMetrica = {
   fatias: Fatia[];
   /** Tabela no lugar da pizza. */
   tabela?: TabelaDetalhe;
+  /** Tabelas adicionais abaixo da principal, cada uma com um título. */
+  tabelas_extras?: { titulo: string; tabela: TabelaDetalhe }[];
   /** Observação mostrada abaixo. */
   nota?: string;
 };
@@ -50,10 +52,24 @@ export type ClienteRecompra = {
   transacoes_total: number;
 };
 
+export type ReembolsoCliente = {
+  cliente_id: string;
+  nome: string;
+  email: string;
+  produto: string;
+  valor: number;
+  /** ISO da data do reembolso ou chargeback. */
+  data: string;
+  tipo: "reembolso" | "chargeback";
+};
+
 export type EntradaDetalhes = {
   gasto_por_plataforma: Parcela[];
   faturamento_por_produto: Parcela[];
   reembolsos_por_produto: Parcela[];
+  reembolsos_clientes: ReembolsoCliente[];
+  /** Fuso da organização, para datas nas tabelas. */
+  fuso: string;
   /** Fração do imposto sobre anúncios (ex.: 0.1215). */
   taxa_anuncios: number;
   investimento: number;
@@ -238,6 +254,36 @@ export function montarDetalhes(
           ]
         : [],
     },
+    tabelas_extras: e.reembolsos_clientes.length
+      ? [
+          {
+            titulo: "Quem pediu reembolso",
+            tabela: {
+              cabecalho: ["Cliente", "Produto", "Data", "Tipo", "Valor"],
+              vazio: "",
+              linhas: e.reembolsos_clientes.map((r) => ({
+                celulas: [
+                  texto(r.nome, { detalhe: r.email, cliente_id: r.cliente_id }),
+                  texto(r.produto, { alinhar: "left" }),
+                  texto(
+                    r.data
+                      ? new Date(r.data).toLocaleDateString("pt-BR", { timeZone: e.fuso })
+                      : "—",
+                  ),
+                  texto(r.tipo === "chargeback" ? "Chargeback" : "Reembolso", {
+                    cor: "discreto",
+                  }),
+                  texto(m(r.valor), { cor: "negativo" }),
+                ],
+              })),
+            },
+          },
+        ]
+      : undefined,
+    nota:
+      e.reembolsos_clientes.length >= 200
+        ? "Mostrando os 200 reembolsos mais recentes."
+        : undefined,
   };
 
   // ---- Clientes únicos: novos × antigos

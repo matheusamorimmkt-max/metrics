@@ -1,4 +1,5 @@
 import "server-only";
+import type { ReembolsoCliente } from "@/dominio/detalhe-metrica";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
 import { somarDias, type Periodo } from "@/dominio/periodo";
@@ -14,6 +15,8 @@ export type Composicoes = {
   faturamento_por_produto: Parcela[];
   /** Reembolsos e chargebacks ocorridos no período, por produto. */
   reembolsos_por_produto: Parcela[];
+  /** Cada reembolso ou chargeback do período, com o cliente (mais recente primeiro, até 200). */
+  reembolsos_clientes: ReembolsoCliente[];
 };
 
 const LIMITE = 20_000;
@@ -66,7 +69,7 @@ export async function obterComposicoes(
     supabase
       .from("vendas")
       .select(
-        "valor_bruto, produto_id, produtos(nome), ofertas(funil_ofertas(funil_id, status))",
+        "valor_bruto, produto_id, produtos(nome), ofertas(funil_ofertas(funil_id, status)), cliente_id, clientes(nome, email), status, reembolsada_em",
       )
       .eq("organizacao_id", organizacaoId)
       .neq("status", "aprovada")
@@ -120,10 +123,20 @@ export async function obterComposicoes(
   }
 
   const porProdutoReembolso = new Map<string, Parcela>();
+  const reembolsosClientes: ReembolsoCliente[] = [];
   for (const v of reembolsos.data ?? []) {
     const vinculo = v.ofertas?.funil_ofertas;
     const funilId = vinculo?.status === "confirmado" ? vinculo.funil_id : null;
     if (!pertence(funilId)) continue;
+    reembolsosClientes.push({
+      cliente_id: v.cliente_id,
+      nome: v.clientes?.nome?.trim() || v.clientes?.email || "Cliente",
+      email: v.clientes?.email ?? "",
+      produto: v.produtos?.nome ?? "Produto",
+      valor: Number(v.valor_bruto ?? 0),
+      data: v.reembolsada_em ?? "",
+      tipo: v.status === "chargeback" ? "chargeback" : "reembolso",
+    });
     const p = porProdutoReembolso.get(v.produto_id) ?? {
       chave: v.produto_id,
       nome: v.produtos?.nome ?? "Produto",
@@ -143,5 +156,8 @@ export async function obterComposicoes(
     gasto_por_plataforma: ordenar(porPlataforma),
     faturamento_por_produto: ordenar(porProduto),
     reembolsos_por_produto: ordenar(porProdutoReembolso),
+    reembolsos_clientes: reembolsosClientes
+      .sort((a, b) => b.data.localeCompare(a.data))
+      .slice(0, 200),
   };
 }

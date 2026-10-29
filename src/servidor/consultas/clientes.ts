@@ -61,7 +61,7 @@ export async function obterResumoClientes(
   const { data, error } = await supabase
     .from("transacoes")
     .select(
-      "id, cliente_id, inicio, ordem, eh_recompra, valor_total, funil_id, funis(nome), clientes(primeira_compra_em, funil_entrada_id)",
+      "id, cliente_id, inicio, ordem, eh_recompra, valor_total, funil_id, funis(nome), clientes(primeira_compra_em, funil_entrada_id, funis(nome))",
     )
     .eq("organizacao_id", organizacaoId)
     .gte("inicio", inicio)
@@ -85,18 +85,17 @@ export async function obterResumoClientes(
   const transacoes = data ?? [];
   if (!transacoes.length) return vazio;
 
-  // Nomes de funis para o funil de entrada (pode não aparecer nas transações do período)
-  const funilIds = new Set<string>();
-  for (const t of transacoes) {
-    if (t.funil_id) funilIds.add(t.funil_id);
-    if (t.clientes?.funil_entrada_id) funilIds.add(t.clientes.funil_entrada_id);
+  // Nomes dos funis vêm junto com as transações (funil da transação e funil de entrada).
+  const nomeFunil = new Map<string, string>();
+  for (const t of transacoes as unknown as {
+    funil_id: string | null;
+    funis: { nome: string } | null;
+    clientes: { funil_entrada_id: string | null; funis: { nome: string } | null } | null;
+  }[]) {
+    if (t.funil_id && t.funis?.nome) nomeFunil.set(t.funil_id, t.funis.nome);
+    if (t.clientes?.funil_entrada_id && t.clientes.funis?.nome)
+      nomeFunil.set(t.clientes.funil_entrada_id, t.clientes.funis.nome);
   }
-  const { data: funis } = await supabase
-    .from("funis")
-    .select("id, nome")
-    .eq("organizacao_id", organizacaoId)
-    .in("id", [...funilIds]);
-  const nomeFunil = new Map((funis ?? []).map((f) => [f.id, f.nome]));
   const nome = (id: string | null) => (id ? (nomeFunil.get(id) ?? "Funil") : "Sem funil");
 
   const clientes = new Set<string>();
@@ -201,7 +200,19 @@ export async function listarClientesDoPeriodo(
       .lt("inicio", fim)
       .order("inicio", { ascending: true })
       .limit(LIMITE);
-  let resposta = await consultar(true);
+  // As duas consultas não dependem uma da outra: vão juntas.
+  const consultaVendas = supabase
+    .from("vendas")
+    .select("transacao_id, produtos(nome)")
+    .eq("organizacao_id", organizacaoId)
+    .gte("vendida_em", inicio)
+    .lt("vendida_em", fim)
+    .limit(LIMITE);
+  const [primeiraTentativa, { data: vendas, error: erroVendas }] = await Promise.all([
+    consultar(true),
+    consultaVendas,
+  ]);
+  let resposta = primeiraTentativa;
   // Migration do telefone (20261013000006) ainda não aplicada: segue sem a coluna.
   if (resposta.error && colunaAusente(resposta.error)) resposta = await consultar(false);
   const { error } = resposta;
@@ -225,13 +236,6 @@ export async function listarClientesDoPeriodo(
   if (!data.length) return { clientes: [], truncado: false };
 
   // Produtos de cada transação: vendas do período agrupadas por transacao_id.
-  const { data: vendas, error: erroVendas } = await supabase
-    .from("vendas")
-    .select("transacao_id, produtos(nome)")
-    .eq("organizacao_id", organizacaoId)
-    .gte("vendida_em", inicio)
-    .lt("vendida_em", fim)
-    .limit(LIMITE);
   if (erroVendas && !tabelaAusente(erroVendas))
     throw new Error(`Falha ao carregar produtos das transações: ${erroVendas.message}`);
   const produtosPorTransacao = new Map<string, Set<string>>();

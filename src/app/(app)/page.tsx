@@ -78,10 +78,13 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
   const filtroTexto = typeof params.filtro === "string" ? params.filtro : "";
   const filtro = lerFiltro(filtroTexto);
 
-  const funisInfo = await listarFunisInfo(organizacao.id);
-  const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
-  const [integracoes, clientes, detalhesClientes] = await Promise.all([
+  // Três idas ao banco em paralelo, em vez de uma fila: funis → clientes → resumo → composição.
+  const [funisInfo, integracoes] = await Promise.all([
+    listarFunisInfo(organizacao.id),
     listarIntegracoes(organizacao.id),
+  ]);
+  const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
+  const [clientes, detalhesClientes, composicoes] = await Promise.all([
     obterIndicadoresClientes(
       organizacao.id,
       periodo,
@@ -96,6 +99,7 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
       filtro,
       categoriaDoFunil,
     ),
+    obterComposicoes(organizacao.id, periodo, filtro, funisInfo, organizacao.fuso_horario),
   ]);
   const resumo = await obterResumoHome(
     organizacao.id,
@@ -104,13 +108,6 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     filtro,
     hoje,
     clientes,
-  );
-  const composicoes = await obterComposicoes(
-    organizacao.id,
-    periodo,
-    filtro,
-    resumo.funis,
-    organizacao.fuso_horario,
   );
   const detalhes = montarDetalhes({
     ...composicoes,
@@ -129,6 +126,7 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     recompradores: detalhesClientes.recompradores,
     novos: detalhesClientes.novos,
     moeda: organizacao.moeda,
+    fuso: organizacao.fuso_horario,
   });
 
   const pendentes = TIPOS_INTEGRACAO.filter(
