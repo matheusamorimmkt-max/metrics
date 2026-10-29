@@ -3,7 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -36,14 +38,26 @@ export function TabelaOfertas({
   moeda: string;
 }) {
   const router = useRouter();
+  const [busca, setBusca] = useState("");
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [funilId, setFunilId] = useState("");
   const [papel, setPapel] = useState<PapelOferta>("front");
   const [pendente, iniciar] = useTransition();
 
-  const visiveis = useMemo(() => new Set(ofertas.map((o) => o.id)), [ofertas]);
-  const marcadas = [...selecionadas].filter((id) => visiveis.has(id));
-  const todasMarcadas = ofertas.length > 0 && marcadas.length === ofertas.length;
+  // Filtro por nome (oferta, produto ou id no gateway), só na tela.
+  const filtradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return ofertas;
+    return ofertas.filter(
+      (o) =>
+        o.nome.toLowerCase().includes(termo) ||
+        o.produto_nome.toLowerCase().includes(termo) ||
+        o.id_externo.toLowerCase().includes(termo),
+    );
+  }, [ofertas, busca]);
+  const idsVisiveis = useMemo(() => new Set(filtradas.map((o) => o.id)), [filtradas]);
+  const marcadas = [...selecionadas].filter((id) => idsVisiveis.has(id));
+  const todasMarcadas = filtradas.length > 0 && marcadas.length === filtradas.length;
 
   function alternar(id: string, marcar: boolean) {
     setSelecionadas((atual) => {
@@ -55,7 +69,7 @@ export function TabelaOfertas({
   }
 
   function alternarTodas(marcar: boolean) {
-    setSelecionadas(marcar ? new Set(ofertas.map((o) => o.id)) : new Set());
+    setSelecionadas(marcar ? new Set(filtradas.map((o) => o.id)) : new Set());
   }
 
   function vincular() {
@@ -73,53 +87,76 @@ export function TabelaOfertas({
   }
 
   return (
-    <div className="space-y-3">
-      <div
-        className="bg-muted/40 flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-center"
-        aria-live="polite"
-      >
-        <span className="text-sm font-medium">
-          {marcadas.length === 0
-            ? "Marque ofertas para vincular várias de uma vez"
-            : `${marcadas.length} ${marcadas.length === 1 ? "oferta selecionada" : "ofertas selecionadas"}`}
-        </span>
-        <div className="flex flex-wrap items-center gap-2 md:ml-auto">
-          <Selecao
-            value={funilId}
-            onChange={(e) => setFunilId(e.target.value)}
-            disabled={pendente}
-            aria-label="Funil para as ofertas selecionadas"
-          >
-            <option value="">Escolha o funil</option>
-            {funis.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.categoria ? `${f.categoria} · ${f.nome}` : f.nome}
-              </option>
-            ))}
-          </Selecao>
-          <Selecao
-            value={papel}
-            onChange={(e) => setPapel(e.target.value as PapelOferta)}
-            disabled={pendente}
-            className="w-32"
-            aria-label="Papel das ofertas selecionadas"
-          >
-            {PAPEIS_OFERTA.map((p) => (
-              <option key={p} value={p}>
-                {ROTULO_PAPEL[p]}
-              </option>
-            ))}
-          </Selecao>
-          <Button
-            type="button"
-            size="sm"
-            onClick={vincular}
-            disabled={pendente || !funilId || marcadas.length === 0}
-          >
-            {pendente ? "Vinculando…" : "Vincular selecionadas"}
-          </Button>
+    <div className="space-y-3 pb-24">
+      <Input
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        placeholder="Filtrar por nome da oferta, produto ou ID"
+        aria-label="Filtrar ofertas"
+        className="md:max-w-md"
+      />
+      {busca && filtradas.length === 0 ? (
+        <p className="text-muted-foreground text-sm">Nenhuma oferta com esse nome.</p>
+      ) : null}
+
+      {marcadas.length > 0 ? (
+        <div
+          role="region"
+          aria-label="Vincular ofertas selecionadas"
+          aria-live="polite"
+          className="bg-card fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 flex-col gap-2 rounded-lg border p-3 shadow-lg md:flex-row md:items-center"
+        >
+          <span className="text-sm font-medium">
+            {marcadas.length} {marcadas.length === 1 ? "oferta selecionada" : "ofertas selecionadas"}
+          </span>
+          <div className="flex flex-wrap items-center gap-2 md:ml-auto">
+            <Selecao
+              value={funilId}
+              onChange={(e) => setFunilId(e.target.value)}
+              disabled={pendente}
+              aria-label="Funil para as ofertas selecionadas"
+            >
+              <option value="">Escolha o funil</option>
+              {funis.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.categoria ? `${f.categoria} · ${f.nome}` : f.nome}
+                </option>
+              ))}
+            </Selecao>
+            <Selecao
+              value={papel}
+              onChange={(e) => setPapel(e.target.value as PapelOferta)}
+              disabled={pendente}
+              className="w-32"
+              aria-label="Papel das ofertas selecionadas"
+            >
+              {PAPEIS_OFERTA.map((p) => (
+                <option key={p} value={p}>
+                  {ROTULO_PAPEL[p]}
+                </option>
+              ))}
+            </Selecao>
+            <Button
+              type="button"
+              size="sm"
+              onClick={vincular}
+              disabled={pendente || !funilId}
+            >
+              {pendente ? "Vinculando…" : "Vincular selecionadas"}
+            </Button>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => setSelecionadas(new Set())}
+              aria-label="Limpar seleção"
+              title="Limpar seleção"
+            >
+              <X aria-hidden />
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <Table>
         <TableHeader>
@@ -143,7 +180,7 @@ export function TabelaOfertas({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {ofertas.map((o) => (
+          {filtradas.map((o) => (
             <LinhaOferta
               key={o.id}
               oferta={o}
