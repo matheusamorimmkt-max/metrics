@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -26,8 +27,14 @@ import { ROTULO_TIPO_FUNIL, type TipoFunil } from "@/dominio/schemas/funil";
 import { obterContexto } from "@/servidor/sessao";
 import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterFunil } from "@/servidor/consultas/funis";
-import { obterResumoHome } from "@/servidor/consultas/home";
-import { obterIndicadoresClientes } from "@/servidor/consultas/clientes";
+import { listarFunisInfo, obterResumoHome } from "@/servidor/consultas/home";
+import {
+  obterDetalhesClientes,
+  obterIndicadoresClientes,
+} from "@/servidor/consultas/clientes";
+import { obterComposicoes } from "@/servidor/consultas/composicao";
+import { montarDetalhes } from "@/dominio/detalhe-metrica";
+import { BotaoDetalheMetrica } from "../../home/detalhe-metrica";
 import { TabelaDiaria } from "../tabela-diaria";
 import {
   listarCampanhasDoFunilNoPeriodo,
@@ -59,12 +66,23 @@ export default async function PaginaFunil({
   const periodo = await periodoDaUrl(organizacao, busca);
 
   const soEsteFunil = { tipo: "funis" as const, ids: new Set([id]) };
-  const [clientes, ofertas, campanhas, pagamentos, recomprasGeradas] = await Promise.all([
+  const funisInfo = await listarFunisInfo(organizacao.id);
+  const [
+    clientes,
+    ofertas,
+    campanhas,
+    pagamentos,
+    recomprasGeradas,
+    detalhesClientes,
+    composicoes,
+  ] = await Promise.all([
     obterIndicadoresClientes(organizacao.id, periodo, organizacao.fuso_horario, soEsteFunil),
     listarOfertasDoFunilNoPeriodo(organizacao.id, id, periodo),
     listarCampanhasDoFunilNoPeriodo(organizacao.id, id, periodo),
     obterPagamentosDoFunil(organizacao.id, id, periodo, organizacao.fuso_horario),
     obterRecomprasGeradas(organizacao.id, id, periodo, organizacao.fuso_horario),
+    obterDetalhesClientes(organizacao.id, periodo, organizacao.fuso_horario, soEsteFunil),
+    obterComposicoes(organizacao.id, periodo, soEsteFunil, funisInfo, organizacao.fuso_horario),
   ]);
   const resumo = await obterResumoHome(
     organizacao.id,
@@ -74,6 +92,26 @@ export default async function PaginaFunil({
     hoje,
     clientes,
   );
+  // Olhos dos cards, com a mesma montagem da Home, restrita a este funil.
+  const detalhes = montarDetalhes({
+    ...composicoes,
+    taxa_anuncios: organizacao.taxa_anuncios,
+    investimento: resumo.atual.investimento,
+    faturamento_bruto: resumo.atual.faturamento_bruto,
+    lucro: resumo.atual.lucro,
+    reembolsos: resumo.composicao.reembolsos,
+    taxas_gateway: resumo.composicao.taxas_gateway,
+    parceiros: resumo.composicao.parceiros,
+    impostos: resumo.composicao.impostos,
+    transacoes: resumo.atual.transacoes,
+    itens: resumo.atual.itens,
+    clientes: detalhesClientes.clientes,
+    transacoes_por_itens: detalhesClientes.transacoes_por_itens,
+    recompradores: detalhesClientes.recompradores,
+    novos: detalhesClientes.novos,
+    moeda: organizacao.moeda,
+    fuso: organizacao.fuso_horario,
+  });
   // Investimento, faturamento, lucro, ROAS e ROI já aparecem na tabela de dia a dia.
   const cardsSecundarios = CARDS_HOME.filter(
     (c) =>
@@ -157,10 +195,20 @@ export default async function PaginaFunil({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cardsSecundarios.map((card) => {
           const chave = card.chave as keyof Metricas;
+          const detalhe = detalhes[chave];
           return (
             <Card key={card.chave}>
               <CardHeader>
                 <CardDescription>{card.nome}</CardDescription>
+                {detalhe ? (
+                  <CardAction>
+                    <BotaoDetalheMetrica
+                      detalhe={detalhe}
+                      moeda={organizacao.moeda}
+                      fuso={organizacao.fuso_horario}
+                    />
+                  </CardAction>
+                ) : null}
                 <CardTitle className="text-2xl tabular-nums">
                   {formatarMetrica(resumo.atual[chave], card.formato, organizacao.moeda)}
                 </CardTitle>
@@ -298,7 +346,21 @@ export default async function PaginaFunil({
       <Card>
         <CardHeader>
           <CardTitle>Ofertas</CardTitle>
-          <CardDescription>Desempenho por oferta no período.</CardDescription>
+          <CardDescription>
+            Desempenho por oferta no período.
+            {podeEditar ? " Clique na oferta para editar o vínculo em Configurações → Ofertas." : ""}
+          </CardDescription>
+          {podeEditar ? (
+            <CardAction>
+              <Button
+                variant="outline"
+                size="sm"
+                render={<Link href={`/configuracoes/ofertas?funil=${id}`} />}
+              >
+                Ver em Ofertas
+              </Button>
+            </CardAction>
+          ) : null}
         </CardHeader>
         <CardContent>
           {ofertas.length === 0 ? (
@@ -327,9 +389,19 @@ export default async function PaginaFunil({
                 {ofertas.map((o) => (
                   <TableRow key={o.id}>
                     <TableCell>
-                      <div className="font-medium">{o.nome}</div>
+                      {podeEditar ? (
+                        <Link
+                          href={`/configuracoes/ofertas?busca=${encodeURIComponent(o.id_externo)}`}
+                          className="font-medium underline-offset-4 hover:underline"
+                          title="Abrir em Configurações → Ofertas"
+                        >
+                          {o.nome}
+                        </Link>
+                      ) : (
+                        <div className="font-medium">{o.nome}</div>
+                      )}
                       <div className="text-muted-foreground text-xs">
-                        {o.produto_nome}
+                        {o.produto_nome} · {o.id_externo}
                       </div>
                     </TableCell>
                     <TableCell>

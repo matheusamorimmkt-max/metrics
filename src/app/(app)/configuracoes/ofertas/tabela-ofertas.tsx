@@ -69,16 +69,21 @@ export function TabelaOfertas({
   funis,
   moeda,
   vinculoInicial = "todas",
+  buscaInicial = "",
+  funilInicial = "",
 }: {
   ofertas: OfertaResumo[];
   funis: FunilOpcao[];
   moeda: string;
   /** Vem da URL (?filtro=nao_vinculadas), para os links antigos continuarem valendo. */
   vinculoInicial?: Vinculo;
+  /** Vêm da URL (?busca=, ?funil=) quando o usuário chega pela página do funil. */
+  buscaInicial?: string;
+  funilInicial?: string;
 }) {
   const router = useRouter();
   const semFiltros: Filtros = {
-    nome: "",
+    nome: buscaInicial,
     vinculo: vinculoInicial,
     comVendasMes: false,
     semVendasMes: false,
@@ -87,7 +92,10 @@ export function TabelaOfertas({
     produto: "",
     funil: "",
   };
-  const [filtros, setFiltros] = useState<Filtros>(semFiltros);
+  const [filtros, setFiltros] = useState<Filtros>({
+    ...semFiltros,
+    funil: funis.some((f) => f.id === funilInicial) ? funilInicial : "",
+  });
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [funilId, setFunilId] = useState("");
   const [papel, setPapel] = useState<PapelOferta>("front");
@@ -293,7 +301,7 @@ export function TabelaOfertas({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setFiltros({ ...semFiltros, nome: filtros.nome, vinculo: "todas" })}
+                onClick={() => setFiltros({ ...semFiltros, nome: filtros.nome, vinculo: "todas", funil: "" })}
                 disabled={chips.length === 0}
               >
                 Limpar filtros

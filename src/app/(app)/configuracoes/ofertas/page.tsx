@@ -23,6 +23,8 @@ export default async function PaginaOfertas({
 }: PageProps<"/configuracoes/ofertas">) {
   const params = await searchParams;
   const soNaoVinculadas = params.filtro === "nao_vinculadas";
+  const buscaInicial = typeof params.busca === "string" ? params.busca : "";
+  const funilInicial = typeof params.funil === "string" ? params.funil : "";
   const { organizacao } = await obterContexto();
   const [todas, funis, integracoes] = await Promise.all([
     listarOfertasComMes(organizacao.id, organizacao.fuso_horario),
@@ -83,6 +85,8 @@ export default async function PaginaOfertas({
                 funis={funis}
                 moeda={organizacao.moeda}
                 vinculoInicial={soNaoVinculadas ? "nao_vinculadas" : "todas"}
+                buscaInicial={buscaInicial}
+                funilInicial={funilInicial}
               />
             </>
           )}

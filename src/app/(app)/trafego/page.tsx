@@ -94,10 +94,19 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
         base="/trafego"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Resumo
           nome="Gasto"
           valor={formatarMetrica(total.gasto, "moeda", organizacao.moeda)}
+        />
+        <Resumo
+          nome="Imposto sobre anúncios"
+          valor={formatarMetrica(
+            total.gasto * organizacao.taxa_anuncios,
+            "moeda",
+            organizacao.moeda,
+          )}
+          descricao={`${formatarMetrica(organizacao.taxa_anuncios, "percentual")} sobre o gasto, como em Configurações → Geral.`}
         />
         <Resumo nome="Impressões" valor={formatarMetrica(total.impressoes, "inteiro")} />
         <Resumo
@@ -199,13 +208,26 @@ export default async function PaginaTrafego({ searchParams }: PageProps<"/trafeg
   );
 }
 
-function Resumo({ nome, valor }: { nome: string; valor: string }) {
+function Resumo({
+  nome,
+  valor,
+  descricao,
+}: {
+  nome: string;
+  valor: string;
+  descricao?: string;
+}) {
   return (
     <Card>
       <CardHeader>
         <CardDescription>{nome}</CardDescription>
         <CardTitle className="text-xl tabular-nums">{valor}</CardTitle>
       </CardHeader>
+      {descricao ? (
+        <CardContent>
+          <p className="text-muted-foreground text-xs">{descricao}</p>
+        </CardContent>
+      ) : null}
     </Card>
   );
 }
