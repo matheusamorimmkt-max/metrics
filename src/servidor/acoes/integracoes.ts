@@ -28,7 +28,7 @@ export async function conectarIntegracao(
   const parse = schemaConectarIntegracao.safeParse({
     tipo: texto(formData, "tipo"),
     credencial: texto(formData, "credencial"),
-    conta_anuncios_id: texto(formData, "conta_anuncios_id") || undefined,
+    contas_anuncios_ids: texto(formData, "contas_anuncios_ids") || undefined,
   });
   if (!parse.success) return falhaValidacao(parse.error);
 

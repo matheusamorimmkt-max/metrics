@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
@@ -85,6 +86,7 @@ export function CartaoIntegracao({
           <FormularioConexao
             definicao={definicao}
             trocando={temCredencial}
+            configAtual={integracao?.config}
             aoConcluir={() => setTrocando(false)}
             aoCancelar={temCredencial ? () => setTrocando(false) : undefined}
           />
@@ -160,11 +162,14 @@ function CampoResumo({ rotulo, valor }: { rotulo: string; valor: string }) {
 function FormularioConexao({
   definicao,
   trocando,
+  configAtual,
   aoConcluir,
   aoCancelar,
 }: {
   definicao: DefinicaoIntegracao;
   trocando: boolean;
+  /** Valores já guardados, para pré-preencher ao trocar a credencial. */
+  configAtual?: Record<string, string>;
   aoConcluir: () => void;
   aoCancelar?: () => void;
 }) {
@@ -210,16 +215,30 @@ function FormularioConexao({
       {definicao.config.map((campo) => (
         <div key={campo.nome} className="space-y-2">
           <Label htmlFor={`${prefixo}${campo.nome}`}>{campo.rotulo}</Label>
-          <Input
-            id={`${prefixo}${campo.nome}`}
-            name={campo.nome}
-            placeholder={campo.placeholder}
-            autoComplete="off"
-            data-1p-ignore=""
-            data-lpignore="true"
-            data-form-type="other"
-            required
-          />
+          {campo.multilinha ? (
+            <Textarea
+              id={`${prefixo}${campo.nome}`}
+              name={campo.nome}
+              placeholder={campo.placeholder}
+              defaultValue={
+                trocando ? (configAtual?.[campo.nome] ?? "").split(", ").join("\n") : ""
+              }
+              autoComplete="off"
+              rows={3}
+              required
+            />
+          ) : (
+            <Input
+              id={`${prefixo}${campo.nome}`}
+              name={campo.nome}
+              placeholder={campo.placeholder}
+              autoComplete="off"
+              data-1p-ignore=""
+              data-lpignore="true"
+              data-form-type="other"
+              required
+            />
+          )}
           <p className="text-muted-foreground text-xs">{campo.ajuda}</p>
           <ErroCampo erros={erros} campo={campo.nome} />
         </div>

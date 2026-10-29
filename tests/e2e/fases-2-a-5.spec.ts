@@ -92,7 +92,7 @@ test.describe("Fases 2 a 5 — telas com conectores desligados", () => {
     await expect(page.getByText("CRM", { exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Token da API")).toBeVisible();
     await expect(page.getByLabel("Token de acesso")).toBeVisible();
-    await expect(page.getByLabel("ID da conta de anúncios")).toBeVisible();
+    await expect(page.getByLabel("Contas de anúncios")).toBeVisible();
 
     // Token da Greenn no formato errado é recusado no servidor sem gravar nada.
     await page.getByLabel("Token da API").fill("$2y$10$tokenDeWebhookNaoServe");

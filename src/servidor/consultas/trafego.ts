@@ -30,6 +30,8 @@ export type LinhaTrafego = BaseTrafego & {
   campanha_chave: string;
   nivel: NivelTrafego;
   funil_nome: string | null;
+  /** Conta de anúncios da campanha (útil com mais de uma conta conectada). */
+  conta_nome: string | null;
   objetivo: string | null;
 };
 
@@ -48,7 +50,7 @@ export async function obterTrafego(
   const { data, error } = await supabase
     .from("metricas_anuncio_diarias")
     .select(
-      "campanha_id, conjunto_id_externo, conjunto_nome, anuncio_id_externo, anuncio_nome, gasto, impressoes, alcance, cliques, cliques_link, visualizacoes_pagina, inicios_checkout, leads, compras_plataforma, campanhas(nome, id_externo, objetivo, status, ativo, funil_campanhas(funis(nome)))",
+      "campanha_id, conjunto_id_externo, conjunto_nome, anuncio_id_externo, anuncio_nome, gasto, impressoes, alcance, cliques, cliques_link, visualizacoes_pagina, inicios_checkout, leads, compras_plataforma, campanhas(nome, id_externo, objetivo, status, ativo, funil_campanhas(funis(nome)), contas_anuncio(nome))",
     )
     .eq("organizacao_id", organizacaoId)
     .gte("data", periodo.de)
@@ -112,7 +114,7 @@ export async function obterTrafego(
   const zero = (
     base: Pick<
       LinhaTrafego,
-      "chave" | "nome" | "pai" | "nivel" | "funil_nome" | "campanha_chave" | "objetivo"
+      "chave" | "nome" | "pai" | "nivel" | "funil_nome" | "campanha_chave" | "objetivo" | "conta_nome"
     > &
       Partial<Pick<LinhaTrafego, "veiculacao" | "criativo">>,
   ): LinhaTrafego => ({ veiculacao: null, criativo: null, ...base, ...BASE_ZERADA });
@@ -120,6 +122,7 @@ export async function obterTrafego(
   for (const l of data ?? []) {
     const campanha = l.campanhas;
     const funilNome = campanha?.funil_campanhas?.funis?.nome ?? null;
+    const contaNome = campanha?.contas_anuncio?.nome || null;
     const objetivo = campanha?.objetivo ?? null;
     const veiculacaoCampanha: Veiculacao | null = campanha
       ? { id: l.campanha_id, ativa: campanha.ativo, status: campanha.status }
@@ -136,6 +139,7 @@ export async function obterTrafego(
           pai: null,
           nivel: "campanha",
           funil_nome: funilNome,
+          conta_nome: contaNome,
           objetivo,
           veiculacao: veiculacaoCampanha,
         }),
@@ -151,6 +155,7 @@ export async function obterTrafego(
             pai: chaveCamp,
             nivel: "conjunto",
             funil_nome: funilNome,
+            conta_nome: contaNome,
             objetivo,
             veiculacao: conjuntoPorExterno.get(l.conjunto_id_externo) ?? null,
           }),
@@ -167,6 +172,7 @@ export async function obterTrafego(
             pai: l.conjunto_id_externo ? chaveConj : chaveCamp,
             nivel: "anuncio",
             funil_nome: funilNome,
+            conta_nome: contaNome,
             objetivo,
             veiculacao: anuncioPorExterno.get(l.anuncio_id_externo)?.veiculacao ?? null,
             criativo: anuncioPorExterno.get(l.anuncio_id_externo)?.criativo ?? null,

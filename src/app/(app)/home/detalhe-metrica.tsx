@@ -45,7 +45,7 @@ export function BotaoDetalheMetrica({
       >
         <Eye aria-hidden />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{detalhe.titulo}</DialogTitle>
           <DialogDescription>{detalhe.descricao}</DialogDescription>
@@ -118,12 +118,6 @@ export function BotaoDetalheMetrica({
             </ul>
           </div>
         )}
-        {detalhe.tabelas_extras?.map((extra) => (
-          <div key={extra.titulo} className="space-y-2">
-            <h4 className="text-sm font-semibold">{extra.titulo}</h4>
-            <TabelaDetalhe dados={extra.tabela} fuso={fuso} />
-          </div>
-        ))}
         {detalhe.nota ? (
           <p className="text-muted-foreground text-xs">{detalhe.nota}</p>
         ) : null}
@@ -163,9 +157,10 @@ function TabelaDetalhe({ dados, fuso }: { dados: DadosTabela; fuso?: string }) {
                   className={cn(
                     "py-1.5 align-top whitespace-nowrap",
                     ci === 0
-                      ? "max-w-72 pr-3 whitespace-normal"
+                      ? "max-w-72 pr-3 break-words whitespace-normal"
                       : "pl-3 text-right tabular-nums",
-                    c.alinhar === "left" && "text-left",
+                    // Coluna de texto no meio (produto, por exemplo): quebra linha em vez de vazar.
+                    c.alinhar === "left" && "max-w-64 text-left break-words whitespace-normal",
                     c.alinhar === "right" && "text-right",
                     c.cor === "negativo" && "text-red-600",
                     c.cor === "positivo" && "text-emerald-600",

@@ -14,6 +14,8 @@ export type CampoConfig = {
   rotulo: string;
   ajuda: string;
   placeholder: string;
+  /** Campo de várias linhas (lista de IDs, por exemplo). */
+  multilinha?: boolean;
 };
 
 export type SecaoIntegracao = "gateway" | "trafego";
@@ -83,11 +85,12 @@ export const INTEGRACOES: Record<TipoIntegracao, DefinicaoIntegracao> = {
     },
     config: [
       {
-        nome: "conta_anuncios_id",
-        rotulo: "ID da conta de anúncios",
+        nome: "contas_anuncios_ids",
+        rotulo: "Contas de anúncios",
         ajuda:
-          "No Gerenciador de Anúncios, em Configurações da conta. Só números, com ou sem o prefixo act_.",
-        placeholder: "act_1234567890",
+          "Uma ou mais contas, separadas por vírgula ou uma por linha. O ID fica no Gerenciador de Anúncios, em Configurações da conta: só números, com ou sem o prefixo act_. O token precisa ter acesso a todas.",
+        placeholder: "act_1234567890, act_9876543210",
+        multilinha: true,
       },
     ],
   },

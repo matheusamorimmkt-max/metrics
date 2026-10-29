@@ -14,6 +14,19 @@ describe("schemaConectarIntegracao", () => {
     }
   });
 
+  it("aceita várias contas de anúncios no Meta, separadas por vírgula ou linha", () => {
+    const varias = schemaConectarIntegracao.safeParse({
+      tipo: "meta",
+      credencial: "EAABtoken123",
+      contas_anuncios_ids: "act_1234567890, 9876543210\n1234567890",
+    });
+    expect(varias.success).toBe(true);
+    if (varias.success)
+      expect(configDaConexao(varias.data)).toEqual({
+        contas_anuncios_ids: ["act_1234567890", "act_9876543210"],
+      });
+  });
+
   it("exige a conta de anúncios no Meta e normaliza o prefixo act_", () => {
     const sem = schemaConectarIntegracao.safeParse({
       tipo: "meta",
@@ -24,16 +37,16 @@ describe("schemaConectarIntegracao", () => {
     const com = schemaConectarIntegracao.safeParse({
       tipo: "meta",
       credencial: "EAABtoken123",
-      conta_anuncios_id: " 1234567890 ",
+      contas_anuncios_ids: " 1234567890 ",
     });
     expect(com.success).toBe(true);
     if (com.success)
-      expect(configDaConexao(com.data)).toEqual({ conta_anuncios_id: "act_1234567890" });
+      expect(configDaConexao(com.data)).toEqual({ contas_anuncios_ids: ["act_1234567890"] });
 
     const jaComPrefixo = schemaConectarIntegracao.safeParse({
       tipo: "meta",
       credencial: "EAABtoken123",
-      conta_anuncios_id: "act_42",
+      contas_anuncios_ids: "act_42",
     });
     expect(jaComPrefixo.success).toBe(false);
   });

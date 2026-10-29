@@ -34,8 +34,6 @@ export type DetalheMetrica = {
   fatias: Fatia[];
   /** Tabela no lugar da pizza. */
   tabela?: TabelaDetalhe;
-  /** Tabelas adicionais abaixo da principal, cada uma com um título. */
-  tabelas_extras?: { titulo: string; tabela: TabelaDetalhe }[];
   /** Observação mostrada abaixo. */
   nota?: string;
 };
@@ -210,76 +208,48 @@ export function montarDetalhes(
     },
   };
 
-  // ---- Taxa de reembolso: por produto, com quantidade, valor e taxa do produto
-  const fatPorProduto = new Map(e.faturamento_por_produto.map((p) => [p.chave, p]));
-  const totalReembolsado = e.reembolsos_por_produto.reduce((s, p) => s + p.valor, 0);
-  const totalQtdReembolsos = e.reembolsos_por_produto.reduce(
-    (s, p) => s + p.quantidade,
-    0,
-  );
+  // ---- Taxa de reembolso: cada reembolso ou chargeback do período, com o cliente
+  const totalReembolsado = e.reembolsos_clientes.reduce((s, r) => s + r.valor, 0);
   const taxaReembolso: DetalheMetrica = {
     titulo: "Taxa de reembolso",
     descricao:
-      "Produtos com reembolso ou chargeback no período: quantidade, valor devolvido e taxa do produto (devolvido ÷ faturado no período).",
+      "Reembolsos e chargebacks ocorridos no período, do mais recente para o mais antigo, com quem pediu. Clique no nome para abrir a ficha.",
     fatias: [],
     tabela: {
-      cabecalho: ["Produto", "Reembolsos", "Valor", "Taxa"],
+      cabecalho: ["Cliente", "Produto", "Data", "Tipo", "Valor"],
       vazio: "Sem reembolsos no período.",
-      linhas: e.reembolsos_por_produto.length
+      linhas: e.reembolsos_clientes.length
         ? [
-            ...e.reembolsos_por_produto.map((p) => {
-              const fat = fatPorProduto.get(p.chave);
-              return {
-                celulas: [
-                  texto(p.nome, {
-                    detalhe: fat
-                      ? `${n(fat.quantidade)} itens e ${m(fat.valor)} faturados no período`
-                      : "sem faturamento no período",
-                  }),
-                  texto(n(p.quantidade)),
-                  texto(m(p.valor), { cor: "negativo" }),
-                  texto(pc(razao(p.valor, fat?.valor ?? 0))),
-                ],
-              };
-            }),
+            ...e.reembolsos_clientes.map((r) => ({
+              celulas: [
+                texto(r.nome, { detalhe: r.email, cliente_id: r.cliente_id }),
+                texto(r.produto, { alinhar: "left" }),
+                texto(
+                  r.data
+                    ? new Date(r.data).toLocaleDateString("pt-BR", { timeZone: e.fuso })
+                    : "—",
+                ),
+                texto(r.tipo === "chargeback" ? "Chargeback" : "Reembolso", {
+                  cor: "discreto",
+                }),
+                texto(m(r.valor), { cor: "negativo" }),
+              ],
+            })),
             {
               total: true,
               celulas: [
-                texto("Total"),
-                texto(n(totalQtdReembolsos)),
+                texto(`${n(e.reembolsos_clientes.length)} reembolsos`),
+                texto(""),
+                texto(""),
+                texto(pc(razao(totalReembolsado, e.faturamento_bruto)), {
+                  detalhe: "do faturamento",
+                }),
                 texto(m(totalReembolsado), { cor: "negativo" }),
-                texto(pc(razao(totalReembolsado, e.faturamento_bruto))),
               ],
             },
           ]
         : [],
     },
-    tabelas_extras: e.reembolsos_clientes.length
-      ? [
-          {
-            titulo: "Quem pediu reembolso",
-            tabela: {
-              cabecalho: ["Cliente", "Produto", "Data", "Tipo", "Valor"],
-              vazio: "",
-              linhas: e.reembolsos_clientes.map((r) => ({
-                celulas: [
-                  texto(r.nome, { detalhe: r.email, cliente_id: r.cliente_id }),
-                  texto(r.produto, { alinhar: "left" }),
-                  texto(
-                    r.data
-                      ? new Date(r.data).toLocaleDateString("pt-BR", { timeZone: e.fuso })
-                      : "—",
-                  ),
-                  texto(r.tipo === "chargeback" ? "Chargeback" : "Reembolso", {
-                    cor: "discreto",
-                  }),
-                  texto(m(r.valor), { cor: "negativo" }),
-                ],
-              })),
-            },
-          },
-        ]
-      : undefined,
     nota:
       e.reembolsos_clientes.length >= 200
         ? "Mostrando os 200 reembolsos mais recentes."

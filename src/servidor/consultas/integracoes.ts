@@ -35,7 +35,8 @@ export async function listarIntegracoes(
         ? Object.fromEntries(
             Object.entries(linha.config).map(([k, v]) => [
               k,
-              typeof v === "string" ? v : "",
+              // Lista (contas de anúncios) vira "a, b"; outros valores só se forem texto.
+              Array.isArray(v) ? v.map(String).join(", ") : typeof v === "string" ? v : "",
             ]),
           )
         : {};

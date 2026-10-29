@@ -281,6 +281,11 @@ export function TabelaTrafego({
                           ) : (
                             <span>não vinculada</span>
                           )}
+                          {l.nivel === "campanha" && l.conta_nome ? (
+                            <span className="truncate" title="Conta de anúncios">
+                              · {l.conta_nome}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>

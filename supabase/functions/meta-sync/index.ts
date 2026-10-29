@@ -142,9 +142,19 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
     return { status: "ignorado", motivo: "Meta não configurado nesta organização." };
   }
 
-  const contaId = (integracao.config as { conta_anuncios_id?: string })
-    ?.conta_anuncios_id;
-  if (!contaId) {
+  // Uma ou mais contas de anúncios. `conta_anuncios_id` é o formato antigo (uma só).
+  const config = integracao.config as {
+    contas_anuncios_ids?: string[];
+    conta_anuncios_id?: string;
+  } | null;
+  const contaIds = (
+    config?.contas_anuncios_ids?.length
+      ? config.contas_anuncios_ids
+      : config?.conta_anuncios_id
+        ? [config.conta_anuncios_id]
+        : []
+  ).filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (contaIds.length === 0) {
     await marcarErro(supabase, integracao.id, "Falta o ID da conta de anúncios.");
     return { status: "falhou", erro: "Falta o ID da conta de anúncios." };
   }
@@ -196,6 +206,47 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
 
     const meta = new ClienteMeta({ token });
 
+    // 3. Período das métricas
+    const hoje = iso(new Date());
+    let periodos: { desde: string; ate: string }[];
+    let cursorFinal: Cursor | null = null;
+
+    if (modo === "retroativa") {
+      const { data: anterior } = await supabase
+        .from("sincronizacoes")
+        .select("cursor")
+        .eq("integracao_id", integracao.id)
+        .eq("modo", "retroativa")
+        .not("cursor", "is", null)
+        .order("inicio", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const cursorAnterior = (anterior?.cursor as Cursor | null) ?? null;
+      const desde =
+        cursorAnterior?.proxima_fatia ??
+        integracao.importacao_inicio ??
+        somarDias(hoje, -DIAS_RETROATIVA);
+      const todas = fatiarPeriodo(desde, hoje, FATIA_DIAS);
+      periodos = todas.slice(0, FATIAS_POR_EXECUCAO);
+      const restante = todas.slice(FATIAS_POR_EXECUCAO);
+      cursorFinal = {
+        desde,
+        ate: hoje,
+        proxima_fatia: restante.length ? restante[0].desde : null,
+      };
+    } else if (modo === "reconsulta") {
+      periodos = [{ desde: somarDias(hoje, -DIAS_RECONSULTA), ate: hoje }];
+    } else {
+      const base = integracao.ultimo_corte
+        ? iso(new Date(integracao.ultimo_corte))
+        : somarDias(hoje, -DIAS_RECONSULTA);
+      periodos = [{ desde: somarDias(base, -1), ate: hoje }];
+    }
+
+    detalhes.contas = contaIds.length;
+
+    // Cada conta de anúncios: conta, campanhas, conjuntos, anúncios e métricas.
+    for (const contaId of contaIds) {
     // 1. Conta
     const conta = traduzirConta(await meta.conta(contaId));
     const { data: contaLinha, error: erroConta } = await supabase
@@ -236,11 +287,11 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
       if (error) throw new Error(`campanhas: ${error.message}`);
       for (const c of data ?? []) campanhaIdPorExterno.set(c.id_externo, c.id);
     });
-    detalhes.campanhas = totalCampanhas;
+    detalhes.campanhas = (Number(detalhes.campanhas) || 0) + totalCampanhas;
 
     // 2a. Conjuntos (para a chave liga/desliga). Complemento: erro não derruba o ciclo.
     try {
-      detalhes.conjuntos = await meta.conjuntos(contaId, async (lote) => {
+      detalhes.conjuntos = (Number(detalhes.conjuntos) || 0) + await meta.conjuntos(contaId, async (lote) => {
         const linhas = lote
           .map(traduzirConjunto)
           .filter((c): c is NonNullable<typeof c> => c !== null)
@@ -332,44 +383,7 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
       // Criativos são complemento: não derrubam o ciclo de métricas.
       detalhes.anuncios_erro = erro instanceof Error ? erro.message : String(erro);
     }
-    detalhes.anuncios = totalAnuncios;
-
-    // 3. Período das métricas
-    const hoje = iso(new Date());
-    let periodos: { desde: string; ate: string }[];
-    let cursorFinal: Cursor | null = null;
-
-    if (modo === "retroativa") {
-      const { data: anterior } = await supabase
-        .from("sincronizacoes")
-        .select("cursor")
-        .eq("integracao_id", integracao.id)
-        .eq("modo", "retroativa")
-        .not("cursor", "is", null)
-        .order("inicio", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const cursorAnterior = (anterior?.cursor as Cursor | null) ?? null;
-      const desde =
-        cursorAnterior?.proxima_fatia ??
-        integracao.importacao_inicio ??
-        somarDias(hoje, -DIAS_RETROATIVA);
-      const todas = fatiarPeriodo(desde, hoje, FATIA_DIAS);
-      periodos = todas.slice(0, FATIAS_POR_EXECUCAO);
-      const restante = todas.slice(FATIAS_POR_EXECUCAO);
-      cursorFinal = {
-        desde,
-        ate: hoje,
-        proxima_fatia: restante.length ? restante[0].desde : null,
-      };
-    } else if (modo === "reconsulta") {
-      periodos = [{ desde: somarDias(hoje, -DIAS_RECONSULTA), ate: hoje }];
-    } else {
-      const base = integracao.ultimo_corte
-        ? iso(new Date(integracao.ultimo_corte))
-        : somarDias(hoje, -DIAS_RECONSULTA);
-      periodos = [{ desde: somarDias(base, -1), ate: hoje }];
-    }
+    detalhes.anuncios = (Number(detalhes.anuncios) || 0) + totalAnuncios;
 
     // 4. Métricas por anúncio e dia
     for (const periodo of periodos) {
@@ -417,6 +431,7 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
         },
       );
     }
+    }
     detalhes.periodos = periodos;
 
     // 5. Fecha o ciclo
@@ -446,7 +461,7 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
     return {
       status: "concluida",
       registros,
-      campanhas: totalCampanhas,
+      campanhas: Number(detalhes.campanhas) || 0,
       retroativa_pendente: modo === "retroativa" && !concluiuRetroativa,
     };
   } catch (erro) {
