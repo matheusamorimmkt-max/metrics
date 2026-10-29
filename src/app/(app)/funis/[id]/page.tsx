@@ -26,7 +26,7 @@ import { ROTULO_TIPO_FUNIL, type TipoFunil } from "@/dominio/schemas/funil";
 import { obterContexto } from "@/servidor/sessao";
 import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { obterFunil } from "@/servidor/consultas/funis";
-import { listarFunisInfo, obterResumoHome } from "@/servidor/consultas/home";
+import { obterResumoHome } from "@/servidor/consultas/home";
 import { obterIndicadoresClientes } from "@/servidor/consultas/clientes";
 import { TabelaDiaria } from "../tabela-diaria";
 import {
@@ -58,16 +58,9 @@ export default async function PaginaFunil({
   const hoje = hojeNoFuso(organizacao.fuso_horario);
   const periodo = await periodoDaUrl(organizacao, busca);
 
-  const funisInfo = await listarFunisInfo(organizacao.id);
-  const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
+  const soEsteFunil = { tipo: "funis" as const, ids: new Set([id]) };
   const [clientes, ofertas, campanhas, pagamentos, recomprasGeradas] = await Promise.all([
-    obterIndicadoresClientes(
-      organizacao.id,
-      periodo,
-      organizacao.fuso_horario,
-      { tipo: "funil", id },
-      categoriaDoFunil,
-    ),
+    obterIndicadoresClientes(organizacao.id, periodo, organizacao.fuso_horario, soEsteFunil),
     listarOfertasDoFunilNoPeriodo(organizacao.id, id, periodo),
     listarCampanhasDoFunilNoPeriodo(organizacao.id, id, periodo),
     obterPagamentosDoFunil(organizacao.id, id, periodo, organizacao.fuso_horario),
@@ -77,7 +70,7 @@ export default async function PaginaFunil({
     organizacao.id,
     organizacao.taxa_anuncios,
     periodo,
-    { tipo: "funil", id },
+    soEsteFunil,
     hoje,
     clientes,
   );

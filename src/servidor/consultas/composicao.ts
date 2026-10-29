@@ -3,7 +3,8 @@ import type { Parcela, ParcelaCategoria, ReembolsoCliente } from "@/dominio/deta
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
 import { somarDias, type Periodo } from "@/dominio/periodo";
-import type { Filtro, FunilInfo } from "./home";
+import type { FunilInfo } from "./home";
+import { pertenceAoFiltro, type Filtro } from "@/dominio/filtro-home";
 import { deslocamento } from "./vendas";
 
 export type { Parcela };
@@ -42,13 +43,7 @@ export async function obterComposicoes(
   fuso: string,
 ): Promise<Composicoes> {
   const supabase = await criarClienteServidor();
-  const categoriaDoFunil = new Map(funis.map((f) => [f.id, f.categoria_id]));
-  const pertence = (funilId: string | null | undefined) => {
-    if (filtro.tipo === "negocio") return true;
-    if (!funilId) return false;
-    if (filtro.tipo === "funil") return funilId === filtro.id;
-    return categoriaDoFunil.get(funilId) === filtro.id;
-  };
+  const pertence = (funilId: string | null | undefined) => pertenceAoFiltro(filtro, funilId);
   const off = deslocamento(fuso);
 
   const [anuncios, vendas, reembolsos] = await Promise.all([

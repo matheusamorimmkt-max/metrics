@@ -1,4 +1,5 @@
 import "server-only";
+import { pertenceAoFiltro, type Filtro } from "@/dominio/filtro-home";
 import { cache } from "react";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
@@ -10,8 +11,7 @@ import {
 } from "@/dominio/metricas";
 import { somarDias, type Periodo } from "@/dominio/periodo";
 
-export type Filtro =
-  { tipo: "negocio" } | { tipo: "categoria"; id: string } | { tipo: "funil"; id: string };
+export type { Filtro };
 
 export type LinhaDiaria = {
   data: string;
@@ -224,12 +224,7 @@ export async function obterResumoHome(
   ]);
   const porId = new Map(funis.map((f) => [f.id, f]));
 
-  const pertence = (l: LinhaDiaria) => {
-    if (filtro.tipo === "negocio") return true;
-    if (filtro.tipo === "funil") return l.funil_id === filtro.id;
-    const f = l.funil_id ? porId.get(l.funil_id) : null;
-    return f?.categoria_id === filtro.id;
-  };
+  const pertence = (l: LinhaDiaria) => pertenceAoFiltro(filtro, l.funil_id);
 
   const noPeriodo = (l: LinhaDiaria) => l.data >= periodo.de && l.data <= periodo.ate;
   const noAnterior = (l: LinhaDiaria) =>

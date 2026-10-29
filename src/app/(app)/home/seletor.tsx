@@ -4,11 +4,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Selecao } from "@/components/formulario/selecao";
 import { PERIODOS, type Periodo } from "@/dominio/periodo";
 import type { FunilInfo } from "@/servidor/consultas/home";
+import { FiltroHome } from "./filtro-home";
 
-/** Seletor de período e filtro Negócio / Categoria / Funil. Tudo vive na URL. */
+/** Seletor de período e filtro (negócio, categorias e funis). Tudo vive na URL. */
 export function SeletorHome({
   periodo,
   filtroAtual,
@@ -93,33 +93,13 @@ export function SeletorHome({
       </div>
 
       {mostrarFiltro ? (
-        <Selecao
-          value={filtroAtual}
-          onChange={(e) => navegar({ filtro: e.target.value || null })}
-          disabled={pendente}
-          className="md:w-64"
-          aria-label="Filtro"
-        >
-          <option value="">Negócio inteiro</option>
-          {categorias.length ? (
-            <optgroup label="Categorias">
-              {categorias.map((c) => (
-                <option key={c.id} value={`categoria:${c.id}`}>
-                  {c.nome}
-                </option>
-              ))}
-            </optgroup>
-          ) : null}
-          {funis.length ? (
-            <optgroup label="Funis">
-              {funis.map((f) => (
-                <option key={f.id} value={`funil:${f.id}`}>
-                  {f.categoria_nome} · {f.nome}
-                </option>
-              ))}
-            </optgroup>
-          ) : null}
-        </Selecao>
+        <FiltroHome
+          filtroAtual={filtroAtual}
+          categorias={categorias}
+          funis={funis}
+          base={base}
+          desabilitado={pendente}
+        />
       ) : null}
     </div>
   );

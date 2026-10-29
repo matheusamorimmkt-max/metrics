@@ -35,6 +35,9 @@ export type CampanhaMeta = {
   status?: string;
   effective_status?: string;
   objective?: string;
+  /** Orçamento em centavos da moeda da conta (texto na API). */
+  daily_budget?: string | number;
+  lifetime_budget?: string | number;
 };
 
 export type CriativoMeta = {
@@ -57,7 +60,16 @@ export type ConjuntoMeta = {
   status?: string;
   effective_status?: string;
   campaign_id?: string;
+  daily_budget?: string | number;
+  lifetime_budget?: string | number;
 };
+
+/** Orçamento do Meta vem em centavos; ausente ou zero = sem orçamento neste nível. */
+export function traduzirVerba(valor: string | number | undefined): number | null {
+  const n = Number(valor ?? 0);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n) / 100;
+}
 
 export type AnuncioMeta = {
   id: string;
@@ -149,6 +161,8 @@ export function traduzirCampanha(c: CampanhaMeta): CampanhaImportada {
     status,
     objetivo: c.objective ?? null,
     ativo: status === "ACTIVE",
+    verba_diaria: traduzirVerba(c.daily_budget),
+    verba_total: traduzirVerba(c.lifetime_budget),
   };
 }
 
@@ -161,6 +175,8 @@ export function traduzirConjunto(c: ConjuntoMeta): ConjuntoImportado | null {
     nome: c.name ?? "",
     status,
     ativo: status === "ACTIVE",
+    verba_diaria: traduzirVerba(c.daily_budget),
+    verba_total: traduzirVerba(c.lifetime_budget),
   };
 }
 

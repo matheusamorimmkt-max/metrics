@@ -16,6 +16,8 @@ export type CampanhaImportada = {
   status: string | null;
   objetivo: string | null;
   ativo: boolean;
+  verba_diaria: number | null;
+  verba_total: number | null;
 };
 
 export type ConjuntoImportado = {
@@ -24,6 +26,8 @@ export type ConjuntoImportado = {
   nome: string;
   status: string | null;
   ativo: boolean;
+  verba_diaria: number | null;
+  verba_total: number | null;
 };
 
 export type AnuncioImportado = {

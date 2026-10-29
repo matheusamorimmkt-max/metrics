@@ -282,7 +282,7 @@ Todas as tabelas de negócio têm `organizacao_id`, e o Row Level Security garan
 | Tabela | Campos principais |
 | --- | --- |
 | `contas_anuncio` | plataforma, id externo, nome |
-| `campanhas` | conta, id externo, nome, status |
+| `campanhas` | conta, id externo, nome, status, verba diária/total (orçamento, como no gerenciador; conjuntos também) |
 | `funil_campanhas` | funil, campanha (única) |
 | `metricas_anuncio_diarias` | data, campanha, conjunto, anúncio, gasto, impressões, cliques no link, visualizações de página, inícios de checkout, leads |
 

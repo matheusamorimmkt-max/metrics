@@ -19,7 +19,7 @@ import {
   type BaseTrafego,
 } from "@/dominio/metricas-trafego";
 import { CLASSE_COR_STATUS, traduzirStatusCampanha } from "@/dominio/status-campanha";
-import type { LinhaTrafego } from "@/servidor/consultas/trafego";
+import type { LinhaTrafego, Verba } from "@/servidor/consultas/trafego";
 import { cn } from "@/lib/utils";
 import { ChaveVeiculacao } from "../configuracoes/campanhas/chave-campanha";
 import { CaixaSelecao } from "./selecao";
@@ -32,6 +32,28 @@ type Ordenacao = { chave: string; direcao: "asc" | "desc" };
 const LARGURA_MINIMA = 72;
 const LARGURA_PADRAO_METRICA = 120;
 const LARGURA_PADRAO_NOME = 320;
+const LARGURA_PADRAO_VERBA = 150;
+
+/** Valor numérico da verba para ordenar (orçamento da campanha e "—" vão para o fim). */
+function valorVerba(v: Verba | null): number | null {
+  return v && v.tipo !== "da_campanha" ? v.valor : null;
+}
+
+/** Célula de orçamento como no Gerenciador: valor e se é diário ou total. */
+function CelulaVerba({ verba, moeda }: { verba: Verba | null; moeda: string }) {
+  if (!verba) return <span className="text-muted-foreground">—</span>;
+  if (verba.tipo === "da_campanha") {
+    return <span className="text-muted-foreground text-xs">Orçamento da campanha</span>;
+  }
+  return (
+    <>
+      <div>{formatarMetrica(verba.valor, "moeda", moeda)}</div>
+      <div className="text-muted-foreground text-xs">
+        {verba.tipo === "diaria" ? "Diário" : "Total"}
+      </div>
+    </>
+  );
+}
 const LARGURA_SELECAO = 40;
 /** Célula fixa à esquerda: fundo opaco que acompanha o hover e a seleção da linha. */
 const CELULA_FIXA =
@@ -71,8 +93,8 @@ export function TabelaTrafego({
       const r = a.nome.localeCompare(b.nome, "pt-BR");
       return ordem.direcao === "asc" ? r : -r;
     }
-    const va = metricaOrdem?.calcular(a) ?? null;
-    const vb = metricaOrdem?.calcular(b) ?? null;
+    const va = ordem.chave === "verba" ? valorVerba(a.verba) : (metricaOrdem?.calcular(a) ?? null);
+    const vb = ordem.chave === "verba" ? valorVerba(b.verba) : (metricaOrdem?.calcular(b) ?? null);
     // Sem valor ("—") vai sempre para o fim.
     if (va === null && vb === null) return 0;
     if (va === null) return 1;
@@ -98,6 +120,12 @@ export function TabelaTrafego({
     }),
     { ...BASE_ZERADA },
   );
+  // Soma das verbas diárias das linhas ativas (as desativadas não gastam).
+  const totalVerba = linhas.reduce(
+    (t, l) =>
+      l.verba && l.verba.tipo === "diaria" && l.veiculacao?.ativa ? t + l.verba.valor : t,
+    0,
+  );
   const rotuloTotal = `Resultados de ${linhas.length} ${rotuloNivel.toLowerCase()}${linhas.length === 1 ? "" : "s"}`;
 
   function alternarOrdem(chave: string) {
@@ -114,6 +142,7 @@ export function TabelaTrafego({
   const larguraTotal =
     esquerdaNome +
     largura("nome", LARGURA_PADRAO_NOME) +
+    largura("verba", LARGURA_PADRAO_VERBA) +
     metricas.reduce((soma, m) => soma + largura(m.chave, LARGURA_PADRAO_METRICA), 0);
 
   // Arrastar o quadro com o mouse rola a tabela (como no Gerenciador de Anúncios).
@@ -172,6 +201,7 @@ export function TabelaTrafego({
           <colgroup>
             {selecao ? <col style={{ width: LARGURA_SELECAO }} /> : null}
             <col style={{ width: largura("nome", LARGURA_PADRAO_NOME) }} />
+            <col style={{ width: largura("verba", LARGURA_PADRAO_VERBA) }} />
             {metricas.map((m) => (
               <col
                 key={m.chave}
@@ -193,6 +223,16 @@ export function TabelaTrafego({
                 largura={largura("nome", LARGURA_PADRAO_NOME)}
                 aoRedimensionar={(l) => definirLargura("nome", l)}
                 fixaEsquerda={esquerdaNome}
+              />
+              <Cabecalho
+                rotulo="Orçamento"
+                titulo="Verba diária ou total da campanha ou do conjunto, como no Gerenciador de Anúncios. Conjunto sem verba própria usa o orçamento da campanha."
+                chave="verba"
+                ordem={ordem}
+                aoClicar={alternarOrdem}
+                alinhar="right"
+                largura={largura("verba", LARGURA_PADRAO_VERBA)}
+                aoRedimensionar={(l) => definirLargura("verba", l)}
               />
               {metricas.map((m) => (
                 <Cabecalho
@@ -290,6 +330,9 @@ export function TabelaTrafego({
                       </div>
                     </div>
                   </TableCell>
+                  <TableCell className="truncate text-right tabular-nums">
+                    <CelulaVerba verba={l.verba} moeda={moeda} />
+                  </TableCell>
                   {metricas.map((m) => (
                     <TableCell key={m.chave} className="truncate text-right tabular-nums">
                       {formatarMetrica(m.calcular(l), m.formato, moeda)}
@@ -310,6 +353,16 @@ export function TabelaTrafego({
                 <div className="text-muted-foreground text-xs font-normal">
                   Soma das linhas acima
                 </div>
+              </TableCell>
+              <TableCell className="text-muted-foreground truncate text-right text-xs">
+                {totalVerba > 0 ? (
+                  <>
+                    <div className="text-foreground font-semibold tabular-nums">
+                      {formatarMetrica(totalVerba, "moeda", moeda)}
+                    </div>
+                    Verba diária ativa
+                  </>
+                ) : null}
               </TableCell>
               {metricas.map((m) => (
                 <TableCell

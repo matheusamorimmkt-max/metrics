@@ -1,6 +1,6 @@
 import "server-only";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
-import { tabelaAusente } from "@/servidor/supabase/erros";
+import { colunaAusente, tabelaAusente } from "@/servidor/supabase/erros";
 import type { Periodo } from "@/dominio/periodo";
 import { BASE_ZERADA, resultadosDe, type BaseTrafego } from "@/dominio/metricas-trafego";
 
@@ -16,6 +16,14 @@ export type NivelTrafego = "campanha" | "conjunto" | "anuncio";
 
 /** O que a chave liga/desliga precisa: id interno, estado e status na plataforma. */
 export type Veiculacao = { id: string; ativa: boolean; status: string | null };
+
+/**
+ * Orçamento como o Gerenciador mostra: diário ou total, na moeda da conta.
+ * `da_campanha`: conjunto sem verba própria, que usa o orçamento da campanha.
+ */
+export type Verba =
+  | { tipo: "diaria" | "total"; valor: number }
+  | { tipo: "da_campanha" };
 
 export type LinhaTrafego = BaseTrafego & {
   chave: string;
@@ -33,7 +41,18 @@ export type LinhaTrafego = BaseTrafego & {
   /** Conta de anúncios da campanha (útil com mais de uma conta conectada). */
   conta_nome: string | null;
   objetivo: string | null;
+  /** Orçamento da campanha ou do conjunto; null no anúncio ou quando não importado. */
+  verba: Verba | null;
 };
+
+function montarVerba(
+  diaria: number | null | undefined,
+  total: number | null | undefined,
+): Verba | null {
+  if (diaria && diaria > 0) return { tipo: "diaria", valor: Number(diaria) };
+  if (total && total > 0) return { tipo: "total", valor: Number(total) };
+  return null;
+}
 
 const LIMITE_LINHAS = 20_000;
 
@@ -47,26 +66,60 @@ export async function obterTrafego(
   periodo: Periodo,
 ): Promise<{ linhas: LinhaTrafego[]; truncado: boolean }> {
   const supabase = await criarClienteServidor();
-  const { data, error } = await supabase
-    .from("metricas_anuncio_diarias")
-    .select(
-      "campanha_id, conjunto_id_externo, conjunto_nome, anuncio_id_externo, anuncio_nome, gasto, impressoes, alcance, cliques, cliques_link, visualizacoes_pagina, inicios_checkout, leads, compras_plataforma, campanhas(nome, id_externo, objetivo, status, ativo, funil_campanhas(funis(nome)), contas_anuncio(nome))",
-    )
-    .eq("organizacao_id", organizacaoId)
-    .gte("data", periodo.de)
-    .lte("data", periodo.ate)
-    .limit(LIMITE_LINHAS);
+  // A verba (migration 20261029000002) pode ainda não existir: repete sem as colunas.
+  const consultarMetricas = (comVerba: boolean) =>
+    supabase
+      .from("metricas_anuncio_diarias")
+      .select(
+        `campanha_id, conjunto_id_externo, conjunto_nome, anuncio_id_externo, anuncio_nome, gasto, impressoes, alcance, cliques, cliques_link, visualizacoes_pagina, inicios_checkout, leads, compras_plataforma, campanhas(nome, id_externo, objetivo, status, ativo, ${comVerba ? "verba_diaria, verba_total, " : ""}funil_campanhas(funis(nome)), contas_anuncio(nome))`,
+      )
+      .eq("organizacao_id", organizacaoId)
+      .gte("data", periodo.de)
+      .lte("data", periodo.ate)
+      .limit(LIMITE_LINHAS);
+  const consultarConjuntos = (comVerba: boolean) =>
+    supabase
+      .from("conjuntos")
+      .select(`id, id_externo, status, ativo${comVerba ? ", verba_diaria, verba_total" : ""}`)
+      .eq("organizacao_id", organizacaoId)
+      .limit(LIMITE_LINHAS);
+  let metricas = await consultarMetricas(true);
+  if (metricas.error && colunaAusente(metricas.error)) metricas = await consultarMetricas(false);
+  const error = metricas.error;
   if (error && tabelaAusente(error)) return { linhas: [], truncado: false };
   if (error) throw new Error(`Falha ao carregar tráfego: ${error.message}`);
+  const data = (metricas.data ?? []) as unknown as {
+    campanha_id: string;
+    conjunto_id_externo: string;
+    conjunto_nome: string | null;
+    anuncio_id_externo: string;
+    anuncio_nome: string | null;
+    gasto: number | null;
+    impressoes: number | null;
+    alcance: number | null;
+    cliques: number | null;
+    cliques_link: number | null;
+    visualizacoes_pagina: number | null;
+    inicios_checkout: number | null;
+    leads: number | null;
+    compras_plataforma: number | null;
+    campanhas: {
+      nome: string;
+      id_externo: string;
+      objetivo: string | null;
+      status: string | null;
+      ativo: boolean;
+      verba_diaria?: number | null;
+      verba_total?: number | null;
+      funil_campanhas: { funis: { nome: string } | null } | null;
+      contas_anuncio: { nome: string | null } | null;
+    } | null;
+  }[];
 
   // Conjuntos e anúncios importados (tabelas podem não existir até a migration ser
   // aplicada): trazem o status para a chave e o criativo do anúncio.
-  const [conjuntos, anuncios] = await Promise.all([
-    supabase
-      .from("conjuntos")
-      .select("id, id_externo, status, ativo")
-      .eq("organizacao_id", organizacaoId)
-      .limit(LIMITE_LINHAS),
+  const resultados = await Promise.all([
+    consultarConjuntos(true),
     supabase
       .from("anuncios")
       .select(
@@ -75,15 +128,28 @@ export async function obterTrafego(
       .eq("organizacao_id", organizacaoId)
       .limit(LIMITE_LINHAS),
   ]);
+  let conjuntos = resultados[0];
+  const anuncios = resultados[1];
+  if (conjuntos.error && colunaAusente(conjuntos.error)) conjuntos = await consultarConjuntos(false);
   if (conjuntos.error && !tabelaAusente(conjuntos.error)) {
     throw new Error(`Falha ao carregar conjuntos: ${conjuntos.error.message}`);
   }
   if (anuncios.error && !tabelaAusente(anuncios.error)) {
     throw new Error(`Falha ao carregar anúncios: ${anuncios.error.message}`);
   }
-  const conjuntoPorExterno = new Map<string, Veiculacao>();
-  for (const c of conjuntos.data ?? []) {
-    conjuntoPorExterno.set(c.id_externo, { id: c.id, ativa: c.ativo, status: c.status });
+  const conjuntoPorExterno = new Map<string, { veiculacao: Veiculacao; verba: Verba | null }>();
+  for (const c of (conjuntos.data ?? []) as unknown as {
+    id: string;
+    id_externo: string;
+    status: string | null;
+    ativo: boolean;
+    verba_diaria?: number | null;
+    verba_total?: number | null;
+  }[]) {
+    conjuntoPorExterno.set(c.id_externo, {
+      veiculacao: { id: c.id, ativa: c.ativo, status: c.status },
+      verba: montarVerba(c.verba_diaria, c.verba_total),
+    });
   }
   const anuncioPorExterno = new Map<
     string,
@@ -116,8 +182,8 @@ export async function obterTrafego(
       LinhaTrafego,
       "chave" | "nome" | "pai" | "nivel" | "funil_nome" | "campanha_chave" | "objetivo" | "conta_nome"
     > &
-      Partial<Pick<LinhaTrafego, "veiculacao" | "criativo">>,
-  ): LinhaTrafego => ({ veiculacao: null, criativo: null, ...base, ...BASE_ZERADA });
+      Partial<Pick<LinhaTrafego, "veiculacao" | "criativo" | "verba">>,
+  ): LinhaTrafego => ({ veiculacao: null, criativo: null, verba: null, ...base, ...BASE_ZERADA });
 
   for (const l of data ?? []) {
     const campanha = l.campanhas;
@@ -127,6 +193,7 @@ export async function obterTrafego(
     const veiculacaoCampanha: Veiculacao | null = campanha
       ? { id: l.campanha_id, ativa: campanha.ativo, status: campanha.status }
       : null;
+    const verbaCampanha = montarVerba(campanha?.verba_diaria, campanha?.verba_total);
     const chaveCamp = `c:${l.campanha_id}`;
     const chaveConj = `s:${l.campanha_id}:${l.conjunto_id_externo}`;
     const chaveAn = `a:${l.campanha_id}:${l.conjunto_id_externo}:${l.anuncio_id_externo}`;
@@ -142,6 +209,7 @@ export async function obterTrafego(
           conta_nome: contaNome,
           objetivo,
           veiculacao: veiculacaoCampanha,
+          verba: verbaCampanha,
         }),
       ),
     ];
@@ -157,7 +225,10 @@ export async function obterTrafego(
             funil_nome: funilNome,
             conta_nome: contaNome,
             objetivo,
-            veiculacao: conjuntoPorExterno.get(l.conjunto_id_externo) ?? null,
+            veiculacao: conjuntoPorExterno.get(l.conjunto_id_externo)?.veiculacao ?? null,
+            verba:
+              conjuntoPorExterno.get(l.conjunto_id_externo)?.verba ??
+              (verbaCampanha ? { tipo: "da_campanha" } : null),
           }),
         ),
       );

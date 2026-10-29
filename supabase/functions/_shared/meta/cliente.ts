@@ -146,7 +146,7 @@ export class ClienteMeta {
     aoReceber: (lote: CampanhaMeta[]) => Promise<void>,
   ): Promise<number> {
     return this.paginar<CampanhaMeta>(
-      `/${contaId}/campaigns?fields=id,name,status,effective_status,objective&limit=200`,
+      `/${contaId}/campaigns?fields=id,name,status,effective_status,objective,daily_budget,lifetime_budget&limit=200`,
       aoReceber,
     );
   }
@@ -156,7 +156,7 @@ export class ClienteMeta {
     aoReceber: (lote: ConjuntoMeta[]) => Promise<void>,
   ): Promise<number> {
     return this.paginar<ConjuntoMeta>(
-      `/${contaId}/adsets?fields=id,name,status,effective_status,campaign_id&limit=200`,
+      `/${contaId}/adsets?fields=id,name,status,effective_status,campaign_id,daily_budget,lifetime_budget&limit=200`,
       aoReceber,
     );
   }

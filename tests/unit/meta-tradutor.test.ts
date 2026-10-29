@@ -158,8 +158,19 @@ describe("traduzirConjunto", () => {
       nome: "Conjunto",
       status: "CAMPAIGN_PAUSED",
       ativo: false,
+      verba_diaria: null,
+      verba_total: null,
     });
     expect(traduzirConjunto({ id: "s2" })).toBeNull();
+  });
+
+  it("converte o orçamento de centavos para a moeda da conta", () => {
+    expect(
+      traduzirConjunto({ id: "s3", campaign_id: "c1", daily_budget: "5000" }),
+    ).toMatchObject({ verba_diaria: 50, verba_total: null });
+    expect(
+      traduzirCampanha({ id: "c2", lifetime_budget: 123456, daily_budget: "0" }),
+    ).toMatchObject({ verba_diaria: null, verba_total: 1234.56 });
   });
 });
 

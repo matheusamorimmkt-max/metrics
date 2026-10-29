@@ -21,6 +21,12 @@ import {
 } from "../_shared/meta/tradutor.ts";
 import type { MetricaDiariaImportada, ModoSincronizacao } from "../_shared/meta/tipos.ts";
 
+
+/** Erro de coluna inexistente no PostgREST/Postgres (migration ainda não aplicada). */
+function colunaAusente(error: { code?: string; message?: string } | null): boolean {
+  return error?.code === "PGRST204" || error?.code === "42703";
+}
+
 const DIAS_RETROATIVA = 365;
 const DIAS_RECONSULTA = 7;
 const FATIA_DIAS = 30;
@@ -245,6 +251,32 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
 
     detalhes.contas = contaIds.length;
 
+    // Upsert de campanhas/conjuntos com verba. Se a migration 20261029000002 ainda não
+    // foi aplicada, o PostgREST recusa a coluna: repete sem as colunas de verba.
+    async function upsertTolerandoVerba<T extends Record<string, unknown>>(
+      tabela: "campanhas" | "conjuntos",
+      linhas: T[],
+      selecionar: (q: ReturnType<ReturnType<SupabaseClient["from"]>["upsert"]>) => unknown,
+    ): Promise<{ data: { id: string; id_externo: string }[] | null; error: { message: string } | null }> {
+      const executar = (dados: Record<string, unknown>[]) =>
+        selecionar(
+          supabase.from(tabela).upsert(dados, { onConflict: "organizacao_id,plataforma,id_externo" }),
+        ) as Promise<{
+          data: { id: string; id_externo: string }[] | null;
+          error: { code?: string; message: string } | null;
+        }>;
+      const primeira = await executar(linhas);
+      if (!primeira.error || !colunaAusente(primeira.error)) return primeira;
+      detalhes.verba_pendente = "migration 20261029000002 não aplicada";
+      const semVerba = linhas.map((l) => {
+        const copia: Record<string, unknown> = { ...l };
+        delete copia.verba_diaria;
+        delete copia.verba_total;
+        return copia;
+      });
+      return executar(semVerba);
+    }
+
     // Cada conta de anúncios: conta, campanhas, conjuntos, anúncios e métricas.
     for (const contaId of contaIds) {
     // 1. Conta
@@ -279,11 +311,14 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
         status: c.status,
         objetivo: c.objetivo,
         ativo: c.ativo,
+        verba_diaria: c.verba_diaria,
+        verba_total: c.verba_total,
       }));
-      const { data, error } = await supabase
-        .from("campanhas")
-        .upsert(linhas, { onConflict: "organizacao_id,plataforma,id_externo" })
-        .select("id, id_externo");
+      const { data, error } = await upsertTolerandoVerba(
+        "campanhas",
+        linhas,
+        (q) => q.select("id, id_externo"),
+      );
       if (error) throw new Error(`campanhas: ${error.message}`);
       for (const c of data ?? []) campanhaIdPorExterno.set(c.id_externo, c.id);
     });
@@ -315,11 +350,11 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
             nome: c.nome,
             status: c.status,
             ativo: c.ativo,
+            verba_diaria: c.verba_diaria,
+            verba_total: c.verba_total,
           }));
         if (linhas.length) {
-          const { error } = await supabase
-            .from("conjuntos")
-            .upsert(linhas, { onConflict: "organizacao_id,plataforma,id_externo" });
+          const { error } = await upsertTolerandoVerba("conjuntos", linhas, (q) => q);
           if (error) throw new Error(`conjuntos: ${error.message}`);
         }
       });

@@ -22,7 +22,8 @@ import { hojeNoFuso } from "@/dominio/periodo";
 import { obterContexto } from "@/servidor/sessao";
 import { periodoDaUrl } from "@/servidor/consultas/periodo";
 import { listarIntegracoes } from "@/servidor/consultas/integracoes";
-import { obterResumoHome, type Filtro } from "@/servidor/consultas/home";
+import { obterResumoHome } from "@/servidor/consultas/home";
+import { lerSelecao, resolverFiltro, rotuloSelecao } from "@/dominio/filtro-home";
 import { obterComposicoes } from "@/servidor/consultas/composicao";
 import {
   obterDetalhesClientes,
@@ -35,13 +36,6 @@ import { SeletorHome } from "./home/seletor";
 import { GraficoSerie } from "./home/graficos";
 import { TabelaFunis } from "./home/tabela-funis";
 import { cn } from "@/lib/utils";
-
-function lerFiltro(valor: string | undefined): Filtro {
-  if (!valor) return { tipo: "negocio" };
-  const [tipo, id] = valor.split(":");
-  if ((tipo === "categoria" || tipo === "funil") && id) return { tipo, id };
-  return { tipo: "negocio" };
-}
 
 function Variacao({
   atual,
@@ -76,29 +70,17 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
   const hoje = hojeNoFuso(organizacao.fuso_horario);
   const periodo = await periodoDaUrl(organizacao, params);
   const filtroTexto = typeof params.filtro === "string" ? params.filtro : "";
-  const filtro = lerFiltro(filtroTexto);
+  const selecao = lerSelecao(filtroTexto);
 
   // Três idas ao banco em paralelo, em vez de uma fila: funis → clientes → resumo → composição.
   const [funisInfo, integracoes] = await Promise.all([
     listarFunisInfo(organizacao.id),
     listarIntegracoes(organizacao.id),
   ]);
-  const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
+  const filtro = resolverFiltro(selecao, funisInfo);
   const [clientes, detalhesClientes, composicoes] = await Promise.all([
-    obterIndicadoresClientes(
-      organizacao.id,
-      periodo,
-      organizacao.fuso_horario,
-      filtro,
-      categoriaDoFunil,
-    ),
-    obterDetalhesClientes(
-      organizacao.id,
-      periodo,
-      organizacao.fuso_horario,
-      filtro,
-      categoriaDoFunil,
-    ),
+    obterIndicadoresClientes(organizacao.id, periodo, organizacao.fuso_horario, filtro),
+    obterDetalhesClientes(organizacao.id, periodo, organizacao.fuso_horario, filtro),
     obterComposicoes(organizacao.id, periodo, filtro, funisInfo, organizacao.fuso_horario),
   ]);
   const resumo = await obterResumoHome(
@@ -132,13 +114,7 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
   const pendentes = TIPOS_INTEGRACAO.filter(
     (t) => integracoes[t]?.status !== "conectada",
   );
-  const tituloFiltro =
-    filtro.tipo === "negocio"
-      ? "Negócio inteiro"
-      : filtro.tipo === "categoria"
-        ? (resumo.categoriasDisponiveis.find((c) => c.id === filtro.id)?.nome ??
-          "Categoria")
-        : (resumo.funis.find((f) => f.id === filtro.id)?.nome ?? "Funil");
+  const tituloFiltro = rotuloSelecao(selecao, resumo.categoriasDisponiveis, resumo.funis);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

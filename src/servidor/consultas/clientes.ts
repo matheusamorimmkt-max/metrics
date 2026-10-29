@@ -3,7 +3,8 @@ import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { colunaAusente, tabelaAusente } from "@/servidor/supabase/erros";
 import { somarDias, type Periodo } from "@/dominio/periodo";
 import { deslocamento } from "./vendas";
-import type { Filtro, IndicadoresClientes } from "./home";
+import type { IndicadoresClientes } from "./home";
+import { pertenceAoFiltro, type Filtro } from "@/dominio/filtro-home";
 import type { ClienteRecompra } from "@/dominio/detalhe-metrica";
 import type { ClientePeriodo } from "@/dominio/clientes-periodo";
 import {
@@ -291,7 +292,6 @@ export async function obterIndicadoresClientes(
   periodo: Periodo,
   fuso: string,
   filtro: Filtro,
-  categoriaDoFunil: Map<string, string>,
 ): Promise<{ atual: IndicadoresClientes; anterior: IndicadoresClientes }> {
   const supabase = await criarClienteServidor();
   const off = deslocamento(fuso);
@@ -306,12 +306,7 @@ export async function obterIndicadoresClientes(
   if (error && tabelaAusente(error)) return { atual: vazio, anterior: vazio };
   if (error) throw new Error(`Falha ao carregar clientes: ${error.message}`);
 
-  const pertence = (funilId: string | null) => {
-    if (filtro.tipo === "negocio") return true;
-    if (!funilId) return false;
-    if (filtro.tipo === "funil") return funilId === filtro.id;
-    return categoriaDoFunil.get(funilId) === filtro.id;
-  };
+  const pertence = (funilId: string | null) => pertenceAoFiltro(filtro, funilId);
   const limiteAtual = `${periodo.de}T00:00:00${off}`;
   const contar = (noAtual: boolean): IndicadoresClientes => {
     const unicos = new Set<string>();
@@ -354,8 +349,7 @@ export async function obterDetalhesClientes(
   periodo: Periodo,
   fuso: string,
   filtro: Filtro,
-  categoriaDoFunil: Map<string, string>,
-): Promise<DetalhesClientes> {
+  ): Promise<DetalhesClientes> {
   const supabase = await criarClienteServidor();
   const off = deslocamento(fuso);
   const { data, error } = await supabase
@@ -376,12 +370,7 @@ export async function obterDetalhesClientes(
   if (error && tabelaAusente(error)) return vazio;
   if (error) throw new Error(`Falha ao carregar detalhes de clientes: ${error.message}`);
 
-  const pertence = (funilId: string | null) => {
-    if (filtro.tipo === "negocio") return true;
-    if (!funilId) return false;
-    if (filtro.tipo === "funil") return funilId === filtro.id;
-    return categoriaDoFunil.get(funilId) === filtro.id;
-  };
+  const pertence = (funilId: string | null) => pertenceAoFiltro(filtro, funilId);
   const linhas = (data ?? []).filter((t) => pertence(t.funil_id));
   const chaveDe = (t: (typeof linhas)[number]) =>
     t.clientes?.cpf

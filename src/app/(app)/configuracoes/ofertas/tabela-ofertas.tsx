@@ -40,12 +40,13 @@ import { LinhaOferta } from "./linha-oferta";
  * vincule todas de uma vez. Cada linha continua com os seletores próprios.
  */
 type Vinculo = "todas" | "nao_vinculadas" | "vinculadas";
-type Movimento = "todas" | "com_vendas_mes" | "sem_vendas_mes";
 
 type Filtros = {
   nome: string;
   vinculo: Vinculo;
-  movimento: Movimento;
+  /** Caixas "Vendas este mês": com e sem. Nenhuma ou as duas marcadas = todas. */
+  comVendasMes: boolean;
+  semVendasMes: boolean;
   precoMin: string;
   precoMax: string;
   produto: string;
@@ -56,11 +57,6 @@ const ROTULO_VINCULO: Record<Vinculo, string> = {
   todas: "Todas",
   nao_vinculadas: "Só não vinculadas",
   vinculadas: "Só vinculadas",
-};
-const ROTULO_MOVIMENTO: Record<Movimento, string> = {
-  todas: "Com ou sem vendas",
-  com_vendas_mes: "Com vendas este mês",
-  sem_vendas_mes: "Sem vendas este mês",
 };
 
 function numeroOuNulo(texto: string): number | null {
@@ -84,7 +80,8 @@ export function TabelaOfertas({
   const semFiltros: Filtros = {
     nome: "",
     vinculo: vinculoInicial,
-    movimento: "todas",
+    comVendasMes: false,
+    semVendasMes: false,
     precoMin: "",
     precoMax: "",
     produto: "",
@@ -109,10 +106,11 @@ export function TabelaOfertas({
     return ofertas.filter((o) => {
       if (filtros.vinculo === "nao_vinculadas" && o.funil_id) return false;
       if (filtros.vinculo === "vinculadas" && !o.funil_id) return false;
-      if (filtros.movimento === "com_vendas_mes" && o.vendas_mes === 0 && o.faturamento_mes === 0)
-        return false;
-      if (filtros.movimento === "sem_vendas_mes" && (o.vendas_mes > 0 || o.faturamento_mes > 0))
-        return false;
+      const vendeuNoMes = o.vendas_mes > 0 || o.faturamento_mes > 0;
+      if (filtros.comVendasMes !== filtros.semVendasMes) {
+        if (filtros.comVendasMes && !vendeuNoMes) return false;
+        if (filtros.semVendasMes && vendeuNoMes) return false;
+      }
       if (min !== null && o.preco < min) return false;
       if (max !== null && o.preco > max) return false;
       if (filtros.produto && o.produto_nome !== filtros.produto) return false;
@@ -127,10 +125,9 @@ export function TabelaOfertas({
   }, [ofertas, filtros]);
 
   const chips: { chave: keyof Filtros; rotulo: string }[] = [];
-  if (filtros.nome.trim()) chips.push({ chave: "nome", rotulo: `Nome: ${filtros.nome.trim()}` });
   if (filtros.vinculo !== "todas") chips.push({ chave: "vinculo", rotulo: ROTULO_VINCULO[filtros.vinculo] });
-  if (filtros.movimento !== "todas")
-    chips.push({ chave: "movimento", rotulo: ROTULO_MOVIMENTO[filtros.movimento] });
+  if (filtros.comVendasMes) chips.push({ chave: "comVendasMes", rotulo: "Com vendas este mês" });
+  if (filtros.semVendasMes) chips.push({ chave: "semVendasMes", rotulo: "Sem vendas este mês" });
   if (numeroOuNulo(filtros.precoMin) !== null)
     chips.push({
       chave: "precoMin",
@@ -181,6 +178,14 @@ export function TabelaOfertas({
   return (
     <div className="space-y-3 pb-24">
       <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="search"
+          value={filtros.nome}
+          onChange={(e) => setFiltros({ ...filtros, nome: e.target.value })}
+          placeholder="Buscar por oferta, produto ou ID"
+          aria-label="Buscar oferta"
+          className="w-full sm:w-72"
+        />
         <Dialog>
           <DialogTrigger render={<Button variant="outline" />}>
             <SlidersHorizontal data-icon="inline-start" />
@@ -197,29 +202,27 @@ export function TabelaOfertas({
               <DialogDescription>Os filtros valem para a lista e para a seleção em lote.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="filtro-nome">Nome</Label>
-                <Input
-                  id="filtro-nome"
-                  value={filtros.nome}
-                  onChange={(e) => setFiltros({ ...filtros, nome: e.target.value })}
-                  placeholder="Oferta, produto ou ID no gateway"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="filtro-movimento">Vendas este mês</Label>
-                <Selecao
-                  id="filtro-movimento"
-                  value={filtros.movimento}
-                  onChange={(e) => setFiltros({ ...filtros, movimento: e.target.value as Movimento })}
-                >
-                  {(Object.keys(ROTULO_MOVIMENTO) as Movimento[]).map((m) => (
-                    <option key={m} value={m}>
-                      {ROTULO_MOVIMENTO[m]}
-                    </option>
-                  ))}
-                </Selecao>
-              </div>
+              <fieldset className="space-y-1.5">
+                <legend className="text-sm font-medium">Vendas este mês</legend>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={filtros.comVendasMes}
+                    onChange={(e) => setFiltros({ ...filtros, comVendasMes: e.target.checked })}
+                  />
+                  Com vendas este mês
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={filtros.semVendasMes}
+                    onChange={(e) => setFiltros({ ...filtros, semVendasMes: e.target.checked })}
+                  />
+                  Sem vendas este mês
+                </label>
+              </fieldset>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="filtro-preco-min">Preço a partir de</Label>
@@ -290,7 +293,7 @@ export function TabelaOfertas({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setFiltros({ ...semFiltros, vinculo: "todas" })}
+                onClick={() => setFiltros({ ...semFiltros, nome: filtros.nome, vinculo: "todas" })}
                 disabled={chips.length === 0}
               >
                 Limpar filtros
@@ -305,7 +308,12 @@ export function TabelaOfertas({
             onClick={() =>
               setFiltros({
                 ...filtros,
-                [chip.chave]: chip.chave === "vinculo" || chip.chave === "movimento" ? "todas" : "",
+                [chip.chave]:
+                  chip.chave === "vinculo"
+                    ? "todas"
+                    : chip.chave === "comVendasMes" || chip.chave === "semVendasMes"
+                      ? false
+                      : "",
               })
             }
             className="bg-muted hover:bg-muted/70 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs"
@@ -319,7 +327,7 @@ export function TabelaOfertas({
           {filtradas.length} de {ofertas.length} ofertas
         </span>
       </div>
-      {chips.length > 0 && filtradas.length === 0 ? (
+      {(chips.length > 0 || filtros.nome.trim()) && filtradas.length === 0 ? (
         <p className="text-muted-foreground text-sm">Nenhuma oferta com esses filtros.</p>
       ) : null}
 
