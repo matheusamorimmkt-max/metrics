@@ -136,7 +136,7 @@ function semaforoDe(
   linhasOntemAnteontem: LinhaDiaria[],
   taxaAnuncios: number,
 ): Semaforo {
-  if (!funil.tem_semaforo) return null;
+  // Desde 2026-10-29 toda categoria recebe a notificação (tem_semaforo ficou sem efeito).
   const m = somar(linhasOntemAnteontem, taxaAnuncios);
   if (m.roi === null) return null;
   if (m.roi > funil.meta_roi) return "verde";

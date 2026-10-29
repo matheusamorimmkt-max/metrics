@@ -56,8 +56,6 @@ export function FormularioFunil({
     if (resultado.ok && resultado.mensagem) toast.success(resultado.mensagem);
   }, [resultado]);
 
-  const categoriaTemSemaforo =
-    categorias.find((c) => c.id === categoriaId)?.tem_semaforo ?? false;
 
   return (
     <form action={dispatch}>
@@ -153,11 +151,7 @@ export function FormularioFunil({
               id="meta_roi"
               rotulo="Meta de ROI (%)"
               erros={erros}
-              ajuda={
-                categoriaTemSemaforo
-                  ? "Acima da meta: verde. Entre 0% e a meta: amarelo. Abaixo de 0%: vermelho. Padrão 20."
-                  : "Usada pelas notificações; esta categoria não as mostra, mas o valor fica guardado."
-              }
+              ajuda="Notificação das últimas 48 h: acima da meta, verde; entre 0% e a meta, amarelo; abaixo de 0%, vermelho. Padrão 20."
             >
               <Input
                 id="meta_roi"

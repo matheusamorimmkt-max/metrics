@@ -164,7 +164,7 @@ export function montarDetalhes(
   const faturamento: DetalheMetrica = {
     titulo: "Faturamento bruto",
     descricao:
-      "Quanto cada produto faturou no período, pelo preço da oferta, agrupado pela categoria do funil da oferta. Inclui vendas depois reembolsadas (o reembolso é descontado na data em que acontece). Ticket médio aqui é por item vendido.",
+      "Quanto cada produto faturou no período, pelo preço da oferta, agrupado pela categoria do funil da própria oferta. Difere da tabela por categoria e funil: lá, a recompra de um cliente vai para o funil pelo qual ele entrou, aqui fica no funil do produto comprado. Inclui vendas depois reembolsadas. Ticket médio aqui é por item vendido.",
     fatias: [],
     tabela: {
       cabecalho: ["Produto", "Faturamento", "%", "Itens", "Ticket médio"],
@@ -457,45 +457,6 @@ export function montarDetalhes(
     "Ninguém recomprou no período.",
   );
 
-  // ---- Taxa de recompra: quem recomprou e quanto gastou
-  const taxaRecompra: DetalheMetrica = {
-    titulo: "Taxa de recompra",
-    descricao:
-      "Clientes que já tinham comprado antes e compraram de novo no período, divididos pelos clientes únicos do período. Abaixo, quem recomprou, quantas transações fez no período e quanto gastou.",
-    fatias: [],
-    tabela: {
-      cabecalho: ["Cliente", "Transações no período", "Gasto no período", "Gasto total"],
-      vazio: "Ninguém recomprou no período.",
-      linhas: e.recompradores.length
-        ? [
-            ...e.recompradores.map((c) => ({
-              celulas: [
-                texto(c.nome, { detalhe: c.email, cliente_id: c.cliente_id }),
-                texto(n(c.transacoes_periodo)),
-                texto(m(c.gasto_periodo)),
-                texto(m(c.gasto_total), {
-                  detalhe: `${n(c.transacoes_total)} transações na vida`,
-                }),
-              ],
-            })),
-            {
-              total: true,
-              celulas: [
-                texto(`${n(e.recompradores.length)} clientes`),
-                texto(n(e.recompradores.reduce((s, c) => s + c.transacoes_periodo, 0))),
-                texto(m(e.recompradores.reduce((s, c) => s + c.gasto_periodo, 0))),
-                texto(m(e.recompradores.reduce((s, c) => s + c.gasto_total, 0))),
-              ],
-            },
-          ]
-        : [],
-    },
-    nota:
-      e.recompradores.length >= 50
-        ? "Mostrando os 50 clientes que mais gastaram no período."
-        : undefined,
-  };
-
   return {
     investimento,
     faturamento_bruto: faturamento,
@@ -506,6 +467,5 @@ export function montarDetalhes(
     clientes_recorrentes: clientesRecorrentes,
     transacoes,
     itens,
-    taxa_recompra: taxaRecompra,
   };
 }

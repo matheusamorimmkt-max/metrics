@@ -1,12 +1,10 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useState } from "react";
 import { ArrowDown, ArrowUp, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
@@ -31,7 +29,6 @@ import {
 import { FormAcao } from "@/components/formulario/form-acao";
 import { BotaoEnviar } from "@/components/formulario/botao-enviar";
 import {
-  definirSemaforo,
   excluirCategoria,
   moverCategoria,
   renomearCategoria,
@@ -49,23 +46,10 @@ export function LinhaCategoria({
   ultima: boolean;
 }) {
   const [renomeando, setRenomeando] = useState(false);
-  const [pendente, iniciar] = useTransition();
-  const [semaforo, setSemaforo] = useState(categoria.tem_semaforo);
 
   const fecharAoSalvar = useCallback((r: Resultado) => {
     if (r.ok) setRenomeando(false);
   }, []);
-
-  function alternarSemaforo(ligado: boolean) {
-    setSemaforo(ligado);
-    iniciar(async () => {
-      const r = await definirSemaforo(categoria.id, ligado);
-      if (!r.ok) {
-        setSemaforo(!ligado);
-        toast.error(r.erro ?? "Não foi possível alterar as notificações.");
-      }
-    });
-  }
 
   return (
     <TableRow>
@@ -101,14 +85,6 @@ export function LinhaCategoria({
       </TableCell>
       <TableCell className="font-medium">{categoria.nome}</TableCell>
       <TableCell className="text-center">{categoria.total_funis}</TableCell>
-      <TableCell className="text-center">
-        <Switch
-          checked={semaforo}
-          onCheckedChange={alternarSemaforo}
-          disabled={pendente}
-          aria-label={`Notificações de ${categoria.nome}`}
-        />
-      </TableCell>
       <TableCell>
         <div className="flex justify-end gap-1">
           <Dialog open={renomeando} onOpenChange={setRenomeando}>

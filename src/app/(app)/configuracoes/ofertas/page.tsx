@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -33,7 +32,6 @@ export default async function PaginaOfertas({
   const greenn = integracoes.greenn;
   const naoVinculadas = todas.filter((o) => !o.funil_id);
   const faturamentoSemFunil = naoVinculadas.reduce((s, o) => s + o.faturamento, 0);
-  const ofertas = soNaoVinculadas ? naoVinculadas : todas;
 
   return (
     <div className="space-y-6">
@@ -80,23 +78,12 @@ export default async function PaginaOfertas({
                   </AlertDescription>
                 </Alert>
               ) : null}
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant={soNaoVinculadas ? "ghost" : "default"}
-                  render={<Link href="/configuracoes/ofertas" />}
-                >
-                  Todas ({todas.length})
-                </Button>
-                <Button
-                  size="sm"
-                  variant={soNaoVinculadas ? "default" : "ghost"}
-                  render={<Link href="/configuracoes/ofertas?filtro=nao_vinculadas" />}
-                >
-                  Não vinculadas ({naoVinculadas.length})
-                </Button>
-              </div>
-              <TabelaOfertas ofertas={ofertas} funis={funis} moeda={organizacao.moeda} />
+              <TabelaOfertas
+                ofertas={todas}
+                funis={funis}
+                moeda={organizacao.moeda}
+                vinculoInicial={soNaoVinculadas ? "nao_vinculadas" : "todas"}
+              />
             </>
           )}
         </CardContent>

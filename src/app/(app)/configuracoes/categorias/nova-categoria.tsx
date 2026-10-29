@@ -49,10 +49,6 @@ export function NovaCategoria() {
               <Input id="nova-nome" name="nome" maxLength={80} required />
               <ErroCampo erros={erros} campo="nome" />
             </div>
-            <label className="flex h-9 items-center gap-2 text-sm">
-              <input type="checkbox" name="tem_semaforo" className="size-4" />
-              Ativar notificações
-            </label>
             <BotaoEnviar enviando="Criando…">Criar categoria</BotaoEnviar>
           </div>
         </form>

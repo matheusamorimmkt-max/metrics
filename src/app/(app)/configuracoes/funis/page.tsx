@@ -68,7 +68,6 @@ export default async function PaginaFunis({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {c.nome}
-                {c.tem_semaforo ? <Badge variant="secondary">notificações</Badge> : null}
               </CardTitle>
             </CardHeader>
             <CardContent className="divide-y">
@@ -88,9 +87,7 @@ export default async function PaginaFunis({
                       {f.tipo === "lancamento"
                         ? ` · ${formatarPeriodo(f.data_inicio, f.data_fim)}`
                         : ""}
-                      {c.tem_semaforo
-                        ? ` · meta de ROI ${formatarPercentual(f.meta_roi)}`
-                        : ""}
+                      {` · meta de ROI ${formatarPercentual(f.meta_roi)}`}
                     </div>
                   </div>
                   <div className="text-muted-foreground shrink-0 text-sm">
