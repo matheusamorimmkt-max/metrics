@@ -175,3 +175,60 @@ export async function obterPagamentosDoFunil(
     truncado: vendas.length >= LIMITE_VENDAS,
   };
 }
+
+export type RecomprasGeradas = {
+  clientes: number;
+  transacoes: number;
+  receita: number;
+  /** Para onde foram as recompras (funil da oferta comprada) → transações e valor. */
+  destinos: { funil: string; transacoes: number; receita: number }[];
+};
+
+/**
+ * Recompras no período feitas por clientes que entraram por este funil, em qualquer
+ * oferta. É a "receita adicional" que o funil gerou; na Home e nas métricas do funil
+ * essas vendas contam no funil da oferta vendida.
+ */
+export async function obterRecomprasGeradas(
+  organizacaoId: string,
+  funilId: string,
+  periodo: Periodo,
+  fuso: string,
+): Promise<RecomprasGeradas> {
+  const supabase = await criarClienteServidor();
+  const vazio: RecomprasGeradas = { clientes: 0, transacoes: 0, receita: 0, destinos: [] };
+  const { data, error } = await supabase
+    .from("transacoes")
+    .select("cliente_id, valor_total, funil_id, funis(nome), clientes!inner(funil_entrada_id)")
+    .eq("organizacao_id", organizacaoId)
+    .eq("eh_recompra", true)
+    .eq("clientes.funil_entrada_id", funilId)
+    .gte("inicio", `${periodo.de}T00:00:00${deslocamento(fuso)}`)
+    .lt("inicio", `${somarDias(periodo.ate, 1)}T00:00:00${deslocamento(fuso)}`)
+    .limit(LIMITE_VENDAS);
+  if (error && tabelaAusente(error)) return vazio;
+  if (error) throw new Error(`Falha ao carregar recompras geradas: ${error.message}`);
+  const clientes = new Set<string>();
+  const destinos = new Map<string, { funil: string; transacoes: number; receita: number }>();
+  let receita = 0;
+  for (const t of data ?? []) {
+    clientes.add(t.cliente_id);
+    const valor = Number(t.valor_total ?? 0);
+    receita += valor;
+    const chave = t.funil_id ?? "";
+    const d = destinos.get(chave) ?? {
+      funil: t.funis?.nome ?? "Sem funil",
+      transacoes: 0,
+      receita: 0,
+    };
+    d.transacoes += 1;
+    d.receita += valor;
+    destinos.set(chave, d);
+  }
+  return {
+    clientes: clientes.size,
+    transacoes: (data ?? []).length,
+    receita: Math.round(receita * 100) / 100,
+    destinos: [...destinos.values()].sort((a, b) => b.receita - a.receita),
+  };
+}

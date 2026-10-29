@@ -1,7 +1,7 @@
 -- Fase 4: a visão metricas_diarias aplica o modelo financeiro dia a dia e por funil.
 begin;
 set client_min_messages to warning;
-select plan(14);
+select plan(15);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@teste.com'),
@@ -90,14 +90,19 @@ select is(
   (select gasto from public.metricas_diarias where data = '2026-09-01' and funil_id is null),
   7::numeric(14,2), '01/09 não vinculado: gasto 7'
 );
--- 03/09 23:30-03 = 04/09 em UTC, mas o dia é no fuso da organização; recompra vai para o funil de entrada
+-- 03/09 23:30-03 = 04/09 em UTC, mas o dia é no fuso da organização. A venda conta no
+-- funil da oferta: oferta solta fica sem funil, mesmo sendo recompra de quem entrou pelo funil 1.
 select is(
-  (select faturamento_bruto from public.metricas_diarias where data = '2026-09-03' and funil_id = '30000000-0000-0000-0000-000000000001'),
-  50::numeric(14,2), '03/09: recompra da oferta solta atribuída ao funil de entrada, no dia do fuso da organização'
+  (select faturamento_bruto from public.metricas_diarias where data = '2026-09-03' and funil_id is null),
+  50::numeric(14,2), '03/09: recompra da oferta solta fica fora dos funis, no dia do fuso da organização'
 );
 select is(
-  (select recompras from public.metricas_diarias where data = '2026-09-03' and funil_id = '30000000-0000-0000-0000-000000000001'),
-  1::bigint, '03/09: conta como recompra'
+  (select coalesce(sum(faturamento_bruto), 0) from public.metricas_diarias where data = '2026-09-03' and funil_id = '30000000-0000-0000-0000-000000000001'),
+  0::numeric, '03/09: o funil de entrada não recebe a recompra feita em outra oferta'
+);
+select is(
+  (select recompras from public.metricas_diarias where data = '2026-09-03' and funil_id is null),
+  1::bigint, '03/09: conta como recompra onde a venda aconteceu'
 );
 -- 05/09: reembolso no dia em que aconteceu, imposto negativo
 select is(

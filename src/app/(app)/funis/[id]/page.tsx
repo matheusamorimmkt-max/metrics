@@ -33,6 +33,7 @@ import {
   listarCampanhasDoFunilNoPeriodo,
   listarOfertasDoFunilNoPeriodo,
   obterPagamentosDoFunil,
+  obterRecomprasGeradas,
 } from "@/servidor/consultas/funil-detalhe";
 import { BarrasPaises, PizzaPagamentos } from "../graficos-pagamentos";
 import { TabelaGrupos } from "../tabela-grupos";
@@ -59,7 +60,7 @@ export default async function PaginaFunil({
 
   const funisInfo = await listarFunisInfo(organizacao.id);
   const categoriaDoFunil = new Map(funisInfo.map((f) => [f.id, f.categoria_id]));
-  const [clientes, ofertas, campanhas, pagamentos] = await Promise.all([
+  const [clientes, ofertas, campanhas, pagamentos, recomprasGeradas] = await Promise.all([
     obterIndicadoresClientes(
       organizacao.id,
       periodo,
@@ -70,6 +71,7 @@ export default async function PaginaFunil({
     listarOfertasDoFunilNoPeriodo(organizacao.id, id, periodo),
     listarCampanhasDoFunilNoPeriodo(organizacao.id, id, periodo),
     obterPagamentosDoFunil(organizacao.id, id, periodo, organizacao.fuso_horario),
+    obterRecomprasGeradas(organizacao.id, id, periodo, organizacao.fuso_horario),
   ]);
   const resumo = await obterResumoHome(
     organizacao.id,
@@ -177,6 +179,65 @@ export default async function PaginaFunil({
           );
         })}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recompras geradas por este funil</CardTitle>
+          <CardDescription>
+            Clientes que entraram por aqui e compraram de novo no período, em qualquer
+            oferta. Essas vendas contam no funil da oferta comprada; aqui está o que este
+            funil gerou de receita adicional.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-muted-foreground text-xs">Clientes que recompraram</p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatarMetrica(recomprasGeradas.clientes, "inteiro")}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Recompras</p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatarMetrica(recomprasGeradas.transacoes, "inteiro")}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Receita adicional</p>
+              <p className="text-2xl font-semibold tabular-nums text-emerald-600">
+                {formatarMetrica(recomprasGeradas.receita, "moeda", organizacao.moeda)}
+              </p>
+            </div>
+          </div>
+          {recomprasGeradas.destinos.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Para onde foram</TableHead>
+                  <TableHead className="text-right">Recompras</TableHead>
+                  <TableHead className="text-right">Receita</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recomprasGeradas.destinos.map((d) => (
+                  <TableRow key={d.funil}>
+                    <TableCell className="font-medium">{d.funil}</TableCell>
+                    <TableCell className="text-right tabular-nums">{d.transacoes}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatarMetrica(d.receita, "moeda", organizacao.moeda)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              Nenhuma recompra de clientes deste funil no período.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>

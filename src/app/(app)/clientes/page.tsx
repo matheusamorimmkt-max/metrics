@@ -125,8 +125,9 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
         <CardHeader>
           <CardTitle>Recompra por funil de entrada</CardTitle>
           <CardDescription>
-            Clientes que entraram por cada funil, quantos compraram de novo e para onde
-            foram.
+            Clientes que entraram por cada funil, quantos compraram de novo, para onde
+            foram e quanto essas recompras renderam (receita adicional, contada no funil
+            que vendeu).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -157,6 +158,7 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
                   <TableHead className="text-right">Recompraram</TableHead>
                   <TableHead className="text-right">Taxa</TableHead>
                   <TableHead className="text-right">Tempo até a recompra</TableHead>
+                  <TableHead className="text-right">Receita adicional</TableHead>
                   <TableHead>Destino da ascensão</TableHead>
                 </TableRow>
               </TableHeader>
@@ -175,6 +177,9 @@ export default async function PaginaClientes({ searchParams }: PageProps<"/clien
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {dias(f.dias_ate_recompra_mediana)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatarMetrica(f.receita_adicional, "moeda", moeda)}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {f.destinos.length

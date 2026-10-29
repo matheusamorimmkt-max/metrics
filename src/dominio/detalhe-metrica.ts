@@ -164,7 +164,7 @@ export function montarDetalhes(
   const faturamento: DetalheMetrica = {
     titulo: "Faturamento bruto",
     descricao:
-      "Quanto cada produto faturou no período, pelo preço da oferta, agrupado pela categoria do funil da própria oferta. Difere da tabela por categoria e funil: lá, a recompra de um cliente vai para o funil pelo qual ele entrou, aqui fica no funil do produto comprado. Inclui vendas depois reembolsadas. Ticket médio aqui é por item vendido.",
+      "Quanto cada produto faturou no período, pelo preço da oferta, agrupado pela categoria do funil da oferta. Inclui vendas depois reembolsadas (o reembolso é descontado na data em que acontece). Ticket médio aqui é por item vendido.",
     fatias: [],
     tabela: {
       cabecalho: ["Produto", "Faturamento", "%", "Itens", "Ticket médio"],

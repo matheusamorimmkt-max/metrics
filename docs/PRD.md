@@ -167,7 +167,7 @@ A janela de 5 minutos é padrão, mas configurável. Risco a acompanhar: um clie
 - **% dos compradores de front-end que voltaram a comprar**, no geral e por funil de front-end.
 - **Para onde subiram:** quantos compraram outro front-end, Back-end ou High-end depois. Mostra se o front-end funciona como porta de entrada.
 - **Tempo até a recompra:** mediana de dias entre a primeira transação e a recompra.
-- A recompra é sempre atribuída ao funil da **primeira** transação do cliente, para medir o valor gerado por cada porta de entrada.
+- A venda de uma recompra conta no funil da **oferta comprada** (o funil que vendeu recebe a venda). O funil pelo qual o cliente entrou (`clientes.funil_entrada`) é usado à parte, para medir quantas recompras e quanta **receita adicional** cada porta de entrada gerou (decisão de 2026-10-29; antes, a recompra era atribuída ao funil de entrada).
 
 ### Reembolso
 

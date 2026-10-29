@@ -21,6 +21,8 @@ export type RecompraPorFunil = {
   /** Para onde foram: funil da transação seguinte → quantidade. */
   destinos: { funil: string; quantidade: number }[];
   dias_ate_recompra_mediana: number | null;
+  /** Valor das recompras no período feitas por quem entrou por este funil, em qualquer oferta. */
+  receita_adicional: number;
 };
 
 export type ResumoClientes = {
@@ -119,6 +121,7 @@ export async function obterResumoClientes(
       recompraram: Set<string>;
       destinos: Map<string, number>;
       dias: number[];
+      receita: number;
     }
   >();
   for (const [clienteId, lista] of porCliente) {
@@ -128,6 +131,7 @@ export async function obterResumoClientes(
       recompraram: new Set<string>(),
       destinos: new Map<string, number>(),
       dias: [],
+      receita: 0,
     };
     grupo.clientes.add(clienteId);
     // Quem fez a primeira compra da vida dentro do período é "novo", mesmo que tenha
@@ -135,6 +139,7 @@ export async function obterResumoClientes(
     const novoNoPeriodo = lista.some((t) => t.ordem === 1);
     for (const t of lista) {
       if (!t.eh_recompra) continue;
+      grupo.receita += Number(t.valor_total ?? 0);
       if (!novoNoPeriodo) {
         recorrentes.add(clienteId);
         grupo.recompraram.add(clienteId);
@@ -172,6 +177,7 @@ export async function obterResumoClientes(
           .map(([funil, quantidade]) => ({ funil, quantidade }))
           .sort((a, b) => b.quantidade - a.quantidade),
         dias_ate_recompra_mediana: mediana(g.dias),
+        receita_adicional: Math.round(g.receita * 100) / 100,
       }))
       .sort((a, b) => b.clientes - a.clientes),
     truncado: transacoes.length >= LIMITE,
