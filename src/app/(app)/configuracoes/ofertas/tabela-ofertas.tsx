@@ -408,7 +408,7 @@ export function TabelaOfertas({
             <TableHead className="text-right">Faturamento este mês</TableHead>
             <TableHead className="text-right">Vendas (total)</TableHead>
             <TableHead className="text-right">Faturamento (total)</TableHead>
-            <TableHead className="w-72">Funil e papel</TableHead>
+            <TableHead className="min-w-72">Funil e papel</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

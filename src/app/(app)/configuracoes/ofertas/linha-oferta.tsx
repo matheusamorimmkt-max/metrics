@@ -91,12 +91,13 @@ export function LinhaOferta({
       <TableCell className="text-right tabular-nums">
         {formatarMetrica(oferta.faturamento, "moeda", moeda)}
       </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
+      <TableCell className="min-w-72">
+        <div className="flex flex-col gap-1.5">
           <Selecao
             value={funilId}
             onChange={(e) => aplicar(e.target.value, papel)}
             disabled={pendente}
+            className="w-64 shrink-0"
             aria-label={`Funil da oferta ${oferta.nome}`}
           >
             <option value="">Não vinculada</option>
@@ -111,7 +112,7 @@ export function LinhaOferta({
               value={papel}
               onChange={(e) => aplicar(funilId, e.target.value as PapelOferta)}
               disabled={pendente}
-              className="w-32"
+              className="w-32 shrink-0"
               aria-label={`Papel da oferta ${oferta.nome}`}
             >
               {PAPEIS_OFERTA.map((p) => (
