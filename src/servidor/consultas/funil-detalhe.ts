@@ -1,4 +1,5 @@
 import "server-only";
+import { resumirUtm, type ResumoUtm, type VendaComUtm } from "@/dominio/utm";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
 import { somarDias, type Periodo } from "@/dominio/periodo";
@@ -6,7 +7,6 @@ import {
   agruparPorMeioPagamento,
   agruparPorPais,
   type GrupoPagamento,
-  type VendaParaAgrupar,
 } from "@/dominio/pagamentos";
 import { deslocamento } from "./vendas";
 import { listarOfertasDoFunil, type OfertaResumo } from "./ofertas";
@@ -126,6 +126,8 @@ export type PagamentosDoFunil = {
   por_meio: GrupoPagamento[];
   por_pais: GrupoPagamento[];
   truncado: boolean;
+  /** Origem das vendas pelas UTMs gravadas na venda. */
+  utm: ResumoUtm;
 };
 
 const LIMITE_VENDAS = 20_000;
@@ -140,7 +142,12 @@ export async function obterPagamentosDoFunil(
   periodo: Periodo,
   fuso: string,
 ): Promise<PagamentosDoFunil> {
-  const vazio: PagamentosDoFunil = { por_meio: [], por_pais: [], truncado: false };
+  const vazio: PagamentosDoFunil = {
+    por_meio: [],
+    por_pais: [],
+    truncado: false,
+    utm: resumirUtm([]),
+  };
   const ofertas = await listarOfertasDoFunil(organizacaoId, funilId);
   if (ofertas.length === 0) return vazio;
 
@@ -149,7 +156,7 @@ export async function obterPagamentosDoFunil(
   const fim = `${somarDias(periodo.ate, 1)}T00:00:00${deslocamento(fuso)}`;
   const { data, error } = await supabase
     .from("vendas")
-    .select("id, transacao_id, meio_pagamento, moeda, valor_bruto, origem")
+    .select("id, transacao_id, meio_pagamento, moeda, valor_bruto, origem, utm")
     .eq("organizacao_id", organizacaoId)
     .in(
       "oferta_id",
@@ -161,18 +168,20 @@ export async function obterPagamentosDoFunil(
   if (error && tabelaAusente(error)) return vazio;
   if (error) throw new Error(`Falha ao carregar formas de pagamento: ${error.message}`);
 
-  const vendas: VendaParaAgrupar[] = (data ?? []).map((v) => ({
+  const vendas: VendaComUtm[] = (data ?? []).map((v) => ({
     id: v.id,
     transacao_id: v.transacao_id,
     meio_pagamento: v.meio_pagamento,
     moeda: v.moeda,
     valor_bruto: Number(v.valor_bruto ?? 0),
     conta_item: v.origem !== "recorrencia",
+    utm: (v.utm && typeof v.utm === "object" ? v.utm : {}) as Record<string, string>,
   }));
   return {
     por_meio: agruparPorMeioPagamento(vendas),
     por_pais: agruparPorPais(vendas),
     truncado: vendas.length >= LIMITE_VENDAS,
+    utm: resumirUtm(vendas),
   };
 }
 

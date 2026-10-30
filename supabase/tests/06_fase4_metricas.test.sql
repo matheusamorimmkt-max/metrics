@@ -1,7 +1,7 @@
 -- Fase 4: a visão metricas_diarias aplica o modelo financeiro dia a dia e por funil.
 begin;
 set client_min_messages to warning;
-select plan(15);
+select plan(17);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@teste.com'),
@@ -103,6 +103,14 @@ select is(
 select is(
   (select recompras from public.metricas_diarias where data = '2026-09-03' and funil_id is null),
   1::bigint, '03/09: conta como recompra onde a venda aconteceu'
+);
+select is(
+  (select faturamento_recompra from public.metricas_diarias where data = '2026-09-03' and funil_id is null),
+  50::numeric(14,2), '03/09: faturamento de recompra = valor da venda recomprada'
+);
+select is(
+  (select coalesce(sum(faturamento_recompra), 0) from public.metricas_diarias where data = '2026-09-01'),
+  0::numeric, '01/09: primeira compra não é faturamento de recompra'
 );
 -- 05/09: reembolso no dia em que aconteceu, imposto negativo
 select is(

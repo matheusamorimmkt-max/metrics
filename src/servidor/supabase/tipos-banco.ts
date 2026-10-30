@@ -1466,6 +1466,7 @@ export type Database = {
           cliques_link: number | null;
           data: string | null;
           faturamento_bruto: number | null;
+          faturamento_recompra: number | null;
           funil_id: string | null;
           gasto: number | null;
           impostos: number | null;

@@ -44,6 +44,7 @@ import {
 } from "@/servidor/consultas/funil-detalhe";
 import { BarrasPaises, PizzaPagamentos } from "../graficos-pagamentos";
 import { TabelaGrupos } from "../tabela-grupos";
+import { PainelUtm } from "../painel-utm";
 import { SeletorHome } from "../../home/seletor";
 import { GraficoSerie } from "../../home/graficos";
 import { EtapasFunil } from "../etapas-funil";
@@ -340,6 +341,31 @@ export default async function PaginaFunil({
         <CardContent className="space-y-4">
           <BarrasPaises grupos={pagamentos.por_pais} moeda={organizacao.moeda} />
           <TabelaGrupos grupos={pagamentos.por_pais} moeda={organizacao.moeda} rotulo="País" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Origem das vendas (UTM)</CardTitle>
+          <CardDescription>
+            Vendas do funil no período pelas UTMs gravadas na venda (origem, mídia,
+            campanha, conteúdo e termo).
+            {pagamentos.utm.total > 0
+              ? ` ${pagamentos.utm.com_utm} de ${pagamentos.utm.total} vendas vieram com UTM.`
+              : ""}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pagamentos.utm.com_utm === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Nenhuma venda do período trouxe UTM. A API da Greenn não envia as UTMs das
+              vendas (elas só chegam pelo webhook, previsto para a fase SaaS); assim que
+              existirem, esta seção mostra o gráfico e a tabela por origem, mídia,
+              campanha, conteúdo e termo.
+            </p>
+          ) : (
+            <PainelUtm utm={pagamentos.utm} moeda={organizacao.moeda} />
+          )}
         </CardContent>
       </Card>
 

@@ -31,6 +31,8 @@ export type LinhaDiaria = {
   transacoes: number;
   recompras: number;
   clientes_novos: number;
+  /** Null enquanto a migration 20261030000001 não estiver aplicada. */
+  faturamento_recompra: number;
 };
 
 export type FunilInfo = {
@@ -125,6 +127,7 @@ function somar(
     e.impostos += l.impostos;
     e.transacoes += l.transacoes;
     e.clientes_novos += l.clientes_novos;
+    e.faturamento_recompra += l.faturamento_recompra;
   }
   // Com os indicadores de clientes (identidade por CPF ou e-mail), eles mandam.
   if (clientes) e.clientes_novos = clientes.novos;
@@ -198,6 +201,7 @@ async function listarLinhas(
     transacoes: Number(l.transacoes ?? 0),
     recompras: Number(l.recompras ?? 0),
     clientes_novos: Number(l.clientes_novos ?? 0),
+    faturamento_recompra: Number(l.faturamento_recompra ?? 0),
   }));
 }
 

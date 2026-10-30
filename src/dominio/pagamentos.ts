@@ -89,7 +89,7 @@ export type GrupoPagamento = {
   participacao: number;
 };
 
-function agrupar(
+export function agruparVendas(
   vendas: VendaParaAgrupar[],
   chaveDe: (v: VendaParaAgrupar) => string,
   nomeDe: (chave: string) => string,
@@ -120,7 +120,7 @@ function agrupar(
 
 /** Vendas por forma de pagamento, da maior para a menor em faturamento. */
 export function agruparPorMeioPagamento(vendas: VendaParaAgrupar[]): GrupoPagamento[] {
-  return agrupar(
+  return agruparVendas(
     vendas,
     (v) => v.meio_pagamento ?? "",
     (chave) => rotuloMeioPagamento(chave || null),
@@ -129,7 +129,7 @@ export function agruparPorMeioPagamento(vendas: VendaParaAgrupar[]): GrupoPagame
 
 /** Vendas por país (estimado pela moeda), da maior para a menor em faturamento. */
 export function agruparPorPais(vendas: VendaParaAgrupar[]): GrupoPagamento[] {
-  return agrupar(
+  return agruparVendas(
     vendas,
     (v) => (v.moeda ?? "").trim().toUpperCase(),
     (chave) => paisDaMoeda(chave || null),

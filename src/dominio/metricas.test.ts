@@ -16,8 +16,11 @@ describe("calcularMetricas", () => {
       vendas: 60,
       clientes_unicos: 45,
       clientes_recorrentes: 9,
+      faturamento_recompra: 1250,
     });
     expect(m.investimento).toBe(1121.5);
+    expect(m.faturamento_recompra).toBe(1250);
+    expect(m.percentual_recompra).toBeCloseTo(0.25, 6);
     expect(m.taxa_reembolso).toBeCloseTo(200 / 5000, 6);
     expect(m.itens).toBe(60);
     expect(m.clientes_unicos).toBe(45);

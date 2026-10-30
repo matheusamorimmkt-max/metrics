@@ -26,6 +26,8 @@ export type EntradaMetricas = {
   clientes_unicos: number;
   /** Clientes com 2 ou mais transações no período. */
   clientes_recorrentes: number;
+  /** Parte do faturamento bruto vinda de recompras (transações eh_recompra). */
+  faturamento_recompra: number;
 };
 
 export type Metricas = {
@@ -53,6 +55,9 @@ export type Metricas = {
   itens: number;
   /** Clientes recorrentes / clientes únicos. Null sem clientes. */
   taxa_recompra: number | null;
+  faturamento_recompra: number;
+  /** Faturamento de recompra / faturamento bruto. Null sem faturamento. */
+  percentual_recompra: number | null;
   /** Faturamento bruto / clientes únicos: quanto cada cliente gastou em média. Null sem clientes. */
   ltv: number | null;
   /** Lucro / faturamento bruto. Null sem faturamento. */
@@ -86,6 +91,8 @@ export function calcularMetricas(e: EntradaMetricas): Metricas {
     clientes_recorrentes: e.clientes_recorrentes,
     itens: e.vendas,
     taxa_recompra: razao(e.clientes_recorrentes, e.clientes_unicos),
+    faturamento_recompra: arred(e.faturamento_recompra),
+    percentual_recompra: razao(e.faturamento_recompra, e.faturamento_bruto),
     ltv: razao(e.faturamento_bruto, e.clientes_unicos),
     margem: razao(lucro, e.faturamento_bruto),
     lucro_por_transacao: razao(lucro, e.transacoes),
@@ -105,6 +112,7 @@ export const ENTRADA_ZERADA: EntradaMetricas = {
   vendas: 0,
   clientes_unicos: 0,
   clientes_recorrentes: 0,
+  faturamento_recompra: 0,
 };
 
 export type FormatoMetrica = "moeda" | "multiplicador" | "percentual" | "inteiro";
@@ -191,6 +199,13 @@ export const CARDS_HOME: {
     nome: "Taxa de recompra",
     descricao:
       "Clientes que já compravam antes do período e compraram de novo nele, divididos pelos clientes únicos.",
+    formato: "percentual",
+  },
+  {
+    chave: "percentual_recompra",
+    nome: "Faturamento de recompra",
+    descricao:
+      "Parte do faturamento bruto que veio de recompras: compras de quem já era cliente, fora da janela da transação anterior.",
     formato: "percentual",
   },
   {
