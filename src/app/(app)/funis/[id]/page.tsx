@@ -31,6 +31,7 @@ import { listarFunisInfo, obterResumoHome } from "@/servidor/consultas/home";
 import {
   obterDetalhesClientes,
   obterIndicadoresClientes,
+  obterResumoClientes,
 } from "@/servidor/consultas/clientes";
 import { obterComposicoes } from "@/servidor/consultas/composicao";
 import { montarDetalhes } from "@/dominio/detalhe-metrica";
@@ -52,6 +53,12 @@ import { cn } from "@/lib/utils";
 import { CLASSE_COR_STATUS, traduzirStatusCampanha } from "@/dominio/status-campanha";
 
 export const metadata: Metadata = { title: "Funil" };
+
+function diasTexto(valor: number | null): string {
+  if (valor === null) return "—";
+  if (valor < 1) return "mesmo dia";
+  return `${Math.round(valor)} ${Math.round(valor) === 1 ? "dia" : "dias"}`;
+}
 
 export default async function PaginaFunil({
   params,
@@ -76,6 +83,7 @@ export default async function PaginaFunil({
     recomprasGeradas,
     detalhesClientes,
     composicoes,
+    resumoClientes,
   ] = await Promise.all([
     obterIndicadoresClientes(organizacao.id, periodo, organizacao.fuso_horario, soEsteFunil),
     listarOfertasDoFunilNoPeriodo(organizacao.id, id, periodo),
@@ -84,7 +92,12 @@ export default async function PaginaFunil({
     obterRecomprasGeradas(organizacao.id, id, periodo, organizacao.fuso_horario),
     obterDetalhesClientes(organizacao.id, periodo, organizacao.fuso_horario, soEsteFunil),
     obterComposicoes(organizacao.id, periodo, soEsteFunil, funisInfo, organizacao.fuso_horario),
+    obterResumoClientes(organizacao.id, periodo, organizacao.fuso_horario),
   ]);
+  // Mesma conta da aba Clientes ("Recompra por funil de entrada"), só a linha deste funil.
+  const entradaDesteFunil = resumoClientes.por_funil_entrada.find(
+    (f) => f.funil_entrada_id === id,
+  );
   const resumo = await obterResumoHome(
     organizacao.id,
     organizacao.taxa_anuncios,
@@ -224,19 +237,38 @@ export default async function PaginaFunil({
 
       <Card>
         <CardHeader>
-          <CardTitle>Recompras geradas por este funil</CardTitle>
+          <CardTitle>Recompra por funil de entrada</CardTitle>
           <CardDescription>
-            Clientes que entraram por aqui e compraram de novo no período, em qualquer
-            oferta. Essas vendas contam no funil da oferta comprada; aqui está o que este
-            funil gerou de receita adicional.
+            Clientes cuja primeira compra foi neste funil e que compraram no período:
+            quantos compraram de novo, em quanto tempo, para onde foram e quanto essas
+            recompras renderam (receita adicional, contada no funil que vendeu). Mesma
+            conta da aba Clientes.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <div>
-              <p className="text-muted-foreground text-xs">Clientes que recompraram</p>
+              <p className="text-muted-foreground text-xs">Clientes deste funil</p>
               <p className="text-2xl font-semibold tabular-nums">
-                {formatarMetrica(recomprasGeradas.clientes, "inteiro")}
+                {formatarMetrica(entradaDesteFunil?.clientes ?? 0, "inteiro")}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Recompraram</p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatarMetrica(entradaDesteFunil?.recompraram ?? 0, "inteiro")}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Taxa de recompra</p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatarMetrica(entradaDesteFunil?.taxa ?? null, "percentual")}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Tempo até a recompra</p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {diasTexto(entradaDesteFunil?.dias_ate_recompra_mediana ?? null)}
               </p>
             </div>
             <div>
@@ -256,7 +288,7 @@ export default async function PaginaFunil({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Para onde foram</TableHead>
+                  <TableHead>Destino da ascensão</TableHead>
                   <TableHead className="text-right">Recompras</TableHead>
                   <TableHead className="text-right">Receita</TableHead>
                 </TableRow>

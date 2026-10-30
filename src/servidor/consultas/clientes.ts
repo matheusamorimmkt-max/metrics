@@ -15,6 +15,8 @@ import {
 } from "@/dominio/ficha-cliente";
 
 export type RecompraPorFunil = {
+  /** Null = clientes sem funil de entrada. */
+  funil_entrada_id: string | null;
   funil_entrada: string;
   clientes: number;
   recompraram: number;
@@ -126,7 +128,7 @@ export async function obterResumoClientes(
     }
   >();
   for (const [clienteId, lista] of porCliente) {
-    const entrada = nome(lista[0]?.clientes?.funil_entrada_id ?? null);
+    const entrada = lista[0]?.clientes?.funil_entrada_id ?? "";
     const grupo = porEntrada.get(entrada) ?? {
       clientes: new Set<string>(),
       recompraram: new Set<string>(),
@@ -169,8 +171,9 @@ export async function obterResumoClientes(
     taxa_recompra: clientes.size ? recorrentes.size / clientes.size : null,
     dias_ate_recompra_mediana: mediana(diasAteRecompra),
     por_funil_entrada: [...porEntrada.entries()]
-      .map(([funil_entrada, g]) => ({
-        funil_entrada,
+      .map(([entradaId, g]) => ({
+        funil_entrada_id: entradaId || null,
+        funil_entrada: nome(entradaId || null),
         clientes: g.clientes.size,
         recompraram: g.recompraram.size,
         taxa: g.clientes.size ? g.recompraram.size / g.clientes.size : null,
