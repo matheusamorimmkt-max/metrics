@@ -1,4 +1,6 @@
 import "server-only";
+import type { VendaAscensao } from "@/dominio/ascensao";
+import type { FunilInfo } from "./home";
 import { resumirUtm, type ResumoUtm, type VendaComUtm } from "@/dominio/utm";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { tabelaAusente } from "@/servidor/supabase/erros";
@@ -240,4 +242,44 @@ export async function obterRecomprasGeradas(
     receita: Math.round(receita * 100) / 100,
     destinos: [...destinos.values()].sort((a, b) => b.receita - a.receita),
   };
+}
+
+/**
+ * Vendas de recompra no período feitas por quem entrou por este funil, com produto e
+ * categoria do funil da oferta comprada (para o olho "Destino das ascensões").
+ */
+export async function listarVendasAscensao(
+  organizacaoId: string,
+  funilId: string,
+  periodo: Periodo,
+  fuso: string,
+  funis: FunilInfo[],
+): Promise<VendaAscensao[]> {
+  const supabase = await criarClienteServidor();
+  const off = deslocamento(fuso);
+  const { data, error } = await supabase
+    .from("vendas")
+    .select(
+      "cliente_id, valor_bruto, produtos(nome), ofertas(funil_ofertas(funil_id, status)), transacoes!inner(eh_recompra), clientes!inner(funil_entrada_id)",
+    )
+    .eq("organizacao_id", organizacaoId)
+    .eq("transacoes.eh_recompra", true)
+    .eq("clientes.funil_entrada_id", funilId)
+    .gte("vendida_em", `${periodo.de}T00:00:00${off}`)
+    .lt("vendida_em", `${somarDias(periodo.ate, 1)}T00:00:00${off}`)
+    .limit(LIMITE_VENDAS);
+  if (error && tabelaAusente(error)) return [];
+  if (error) throw new Error(`Falha ao carregar destino das ascensões: ${error.message}`);
+  const funilPorId = new Map(funis.map((f) => [f.id, f]));
+  return (data ?? []).map((v) => {
+    const vinculo = v.ofertas?.funil_ofertas;
+    const destino = vinculo?.status === "confirmado" ? funilPorId.get(vinculo.funil_id) : undefined;
+    return {
+      cliente_id: v.cliente_id,
+      valor: Number(v.valor_bruto ?? 0),
+      produto: v.produtos?.nome ?? "Produto",
+      categoria: destino?.categoria_nome ?? "Sem funil",
+      categoria_ordem: destino ? destino.categoria_ordem : Number.MAX_SAFE_INTEGER,
+    };
+  });
 }

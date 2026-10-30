@@ -40,9 +40,11 @@ import { TabelaDiaria } from "../tabela-diaria";
 import {
   listarCampanhasDoFunilNoPeriodo,
   listarOfertasDoFunilNoPeriodo,
+  listarVendasAscensao,
   obterPagamentosDoFunil,
   obterRecomprasGeradas,
 } from "@/servidor/consultas/funil-detalhe";
+import { montarDetalheAscensao } from "@/dominio/ascensao";
 import { BarrasPaises, PizzaPagamentos } from "../graficos-pagamentos";
 import { TabelaGrupos } from "../tabela-grupos";
 import { PainelUtm } from "../painel-utm";
@@ -84,6 +86,7 @@ export default async function PaginaFunil({
     detalhesClientes,
     composicoes,
     resumoClientes,
+    vendasAscensao,
   ] = await Promise.all([
     obterIndicadoresClientes(organizacao.id, periodo, organizacao.fuso_horario, soEsteFunil),
     listarOfertasDoFunilNoPeriodo(organizacao.id, id, periodo),
@@ -93,10 +96,16 @@ export default async function PaginaFunil({
     obterDetalhesClientes(organizacao.id, periodo, organizacao.fuso_horario, soEsteFunil),
     obterComposicoes(organizacao.id, periodo, soEsteFunil, funisInfo, organizacao.fuso_horario),
     obterResumoClientes(organizacao.id, periodo, organizacao.fuso_horario),
+    listarVendasAscensao(organizacao.id, id, periodo, organizacao.fuso_horario, funisInfo),
   ]);
   // Mesma conta da aba Clientes ("Recompra por funil de entrada"), só a linha deste funil.
   const entradaDesteFunil = resumoClientes.por_funil_entrada.find(
     (f) => f.funil_entrada_id === id,
+  );
+  const detalheAscensao = montarDetalheAscensao(
+    vendasAscensao,
+    entradaDesteFunil?.clientes ?? 0,
+    organizacao.moeda,
   );
   const resumo = await obterResumoHome(
     organizacao.id,
@@ -241,9 +250,16 @@ export default async function PaginaFunil({
           <CardDescription>
             Clientes cuja primeira compra foi neste funil e que compraram no período:
             quantos compraram de novo, em quanto tempo, para onde foram e quanto essas
-            recompras renderam (receita adicional, contada no funil que vendeu). Mesma
-            conta da aba Clientes.
+            recompras renderam (receita adicional, contada no funil que vendeu). O olho
+            abre o destino das ascensões por categoria e produto.
           </CardDescription>
+          <CardAction>
+            <BotaoDetalheMetrica
+              detalhe={detalheAscensao}
+              moeda={organizacao.moeda}
+              fuso={organizacao.fuso_horario}
+            />
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
