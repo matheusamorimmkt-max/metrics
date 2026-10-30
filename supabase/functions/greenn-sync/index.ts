@@ -254,6 +254,7 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
     // Clientes já conhecidos (evita o detalhe da venda quando não traz nada novo)
     const clienteIdPorExterno = new Map<string, string>();
     const clienteIdPorEmail = new Map<string, string>();
+    const telefoneAtualizado = new Set<string>();
     {
       const { data } = await supabase
         .from("clientes")
@@ -307,6 +308,7 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
               ofertaIdPorExterno,
               clienteIdPorExterno,
               clienteIdPorEmail,
+              telefoneAtualizado,
             });
             if (gravou) {
               registros += 1;
@@ -400,6 +402,8 @@ type Mapas = {
   ofertaIdPorExterno: Map<string, { id: string; produto_id: string }>;
   clienteIdPorExterno: Map<string, string>;
   clienteIdPorEmail: Map<string, string>;
+  /** Clientes cujo telefone já foi completado neste ciclo. */
+  telefoneAtualizado: Set<string>;
 };
 
 /** Grava cliente, venda e comissões. Devolve o id do cliente afetado, ou null se a venda foi pulada. */
@@ -413,6 +417,17 @@ async function gravarVenda(
   let clienteId: string | undefined;
   if (v.cliente.email) {
     clienteId = mapas.clienteIdPorEmail.get(v.cliente.email);
+    // Cliente já conhecido: completa o telefone (a Greenn passou a enviá-lo no detalhe
+    // em 2026-10-30), uma vez por ciclo, sem sobrescrever o que já está preenchido.
+    if (clienteId && v.cliente.telefone && !mapas.telefoneAtualizado.has(clienteId)) {
+      mapas.telefoneAtualizado.add(clienteId);
+      const { error } = await supabase
+        .from("clientes")
+        .update({ telefone: v.cliente.telefone })
+        .eq("id", clienteId)
+        .is("telefone", null);
+      if (error && !/telefone/.test(error.message)) throw new Error(`clientes: ${error.message}`);
+    }
     if (!clienteId) {
       const { data, error } = await supabase
         .from("clientes")
