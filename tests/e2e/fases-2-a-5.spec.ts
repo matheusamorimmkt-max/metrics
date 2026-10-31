@@ -51,7 +51,6 @@ test.describe("Fases 2 a 5 — telas com conectores desligados", () => {
       "Clientes recorrentes",
       "Transações",
       "Itens vendidos",
-      "Taxa de recompra",
       "Faturamento de recompra",
       "Ticket médio por transação",
       "CAC",

@@ -195,13 +195,6 @@ export const CARDS_HOME: {
     formato: "inteiro",
   },
   {
-    chave: "taxa_recompra",
-    nome: "Taxa de recompra",
-    descricao:
-      "Clientes que já compravam antes do período e compraram de novo nele, divididos pelos clientes únicos.",
-    formato: "percentual",
-  },
-  {
     chave: "percentual_recompra",
     nome: "Faturamento de recompra",
     descricao:
