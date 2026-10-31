@@ -84,7 +84,7 @@ export type ChaveCardClientes =
   | "tempo_recompra";
 
 export const CARDS_CLIENTES: { chave: ChaveCardClientes; nome: string; descricao: string }[] = [
-  { chave: "clientes_unicos", nome: "Clientes únicos", descricao: "Clientes com transação no período." },
+  { chave: "clientes_unicos", nome: "Total de clientes", descricao: "Clientes com transação no período." },
   { chave: "clientes_novos", nome: "Clientes novos", descricao: "Primeira compra da vida dentro do período, mesmo que tenha comprado de novo em seguida." },
   { chave: "recorrentes", nome: "Clientes recorrentes", descricao: "Já compravam antes do período e compraram de novo nele." },
   { chave: "transacoes", nome: "Transações", descricao: "Compras do mesmo cliente dentro da janela contam uma vez." },
@@ -160,7 +160,7 @@ export function montarDetalhesClientes(
   const recorrentes = clientes.filter((c) => c.recorrente);
   const unicos = listaClientes(
     clientes,
-    "Clientes únicos",
+    "Total de clientes",
     "Quem comprou no período, do maior gasto para o menor.",
     "Sem clientes no período.",
   );

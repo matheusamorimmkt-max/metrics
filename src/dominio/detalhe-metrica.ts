@@ -299,7 +299,7 @@ export function montarDetalhes(
 
   // ---- Clientes únicos: novos × antigos
   const clientesUnicos: DetalheMetrica = {
-    titulo: "Clientes únicos",
+    titulo: "Total de clientes",
     descricao:
       "Pessoas diferentes que compraram no período (mesmo CPF ou e-mail = mesmo cliente), separadas entre quem comprou pela primeira vez e quem já era cliente.",
     fatias: [],
@@ -330,7 +330,7 @@ export function montarDetalhes(
             },
             {
               total: true,
-              celulas: [texto("Clientes únicos"), texto(n(e.clientes.unicos)), texto("")],
+              celulas: [texto("Total de clientes"), texto(n(e.clientes.unicos)), texto("")],
             },
           ]
         : [],

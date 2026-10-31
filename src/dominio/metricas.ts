@@ -165,7 +165,7 @@ export const CARDS_HOME: {
   },
   {
     chave: "clientes_unicos",
-    nome: "Clientes únicos",
+    nome: "Total de clientes",
     descricao:
       "Pessoas diferentes que compraram no período. Mesmo e-mail ou mesmo CPF é o mesmo cliente.",
     formato: "inteiro",
