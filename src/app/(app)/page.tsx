@@ -88,7 +88,10 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     periodo,
     filtro,
     hoje,
-    clientes,
+    {
+      atual: { ...clientes.atual, ciclo_recompra_dias: detalhesClientes.ciclo.media },
+      anterior: clientes.anterior,
+    },
   );
   const detalhes = montarDetalhes({
     ...composicoes,
@@ -106,6 +109,7 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     transacoes_por_itens: detalhesClientes.transacoes_por_itens,
     recompradores: detalhesClientes.recompradores,
     novos: detalhesClientes.novos,
+    ciclo_recompra: detalhesClientes.ciclo,
     moeda: organizacao.moeda,
     fuso: organizacao.fuso_horario,
   });

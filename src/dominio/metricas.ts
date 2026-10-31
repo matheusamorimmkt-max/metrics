@@ -28,6 +28,8 @@ export type EntradaMetricas = {
   clientes_recorrentes: number;
   /** Parte do faturamento bruto vinda de recompras (transações eh_recompra). */
   faturamento_recompra: number;
+  /** Média de dias entre a compra anterior e a recompra, nas recompras do período. Null sem recompras. */
+  ciclo_recompra_dias: number | null;
 };
 
 export type Metricas = {
@@ -58,6 +60,9 @@ export type Metricas = {
   faturamento_recompra: number;
   /** Faturamento de recompra / faturamento bruto. Null sem faturamento. */
   percentual_recompra: number | null;
+  /** Itens vendidos / transações. Null sem transações. */
+  itens_por_transacao: number | null;
+  ciclo_recompra_dias: number | null;
   /** Faturamento bruto / clientes únicos: quanto cada cliente gastou em média. Null sem clientes. */
   ltv: number | null;
   /** Lucro / faturamento bruto. Null sem faturamento. */
@@ -93,6 +98,8 @@ export function calcularMetricas(e: EntradaMetricas): Metricas {
     taxa_recompra: razao(e.clientes_recorrentes, e.clientes_unicos),
     faturamento_recompra: arred(e.faturamento_recompra),
     percentual_recompra: razao(e.faturamento_recompra, e.faturamento_bruto),
+    itens_por_transacao: razao(e.vendas, e.transacoes),
+    ciclo_recompra_dias: e.ciclo_recompra_dias,
     ltv: razao(e.faturamento_bruto, e.clientes_unicos),
     margem: razao(lucro, e.faturamento_bruto),
     lucro_por_transacao: razao(lucro, e.transacoes),
@@ -113,9 +120,16 @@ export const ENTRADA_ZERADA: EntradaMetricas = {
   clientes_unicos: 0,
   clientes_recorrentes: 0,
   faturamento_recompra: 0,
+  ciclo_recompra_dias: null,
 };
 
-export type FormatoMetrica = "moeda" | "multiplicador" | "percentual" | "inteiro";
+export type FormatoMetrica =
+  | "moeda"
+  | "multiplicador"
+  | "percentual"
+  | "inteiro"
+  | "decimal"
+  | "dias";
 
 /** Cards principais da Home, na ordem do PRD. */
 export const CARDS_HOME: {
@@ -195,11 +209,24 @@ export const CARDS_HOME: {
     formato: "inteiro",
   },
   {
+    chave: "itens_por_transacao",
+    nome: "Itens por transação",
+    descricao: "Itens vendidos divididos pelas transações: quantos produtos cada compra leva em média.",
+    formato: "decimal",
+  },
+  {
     chave: "percentual_recompra",
     nome: "Faturamento de recompra",
     descricao:
       "Parte do faturamento bruto que veio de recompras: compras de quem já era cliente, fora da janela da transação anterior.",
     formato: "percentual",
+  },
+  {
+    chave: "ciclo_recompra_dias",
+    nome: "Ciclo médio de recompra",
+    descricao:
+      "Média de dias entre a compra anterior e a recompra, nas recompras feitas no período.",
+    formato: "dias",
   },
   {
     chave: "ticket_medio",
@@ -237,5 +264,11 @@ export function formatarMetrica(
       return `${(valor * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
     case "inteiro":
       return valor.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+    case "decimal":
+      return valor.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    case "dias": {
+      const d = Math.round(valor);
+      return d === 1 ? "1 dia" : `${d.toLocaleString("pt-BR")} dias`;
+    }
   }
 }

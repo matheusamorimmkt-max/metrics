@@ -17,7 +17,13 @@ describe("calcularMetricas", () => {
       clientes_unicos: 45,
       clientes_recorrentes: 9,
       faturamento_recompra: 1250,
+      ciclo_recompra_dias: 31.4,
     });
+    expect(m.itens_por_transacao).toBeCloseTo(60 / 50, 6);
+    expect(m.ciclo_recompra_dias).toBe(31.4);
+    expect(formatarMetrica(1.2, "decimal")).toBe("1,2");
+    expect(formatarMetrica(31.4, "dias")).toBe("31 dias");
+    expect(formatarMetrica(1, "dias")).toBe("1 dia");
     expect(m.investimento).toBe(1121.5);
     expect(m.faturamento_recompra).toBe(1250);
     expect(m.percentual_recompra).toBeCloseTo(0.25, 6);

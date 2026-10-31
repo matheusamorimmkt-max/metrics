@@ -5,7 +5,12 @@ import { somarDias, type Periodo } from "@/dominio/periodo";
 import { deslocamento } from "./vendas";
 import type { IndicadoresClientes } from "./home";
 import { pertenceAoFiltro, type Filtro } from "@/dominio/filtro-home";
-import type { ClienteRecompra } from "@/dominio/detalhe-metrica";
+import {
+  LIMITE_LISTA,
+  type CicloRecompra,
+  type ClienteRecompra,
+  type RecompraDetalhe,
+} from "@/dominio/detalhe-metrica";
 import type { ClientePeriodo } from "@/dominio/clientes-periodo";
 import {
   montarFicha,
@@ -338,8 +343,10 @@ export type DetalhesClientes = {
   clientes: { unicos: number; novos: number; antigos: number };
   transacoes_por_itens: { itens: number; quantidade: number }[];
   recompradores: ClienteRecompra[];
-  /** Quem comprou pela primeira vez no período (até 50, maior gasto primeiro). */
+  /** Quem comprou pela primeira vez no período (até LIMITE_LISTA, maior gasto primeiro). */
   novos: ClienteRecompra[];
+  /** Recompras do período com os dias desde a compra anterior. */
+  ciclo: CicloRecompra;
 };
 
 /**
@@ -358,7 +365,7 @@ export async function obterDetalhesClientes(
   const { data, error } = await supabase
     .from("transacoes")
     .select(
-      "cliente_id, inicio, ordem, eh_recompra, funil_id, quantidade_vendas, valor_total, clientes(nome, email, cpf)",
+      "id, cliente_id, inicio, ordem, eh_recompra, funil_id, quantidade_vendas, valor_total, clientes(nome, email, cpf)",
     )
     .eq("organizacao_id", organizacaoId)
     .gte("inicio", `${periodo.de}T00:00:00${off}`)
@@ -369,6 +376,7 @@ export async function obterDetalhesClientes(
     transacoes_por_itens: [],
     recompradores: [],
     novos: [],
+    ciclo: { media: null, mediana: null, recompras: [] },
   };
   if (error && tabelaAusente(error)) return vazio;
   if (error) throw new Error(`Falha ao carregar detalhes de clientes: ${error.message}`);
@@ -418,29 +426,63 @@ export async function obterDetalhesClientes(
   const recompradores = todos
     .filter((c) => c.recomprou && !c.novo)
     .sort((a, b) => b.gasto - a.gasto)
-    .slice(0, 50);
+    .slice(0, LIMITE_LISTA);
   const novos = todos
     .filter((c) => c.novo)
     .sort((a, b) => b.gasto - a.gasto)
-    .slice(0, 50);
+    .slice(0, LIMITE_LISTA);
 
-  // Gasto na vida dos listados (todas as transações, sem filtro de período).
-  const idsVida = [...recompradores, ...novos].flatMap((c) => [...c.ids]);
+  // Gasto na vida dos listados (todas as transações, sem filtro de período) e a
+  // compra anterior de cada recompra do período, em lotes para a URL não estourar.
+  const recomprasPeriodo = linhas.filter((t) => t.eh_recompra && t.ordem > 1);
+  const idsVida = [
+    ...new Set([
+      ...[...recompradores, ...novos].flatMap((c) => [...c.ids]),
+      ...recomprasPeriodo.map((t) => t.cliente_id),
+    ]),
+  ];
   const vida = new Map<string, { gasto: number; transacoes: number }>();
-  if (idsVida.length) {
+  const inicioPorOrdem = new Map<string, string>();
+  for (let i = 0; i < idsVida.length; i += 150) {
     const { data: todasVida } = await supabase
       .from("transacoes")
-      .select("cliente_id, valor_total")
+      .select("cliente_id, valor_total, ordem, inicio")
       .eq("organizacao_id", organizacaoId)
-      .in("cliente_id", idsVida)
+      .in("cliente_id", idsVida.slice(i, i + 150))
       .limit(LIMITE);
     for (const t of todasVida ?? []) {
       const v = vida.get(t.cliente_id) ?? { gasto: 0, transacoes: 0 };
       v.gasto += Number(t.valor_total ?? 0);
       v.transacoes += 1;
       vida.set(t.cliente_id, v);
+      inicioPorOrdem.set(`${t.cliente_id}:${t.ordem}`, t.inicio);
     }
   }
+  const recompras: RecompraDetalhe[] = [];
+  for (const t of recomprasPeriodo) {
+    const anterior = inicioPorOrdem.get(`${t.cliente_id}:${t.ordem - 1}`);
+    if (!anterior) continue;
+    const dias = (new Date(t.inicio).getTime() - new Date(anterior).getTime()) / 86_400_000;
+    if (!Number.isFinite(dias) || dias < 0) continue;
+    recompras.push({
+      cliente_id: t.cliente_id,
+      nome: t.clientes?.nome?.trim() || t.clientes?.email || "Cliente",
+      email: t.clientes?.email ?? "",
+      anterior_em: anterior,
+      recompra_em: t.inicio,
+      dias: Math.round(dias * 10) / 10,
+      valor: Number(t.valor_total ?? 0),
+    });
+  }
+  recompras.sort((a, b) => b.recompra_em.localeCompare(a.recompra_em));
+  const diasTodos = recompras.map((r) => r.dias);
+  const ciclo: CicloRecompra = {
+    media: diasTodos.length
+      ? Math.round((diasTodos.reduce((s, d) => s + d, 0) / diasTodos.length) * 10) / 10
+      : null,
+    mediana: mediana(diasTodos),
+    recompras: recompras.slice(0, 300),
+  };
 
   return {
     clientes: {
@@ -453,6 +495,7 @@ export async function obterDetalhesClientes(
       .sort((a, b) => a.itens - b.itens),
     recompradores: recompradores.map(comVida),
     novos: novos.map(comVida),
+    ciclo,
   };
 
   function comVida(c: Acum): ClienteRecompra {

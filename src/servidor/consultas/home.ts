@@ -104,7 +104,13 @@ export type ResumoHome = {
   categoriasDisponiveis: { id: string; nome: string }[];
 };
 
-export type IndicadoresClientes = { unicos: number; novos: number; recorrentes: number };
+export type IndicadoresClientes = {
+  unicos: number;
+  novos: number;
+  recorrentes: number;
+  /** Média de dias até a recompra, quando calculada (obterDetalhesClientes). */
+  ciclo_recompra_dias?: number | null;
+};
 
 function somar(
   linhas: LinhaDiaria[],
@@ -116,6 +122,7 @@ function somar(
     taxa_anuncios: taxaAnuncios,
     clientes_unicos: clientes?.unicos ?? 0,
     clientes_recorrentes: clientes?.recorrentes ?? 0,
+    ciclo_recompra_dias: clientes?.ciclo_recompra_dias ?? null,
   };
   for (const l of linhas) {
     e.vendas += l.vendas;

@@ -113,7 +113,10 @@ export default async function PaginaFunil({
     periodo,
     soEsteFunil,
     hoje,
-    clientes,
+    {
+      atual: { ...clientes.atual, ciclo_recompra_dias: detalhesClientes.ciclo.media },
+      anterior: clientes.anterior,
+    },
   );
   // Olhos dos cards, com a mesma montagem da Home, restrita a este funil.
   const detalhes = montarDetalhes({
@@ -132,6 +135,7 @@ export default async function PaginaFunil({
     transacoes_por_itens: detalhesClientes.transacoes_por_itens,
     recompradores: detalhesClientes.recompradores,
     novos: detalhesClientes.novos,
+    ciclo_recompra: detalhesClientes.ciclo,
     moeda: organizacao.moeda,
     fuso: organizacao.fuso_horario,
   });

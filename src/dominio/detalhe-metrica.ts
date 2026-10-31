@@ -34,6 +34,8 @@ export type DetalheMetrica = {
   fatias: Fatia[];
   /** Tabela no lugar da pizza. */
   tabela?: TabelaDetalhe;
+  /** Tabelas complementares, cada uma com título, abaixo da principal. */
+  tabelas_extras?: { titulo: string; tabela: TabelaDetalhe }[];
   /** Observação mostrada abaixo. */
   nota?: string;
 };
@@ -51,6 +53,24 @@ export type ClienteRecompra = {
   gasto_periodo: number;
   gasto_total: number;
   transacoes_total: number;
+};
+
+/** Uma recompra do período com a compra anterior do mesmo cliente. */
+export type RecompraDetalhe = {
+  cliente_id: string;
+  nome: string;
+  email: string;
+  anterior_em: string;
+  recompra_em: string;
+  dias: number;
+  valor: number;
+};
+
+export type CicloRecompra = {
+  media: number | null;
+  mediana: number | null;
+  /** Mais recentes primeiro (até 300). */
+  recompras: RecompraDetalhe[];
 };
 
 export type ReembolsoCliente = {
@@ -118,6 +138,7 @@ export type EntradaDetalhes = {
   transacoes_por_itens: { itens: number; quantidade: number }[];
   recompradores: ClienteRecompra[];
   novos: ClienteRecompra[];
+  ciclo_recompra: CicloRecompra;
   moeda: string;
 };
 
@@ -130,6 +151,8 @@ export const CORES_DETALHE = {
 };
 
 const arred = (v: number) => Math.round(v * 100) / 100;
+/** Tamanho máximo das listas de clientes dos olhos (ver obterDetalhesClientes). */
+export const LIMITE_LISTA = 500;
 const positivas = (fatias: Fatia[]) => fatias.filter((f) => f.valor > 0);
 const razao = (num: number, den: number) => (den > 0 ? num / den : null);
 
@@ -295,46 +318,103 @@ export function montarDetalhes(
       e.reembolsos_clientes.length >= 200
         ? "Mostrando os 200 reembolsos mais recentes."
         : undefined,
+    tabelas_extras: [
+      {
+        titulo: "Taxa de reembolso por produto",
+        tabela: {
+          cabecalho: ["Produto", "Itens vendidos", "Reembolsos", "Taxa", "Valor devolvido"],
+          vazio: "Sem reembolsos no período.",
+          linhas: (() => {
+            const itensPorProduto = new Map(
+              e.faturamento_por_produto.map((p) => [p.chave, p]),
+            );
+            const linhasProduto = e.reembolsos_por_produto
+              .filter((r) => r.quantidade > 0)
+              .map((r) => {
+                const vendidos = itensPorProduto.get(r.chave)?.quantidade ?? 0;
+                return { r, vendidos, taxa: razao(r.quantidade, vendidos) };
+              })
+              .sort((a, b) => (b.taxa ?? 0) - (a.taxa ?? 0));
+            if (!linhasProduto.length) return [];
+            const totalReemb = linhasProduto.reduce((s, l) => s + l.r.quantidade, 0);
+            return [
+              ...linhasProduto.map(({ r, vendidos, taxa }) => ({
+                celulas: [
+                  texto(r.nome, { alinhar: "left" }),
+                  texto(n(vendidos)),
+                  texto(n(r.quantidade)),
+                  texto(taxa === null ? "—" : pc(taxa), {
+                    cor: taxa !== null && taxa > 0.1 ? "negativo" : undefined,
+                  }),
+                  texto(m(r.valor)),
+                ],
+              })),
+              {
+                total: true,
+                celulas: [
+                  texto("Total"),
+                  texto(n(e.itens)),
+                  texto(n(totalReemb)),
+                  texto(pc(razao(totalReemb, e.itens))),
+                  texto(m(totalReembolsado)),
+                ],
+              },
+            ];
+          })(),
+        },
+      },
+    ],
   };
 
-  // ---- Clientes únicos: novos × antigos
+  // ---- Total de clientes: todos, separados em novos e recorrentes
+  const linhaCliente = (c: ClienteRecompra): LinhaTabela => ({
+    celulas: [
+      texto(c.nome, { detalhe: c.email, cliente_id: c.cliente_id }),
+      texto(n(c.transacoes_periodo)),
+      texto(m(c.gasto_periodo)),
+      texto(m(c.gasto_total), { detalhe: `${n(c.transacoes_total)} transações na vida` }),
+    ],
+  });
+  const grupoClientes = (titulo: string, lista: ClienteRecompra[]): LinhaTabela[] => [
+    {
+      grupo: true,
+      celulas: [
+        texto(`${titulo} (${n(lista.length)})`),
+        texto(n(lista.reduce((s, c) => s + c.transacoes_periodo, 0))),
+        texto(m(lista.reduce((s, c) => s + c.gasto_periodo, 0))),
+        texto(m(lista.reduce((s, c) => s + c.gasto_total, 0))),
+      ],
+    },
+    ...lista.map(linhaCliente),
+  ];
   const clientesUnicos: DetalheMetrica = {
     titulo: "Total de clientes",
     descricao:
-      "Pessoas diferentes que compraram no período (mesmo CPF ou e-mail = mesmo cliente), separadas entre quem comprou pela primeira vez e quem já era cliente.",
+      "Pessoas diferentes que compraram no período (mesmo CPF ou e-mail = mesmo cliente). Clientes novos fizeram a primeira compra da vida no período; recorrentes já compravam antes e compraram de novo. Clique no nome para abrir a ficha.",
     fatias: [],
     tabela: {
-      cabecalho: ["", "Clientes", "%"],
+      cabecalho: ["Cliente", "Transações no período", "Gasto no período", "Gasto total"],
       vazio: "Sem clientes no período.",
       linhas: e.clientes.unicos
         ? [
-            {
-              celulas: [
-                texto("Novos", { detalhe: "primeira compra dentro do período" }),
-                texto(n(e.clientes.novos)),
-                texto(pc(razao(e.clientes.novos, e.clientes.unicos)), {
-                  cor: "discreto",
-                }),
-              ],
-            },
-            {
-              celulas: [
-                texto("Já eram clientes", {
-                  detalhe: "compraram antes do período e voltaram",
-                }),
-                texto(n(e.clientes.antigos)),
-                texto(pc(razao(e.clientes.antigos, e.clientes.unicos)), {
-                  cor: "discreto",
-                }),
-              ],
-            },
+            ...grupoClientes("Clientes novos", e.novos),
+            ...grupoClientes("Clientes recorrentes", e.recompradores),
             {
               total: true,
-              celulas: [texto("Total de clientes"), texto(n(e.clientes.unicos)), texto("")],
+              celulas: [
+                texto(`Total de clientes: ${n(e.clientes.unicos)}`),
+                texto(n([...e.novos, ...e.recompradores].reduce((s, c) => s + c.transacoes_periodo, 0))),
+                texto(m([...e.novos, ...e.recompradores].reduce((s, c) => s + c.gasto_periodo, 0))),
+                texto(""),
+              ],
             },
           ]
         : [],
     },
+    nota:
+      e.novos.length >= LIMITE_LISTA || e.recompradores.length >= LIMITE_LISTA
+        ? `Cada grupo mostra até ${LIMITE_LISTA} clientes, os que mais gastaram no período.`
+        : undefined,
   };
 
   // ---- Transações: por quantidade de itens
@@ -405,6 +485,89 @@ export function montarDetalhes(
     },
   };
 
+  // ---- Itens por transação: transações, itens e distribuição por quantidade de itens
+  const itensPorTransacao: DetalheMetrica = {
+    titulo: "Itens por transação",
+    descricao:
+      "Itens vendidos divididos pelas transações do período. Abaixo, quantas transações levaram 1 item e quantas levaram bump ou upsell.",
+    fatias: [],
+    tabela: {
+      cabecalho: ["", "Quantidade"],
+      vazio: "Sem transações no período.",
+      linhas: e.transacoes
+        ? [
+            { celulas: [texto("Transações"), texto(n(e.transacoes))] },
+            { celulas: [texto("Itens vendidos"), texto(n(e.itens))] },
+            {
+              total: true,
+              celulas: [
+                texto("Itens por transação"),
+                texto(formatarMetrica(razao(e.itens, e.transacoes), "decimal")),
+              ],
+            },
+          ]
+        : [],
+    },
+    tabelas_extras: e.transacoes
+      ? [
+          {
+            titulo: "Transações por quantidade de itens",
+            tabela: {
+              cabecalho: ["Itens na transação", "Transações", "%"],
+              vazio: "Sem transações no período.",
+              linhas: e.transacoes_por_itens.map((t) => ({
+                celulas: [
+                  texto(t.itens === 1 ? "1 item" : `${t.itens} itens`),
+                  texto(n(t.quantidade)),
+                  texto(pc(razao(t.quantidade, e.transacoes)), { cor: "discreto" }),
+                ],
+              })),
+            },
+          },
+        ]
+      : undefined,
+  };
+
+  // ---- Ciclo médio de recompra: cada recompra do período com a compra anterior
+  const data = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { timeZone: e.fuso });
+  const ciclo = e.ciclo_recompra;
+  const cicloRecompra: DetalheMetrica = {
+    titulo: "Ciclo médio de recompra",
+    descricao:
+      "Cada recompra feita no período e quantos dias se passaram desde a compra anterior do mesmo cliente. A média é o valor do card; a mediana ajuda quando poucos casos puxam a média. Clique no nome para abrir a ficha.",
+    fatias: [],
+    tabela: {
+      cabecalho: ["Cliente", "Compra anterior", "Recompra", "Dias", "Valor da recompra"],
+      vazio: "Nenhuma recompra no período.",
+      linhas: ciclo.recompras.length
+        ? [
+            ...ciclo.recompras.map((r) => ({
+              celulas: [
+                texto(r.nome, { detalhe: r.email, cliente_id: r.cliente_id }),
+                texto(data(r.anterior_em)),
+                texto(data(r.recompra_em)),
+                texto(formatarMetrica(r.dias, "dias")),
+                texto(m(r.valor)),
+              ],
+            })),
+            {
+              total: true,
+              celulas: [
+                texto(`${n(ciclo.recompras.length)} recompras`),
+                texto(""),
+                texto(""),
+                texto(
+                  `média ${formatarMetrica(ciclo.media, "dias")} · mediana ${formatarMetrica(ciclo.mediana, "dias")}`,
+                ),
+                texto(m(ciclo.recompras.reduce((s, r) => s + r.valor, 0))),
+              ],
+            },
+          ]
+        : [],
+    },
+    nota: ciclo.recompras.length >= 300 ? "Mostrando as 300 recompras mais recentes." : undefined,
+  };
+
   // ---- Lista de clientes (novos e recorrentes): nome, transações e gasto
   const listaClientes = (
     lista: ClienteRecompra[],
@@ -442,7 +605,10 @@ export function montarDetalhes(
           ]
         : [],
     },
-    nota: lista.length >= 50 ? "Mostrando os 50 clientes que mais gastaram no período." : undefined,
+    nota:
+      lista.length >= LIMITE_LISTA
+        ? `Mostrando os ${LIMITE_LISTA} clientes que mais gastaram no período.`
+        : undefined,
   });
   const clientesNovos = listaClientes(
     e.novos,
@@ -467,5 +633,7 @@ export function montarDetalhes(
     clientes_recorrentes: clientesRecorrentes,
     transacoes,
     itens,
+    itens_por_transacao: itensPorTransacao,
+    ciclo_recompra_dias: cicloRecompra,
   };
 }
