@@ -114,6 +114,9 @@ export type EntradaDetalhes = {
   /** Mesmos produtos, separados pela categoria do funil da oferta. */
   faturamento_por_categoria: ParcelaCategoria[];
   reembolsos_por_produto: Parcela[];
+  recompra_por_produto: Parcela[];
+  /** Faturamento bruto vindo de recompras no período. */
+  faturamento_recompra: number;
   reembolsos_clientes: ReembolsoCliente[];
   /** Fuso da organização, para datas nas tabelas. */
   fuso: string;
@@ -190,7 +193,7 @@ export function montarDetalhes(
       "Quanto cada produto faturou no período, pelo preço da oferta, agrupado pela categoria do funil da oferta. Inclui vendas depois reembolsadas (o reembolso é descontado na data em que acontece). Ticket médio aqui é por item vendido.",
     fatias: [],
     tabela: {
-      cabecalho: ["Produto", "Faturamento", "%", "Itens", "Ticket médio"],
+      cabecalho: ["Produto", "Faturamento", "% do faturamento", "Itens", "% dos itens", "Ticket médio"],
       vazio: "Sem vendas no período.",
       linhas: [
         ...agruparPorCategoria(e.faturamento_por_categoria).flatMap((g) => [
@@ -201,6 +204,7 @@ export function montarDetalhes(
               texto(m(g.valor)),
               texto(pc(razao(g.valor, e.faturamento_bruto)), { cor: "discreto" }),
               texto(n(g.quantidade)),
+              texto(pc(razao(g.quantidade, e.itens)), { cor: "discreto" }),
               texto(m(razao(g.valor, g.quantidade))),
             ],
           },
@@ -210,6 +214,7 @@ export function montarDetalhes(
               texto(m(p.valor)),
               texto(pc(razao(p.valor, e.faturamento_bruto)), { cor: "discreto" }),
               texto(n(p.quantidade)),
+              texto(pc(razao(p.quantidade, e.itens)), { cor: "discreto" }),
               texto(m(razao(p.valor, p.quantidade))),
             ],
           })),
@@ -221,6 +226,7 @@ export function montarDetalhes(
             texto(m(e.faturamento_bruto)),
             texto(""),
             texto(n(e.itens)),
+            texto(""),
             texto(m(razao(e.faturamento_bruto, e.itens))),
           ],
         },
@@ -511,22 +517,23 @@ export function montarDetalhes(
   const cicloRecompra: DetalheMetrica = {
     titulo: "Ciclo médio de recompra",
     descricao:
-      "Cada recompra feita no período e quantos dias se passaram desde a compra anterior do mesmo cliente. A média é o valor do card; a mediana ajuda quando poucos casos puxam a média. Clique no nome para abrir a ficha.",
+      "Cada recompra feita no período e quantos dias se passaram desde a compra anterior do mesmo cliente, da mais demorada para a mais rápida. A média é o valor do card; a mediana ajuda quando poucos casos puxam a média. Clique no nome para abrir a ficha.",
     fatias: [],
     tabela: {
-      cabecalho: ["Cliente", "Compra anterior", "Recompra", "Dias", "Valor da recompra"],
+      cabecalho: ["Cliente", "Compra anterior", "Recompra", "Dias"],
       vazio: "Nenhuma recompra no período.",
       linhas: ciclo.recompras.length
         ? [
-            ...ciclo.recompras.map((r) => ({
-              celulas: [
-                texto(r.nome, { detalhe: r.email, cliente_id: r.cliente_id }),
-                texto(data(r.anterior_em)),
-                texto(data(r.recompra_em)),
-                texto(formatarMetrica(r.dias, "dias")),
-                texto(m(r.valor)),
-              ],
-            })),
+            ...[...ciclo.recompras]
+              .sort((a, b) => b.dias - a.dias)
+              .map((r) => ({
+                celulas: [
+                  texto(r.nome, { detalhe: r.email, cliente_id: r.cliente_id }),
+                  texto(data(r.anterior_em)),
+                  texto(data(r.recompra_em)),
+                  texto(formatarMetrica(r.dias, "dias")),
+                ],
+              })),
             {
               total: true,
               celulas: [
@@ -536,13 +543,80 @@ export function montarDetalhes(
                 texto(
                   `média ${formatarMetrica(ciclo.media, "dias")} · mediana ${formatarMetrica(ciclo.mediana, "dias")}`,
                 ),
-                texto(m(ciclo.recompras.reduce((s, r) => s + r.valor, 0))),
               ],
             },
           ]
         : [],
     },
     nota: ciclo.recompras.length >= 300 ? "Mostrando as 300 recompras mais recentes." : undefined,
+  };
+
+  // ---- Faturamento de recompra: parte do faturamento vinda de recompras, e por produto
+  const primeiraCompra = Math.max(e.faturamento_bruto - e.faturamento_recompra, 0);
+  const totalRecompra = e.recompra_por_produto.reduce((s, p) => s + p.valor, 0);
+  const faturamentoRecompra: DetalheMetrica = {
+    titulo: "Faturamento de recompra",
+    descricao:
+      "Quanto do faturamento bruto do período veio de recompras (compras de quem já era cliente, fora da janela da transação anterior) e quanto veio de primeiras compras. Abaixo, o que foi vendido nas recompras, por produto.",
+    fatias: [],
+    tabela: {
+      cabecalho: ["", "Faturamento", "% do faturamento"],
+      vazio: "Sem vendas no período.",
+      linhas: e.faturamento_bruto
+        ? [
+            {
+              celulas: [
+                texto("Primeira compra"),
+                texto(m(primeiraCompra)),
+                texto(pc(razao(primeiraCompra, e.faturamento_bruto)), { cor: "discreto" }),
+              ],
+            },
+            {
+              celulas: [
+                texto("Recompra"),
+                texto(m(e.faturamento_recompra)),
+                texto(pc(razao(e.faturamento_recompra, e.faturamento_bruto)), {
+                  cor: "discreto",
+                }),
+              ],
+            },
+            {
+              total: true,
+              celulas: [texto("Faturamento bruto"), texto(m(e.faturamento_bruto)), texto("")],
+            },
+          ]
+        : [],
+    },
+    tabelas_extras: e.recompra_por_produto.length
+      ? [
+          {
+            titulo: "Recompras por produto",
+            tabela: {
+              cabecalho: ["Produto", "Faturamento", "% das recompras", "Itens"],
+              vazio: "Nenhuma recompra no período.",
+              linhas: [
+                ...e.recompra_por_produto.map((p) => ({
+                  celulas: [
+                    texto(p.nome, { alinhar: "left" }),
+                    texto(m(p.valor)),
+                    texto(pc(razao(p.valor, totalRecompra)), { cor: "discreto" }),
+                    texto(n(p.quantidade)),
+                  ],
+                })),
+                {
+                  total: true,
+                  celulas: [
+                    texto("Total"),
+                    texto(m(totalRecompra)),
+                    texto(""),
+                    texto(n(e.recompra_por_produto.reduce((s, p) => s + p.quantidade, 0))),
+                  ],
+                },
+              ],
+            },
+          },
+        ]
+      : undefined,
   };
 
   // ---- Lista de clientes (novos e recorrentes): nome, transações e gasto
@@ -612,5 +686,6 @@ export function montarDetalhes(
     itens,
     itens_por_transacao: itensPorTransacao,
     ciclo_recompra_dias: cicloRecompra,
+    percentual_recompra: faturamentoRecompra,
   };
 }

@@ -18,6 +18,8 @@ export type Composicoes = {
   faturamento_por_categoria: ParcelaCategoria[];
   /** Reembolsos e chargebacks ocorridos no período, por produto. */
   reembolsos_por_produto: Parcela[];
+  /** Faturamento bruto das vendas de recompra (transações eh_recompra), por produto. */
+  recompra_por_produto: Parcela[];
   /** Cada reembolso ou chargeback do período, com o cliente (mais recente primeiro, até 200). */
   reembolsos_clientes: ReembolsoCliente[];
 };
@@ -57,7 +59,7 @@ export async function obterComposicoes(
     supabase
       .from("vendas")
       .select(
-        "valor_bruto, produto_id, produtos(nome), ofertas(funil_ofertas(funil_id, status))",
+        "valor_bruto, produto_id, produtos(nome), ofertas(funil_ofertas(funil_id, status)), transacoes(eh_recompra)",
       )
       .eq("organizacao_id", organizacaoId)
       .gte("vendida_em", `${periodo.de}T00:00:00${off}`)
@@ -103,6 +105,7 @@ export async function obterComposicoes(
   }
 
   const porProduto = new Map<string, Parcela>();
+  const porProdutoRecompra = new Map<string, Parcela>();
   const porCategoriaProduto = new Map<string, ParcelaCategoria>();
   const funilPorId = new Map(funis.map((f) => [f.id, f]));
   for (const v of vendas.data ?? []) {
@@ -133,6 +136,17 @@ export async function obterComposicoes(
     p.valor += Number(v.valor_bruto ?? 0);
     p.quantidade += 1;
     porProduto.set(chave, p);
+    if (v.transacoes?.eh_recompra) {
+      const r = porProdutoRecompra.get(chave) ?? {
+        chave,
+        nome: v.produtos?.nome ?? "Produto",
+        valor: 0,
+        quantidade: 0,
+      };
+      r.valor += Number(v.valor_bruto ?? 0);
+      r.quantidade += 1;
+      porProdutoRecompra.set(chave, r);
+    }
   }
 
   const porProdutoReembolso = new Map<string, Parcela>();
@@ -172,6 +186,7 @@ export async function obterComposicoes(
       (p) => p.valor > 0 || p.quantidade > 0,
     ),
     reembolsos_por_produto: ordenar(porProdutoReembolso),
+    recompra_por_produto: ordenar(porProdutoRecompra),
     reembolsos_clientes: reembolsosClientes
       .sort((a, b) => b.data.localeCompare(a.data))
       .slice(0, 200),

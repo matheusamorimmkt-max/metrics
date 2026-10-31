@@ -124,6 +124,7 @@ export default async function PaginaFunil({
     taxa_anuncios: organizacao.taxa_anuncios,
     investimento: resumo.atual.investimento,
     faturamento_bruto: resumo.atual.faturamento_bruto,
+    faturamento_recompra: resumo.atual.faturamento_recompra,
     lucro: resumo.atual.lucro,
     reembolsos: resumo.composicao.reembolsos,
     taxas_gateway: resumo.composicao.taxas_gateway,
