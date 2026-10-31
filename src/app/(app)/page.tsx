@@ -28,16 +28,12 @@ import { obterComposicoes } from "@/servidor/consultas/composicao";
 import {
   obterDetalhesClientes,
   obterIndicadoresClientes,
-  obterResumoClientes,
 } from "@/servidor/consultas/clientes";
-import { pertenceAoFiltro } from "@/dominio/filtro-home";
-import { TabelaRecompraEntrada } from "./home/tabela-recompra-entrada";
 import { listarFunisInfo } from "@/servidor/consultas/home";
 import { montarDetalhes } from "@/dominio/detalhe-metrica";
 import { BotaoDetalheMetrica } from "./home/detalhe-metrica";
 import { SeletorHome } from "./home/seletor";
-import { GraficoSerie } from "./home/graficos";
-import { TabelaFunis } from "./home/tabela-funis";
+import { GraficoPeriodo } from "./home/grafico-periodo";
 import { cn } from "@/lib/utils";
 
 function Variacao({
@@ -81,15 +77,11 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
     listarIntegracoes(organizacao.id),
   ]);
   const filtro = resolverFiltro(selecao, funisInfo);
-  const [clientes, detalhesClientes, composicoes, resumoClientes] = await Promise.all([
+  const [clientes, detalhesClientes, composicoes] = await Promise.all([
     obterIndicadoresClientes(organizacao.id, periodo, organizacao.fuso_horario, filtro),
     obterDetalhesClientes(organizacao.id, periodo, organizacao.fuso_horario, filtro),
     obterComposicoes(organizacao.id, periodo, filtro, funisInfo, organizacao.fuso_horario),
-    obterResumoClientes(organizacao.id, periodo, organizacao.fuso_horario),
   ]);
-  const recompraPorEntrada = resumoClientes.por_funil_entrada.filter((f) =>
-    pertenceAoFiltro(filtro, f.funil_entrada_id),
-  );
   const resumo = await obterResumoHome(
     organizacao.id,
     organizacao.taxa_anuncios,
@@ -254,50 +246,17 @@ export default async function PaginaHome({ searchParams }: PageProps<"/">) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Dia a dia</CardTitle>
-          <CardDescription>Investimento, faturamento e lucro por dia.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <GraficoSerie serie={resumo.serie} moeda={organizacao.moeda} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Por categoria e funil</CardTitle>
+          <CardTitle>Faturamento e lucro</CardTitle>
           <CardDescription>
-            As notificações dos funis de Front-end olham as últimas 48 horas, independente
-            do período, e sinalizam quando o ROI fica abaixo do esperado.
+            Barras por dia ou por mês: o faturamento bruto ao fundo e, na frente, o lucro
+            (vermelho quando é prejuízo).
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TabelaFunis
-            categorias={resumo.categorias}
-            moeda={organizacao.moeda}
-            podeEditar={podeEditar}
-          />
+          <GraficoPeriodo serie={resumo.serie} moeda={organizacao.moeda} />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recompra por funil de entrada</CardTitle>
-          <CardDescription>
-            Clientes que entraram por cada funil e compraram no período, quantos compraram
-            de novo, para onde foram e quanto essas recompras renderam (receita adicional,
-            contada no funil que vendeu).
-            {filtro.tipo === "negocio" ? "" : " Só os funis do filtro."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TabelaRecompraEntrada linhas={recompraPorEntrada} moeda={organizacao.moeda} />
-          {resumoClientes.truncado ? (
-            <p className="text-muted-foreground mt-2 text-xs">
-              Período muito grande: considera só as primeiras 20 mil transações.
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
     </div>
   );
 }

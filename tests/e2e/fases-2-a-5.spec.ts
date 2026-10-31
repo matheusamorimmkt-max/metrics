@@ -52,13 +52,15 @@ test.describe("Fases 2 a 5 — telas com conectores desligados", () => {
       "Transações",
       "Itens vendidos",
       "Taxa de recompra",
+      "Faturamento de recompra",
       "Ticket médio por transação",
       "CAC",
       "LTV",
     ]) {
       await expect(page.getByText(nome, { exact: true }).first()).toBeVisible();
     }
-    await expect(page.getByText("Por categoria e funil")).toBeVisible();
+    await expect(page.getByText("Faturamento e lucro", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Mês a mês", exact: true })).toBeVisible();
     await expect(page.getByRole("group", { name: "Período" })).toBeVisible();
 
     // Sem credenciais, a Home avisa e leva para Integrações.
