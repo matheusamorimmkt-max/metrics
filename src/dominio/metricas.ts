@@ -185,18 +185,6 @@ export const CARDS_HOME: {
     formato: "inteiro",
   },
   {
-    chave: "clientes_novos",
-    nome: "Clientes novos",
-    descricao: "Primeira compra da vida dentro do período, mesmo que tenha comprado de novo em seguida.",
-    formato: "inteiro",
-  },
-  {
-    chave: "clientes_recorrentes",
-    nome: "Clientes recorrentes",
-    descricao: "Já compravam antes do período e compraram de novo nele.",
-    formato: "inteiro",
-  },
-  {
     chave: "transacoes",
     nome: "Transações",
     descricao: "Compras agrupadas pela janela de transação.",

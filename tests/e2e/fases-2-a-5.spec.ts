@@ -47,8 +47,6 @@ test.describe("Fases 2 a 5 — telas com conectores desligados", () => {
       "ROI",
       "Taxa de reembolso",
       "Total de clientes",
-      "Clientes novos",
-      "Clientes recorrentes",
       "Transações",
       "Itens vendidos",
       "Itens por transação",

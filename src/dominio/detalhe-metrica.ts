@@ -397,8 +397,8 @@ export function montarDetalhes(
       vazio: "Sem clientes no período.",
       linhas: e.clientes.unicos
         ? [
-            ...grupoClientes("Clientes novos", e.novos),
             ...grupoClientes("Clientes recorrentes", e.recompradores),
+            ...grupoClientes("Clientes novos", e.novos),
             {
               total: true,
               celulas: [
@@ -488,44 +488,21 @@ export function montarDetalhes(
   // ---- Itens por transação: transações, itens e distribuição por quantidade de itens
   const itensPorTransacao: DetalheMetrica = {
     titulo: "Itens por transação",
-    descricao:
-      "Itens vendidos divididos pelas transações do período. Abaixo, quantas transações levaram 1 item e quantas levaram bump ou upsell.",
+    descricao: `${n(e.itens)} itens vendidos em ${n(e.transacoes)} transações: ${formatarMetrica(razao(e.itens, e.transacoes), "decimal") ?? "—"} itens por transação. Abaixo, quantas transações levaram 1 item e quantas levaram bump ou upsell.`,
     fatias: [],
     tabela: {
-      cabecalho: ["", "Quantidade"],
+      cabecalho: ["Itens na transação", "Transações", "%"],
       vazio: "Sem transações no período.",
       linhas: e.transacoes
-        ? [
-            { celulas: [texto("Transações"), texto(n(e.transacoes))] },
-            { celulas: [texto("Itens vendidos"), texto(n(e.itens))] },
-            {
-              total: true,
-              celulas: [
-                texto("Itens por transação"),
-                texto(formatarMetrica(razao(e.itens, e.transacoes), "decimal")),
-              ],
-            },
-          ]
+        ? e.transacoes_por_itens.map((t) => ({
+            celulas: [
+              texto(t.itens === 1 ? "1 item" : `${t.itens} itens`),
+              texto(n(t.quantidade)),
+              texto(pc(razao(t.quantidade, e.transacoes)), { cor: "discreto" }),
+            ],
+          }))
         : [],
     },
-    tabelas_extras: e.transacoes
-      ? [
-          {
-            titulo: "Transações por quantidade de itens",
-            tabela: {
-              cabecalho: ["Itens na transação", "Transações", "%"],
-              vazio: "Sem transações no período.",
-              linhas: e.transacoes_por_itens.map((t) => ({
-                celulas: [
-                  texto(t.itens === 1 ? "1 item" : `${t.itens} itens`),
-                  texto(n(t.quantidade)),
-                  texto(pc(razao(t.quantidade, e.transacoes)), { cor: "discreto" }),
-                ],
-              })),
-            },
-          },
-        ]
-      : undefined,
   };
 
   // ---- Ciclo médio de recompra: cada recompra do período com a compra anterior
