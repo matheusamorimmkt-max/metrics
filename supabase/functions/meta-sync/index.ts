@@ -251,6 +251,26 @@ async function sincronizar(supabase: SupabaseClient, entrada: Entrada) {
 
     detalhes.contas = contaIds.length;
 
+    // Conta de anúncios nova na configuração: reabre a importação retroativa para
+    // puxar o histórico dela (o ciclo incremental traz só os últimos dias). O job de
+    // 1 em 1 minuto continua as fatias enquanto importacao_concluida_em for nulo.
+    if (modo !== "retroativa" && integracao.importacao_concluida_em) {
+      const { data: conhecidas } = await supabase
+        .from("contas_anuncio")
+        .select("id_externo")
+        .eq("organizacao_id", organizacao_id)
+        .eq("plataforma", "meta");
+      const jaImportadas = new Set((conhecidas ?? []).map((c) => c.id_externo));
+      const novas = contaIds.filter((id) => !jaImportadas.has(id));
+      if (novas.length) {
+        await supabase
+          .from("integracoes")
+          .update({ importacao_concluida_em: null })
+          .eq("id", integracao.id);
+        detalhes.retroativa_reaberta = novas;
+      }
+    }
+
     // Upsert de campanhas/conjuntos com verba. Se a migration 20261029000002 ainda não
     // foi aplicada, o PostgREST recusa a coluna: repete sem as colunas de verba.
     async function upsertTolerandoVerba<T extends Record<string, unknown>>(
