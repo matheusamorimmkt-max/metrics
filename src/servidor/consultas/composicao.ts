@@ -59,7 +59,7 @@ export async function obterComposicoes(
     supabase
       .from("vendas")
       .select(
-        "valor_bruto, produto_id, produtos(nome), ofertas(funil_ofertas(funil_id, status)), transacoes(eh_recompra)",
+        "valor_bruto, produto_id, produtos(nome), ofertas(funil_ofertas(funil_id, status)), transacoes(eh_recompra), status, reembolsada_em",
       )
       .eq("organizacao_id", organizacaoId)
       .gte("vendida_em", `${periodo.de}T00:00:00${off}`)
@@ -108,10 +108,20 @@ export async function obterComposicoes(
   const porProdutoRecompra = new Map<string, Parcela>();
   const porCategoriaProduto = new Map<string, ParcelaCategoria>();
   const funilPorId = new Map(funis.map((f) => [f.id, f]));
+  const inicioPeriodo = `${periodo.de}T00:00:00${off}`;
+  const fimPeriodo = `${somarDias(periodo.ate, 1)}T00:00:00${off}`;
   for (const v of vendas.data ?? []) {
     const vinculo = v.ofertas?.funil_ofertas;
     const funilId = vinculo?.status === "confirmado" ? vinculo.funil_id : null;
     if (!pertence(funilId)) continue;
+    // Venda reembolsada dentro do período não conta como faturamento (regra de 2026-11-05).
+    if (
+      v.status !== "aprovada" &&
+      v.reembolsada_em &&
+      new Date(v.reembolsada_em) >= new Date(inicioPeriodo) &&
+      new Date(v.reembolsada_em) < new Date(fimPeriodo)
+    )
+      continue;
     const funil = funilId ? funilPorId.get(funilId) : undefined;
     const categoria = funil?.categoria_nome || "Sem funil";
     const chaveCat = `${categoria}|${v.produto_id}`;

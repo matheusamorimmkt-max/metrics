@@ -18,6 +18,8 @@ describe("calcularMetricas", () => {
       clientes_recorrentes: 9,
       faturamento_recompra: 1250,
       ciclo_recompra_dias: 31.4,
+      reembolsos_mesmo_periodo: 0,
+      reembolsos_mesmo_periodo_recompra: 0,
     });
     expect(m.itens_por_transacao).toBeCloseTo(60 / 50, 6);
     expect(m.ciclo_recompra_dias).toBe(31.4);
@@ -76,5 +78,26 @@ describe("formatarMetrica", () => {
     expect(formatarMetrica(0.2, "percentual")).toBe("20,0%");
     expect(formatarMetrica(1234, "inteiro")).toBe("1.234");
     expect(formatarMetrica(null, "moeda")).toBe("—");
+  });
+});
+
+describe("venda reembolsada no mesmo período", () => {
+  it("sai do faturamento bruto sem mudar o lucro", () => {
+    const base = {
+      ...ENTRADA_ZERADA,
+      faturamento_bruto: 10000,
+      reembolsos: 7500,
+      transacoes: 2,
+      vendas: 2,
+      clientes_unicos: 2,
+    };
+    const semAjuste = calcularMetricas(base);
+    const comAjuste = calcularMetricas({ ...base, reembolsos_mesmo_periodo: 7500 });
+    expect(semAjuste.faturamento_bruto).toBe(10000);
+    expect(comAjuste.faturamento_bruto).toBe(2500);
+    expect(comAjuste.lucro).toBe(semAjuste.lucro);
+    expect(comAjuste.receita_liquida).toBe(2500);
+    expect(comAjuste.taxa_reembolso).toBeCloseTo(0.75, 6);
+    expect(comAjuste.ticket_medio).toBe(1250);
   });
 });

@@ -13,6 +13,13 @@ export type EntradaMetricas = {
   faturamento_bruto: number;
   /** Reembolsos e chargebacks ocorridos no período. */
   reembolsos: number;
+  /**
+   * Parte dos reembolsos cuja venda também aconteceu dentro do período: essas vendas
+   * saem do faturamento bruto (decisão de 2026-11-05). Já está contida em `reembolsos`.
+   */
+  reembolsos_mesmo_periodo: number;
+  /** Idem, só das vendas de recompra (sai de `faturamento_recompra`). */
+  reembolsos_mesmo_periodo_recompra: number;
   taxas_gateway: number;
   parceiros: number;
   impostos: number;
@@ -76,32 +83,39 @@ const razao = (num: number, den: number) => (den > 0 ? num / den : null);
 
 export function calcularMetricas(e: EntradaMetricas): Metricas {
   const investimento = arred(e.gasto_anuncios * (1 + e.taxa_anuncios));
+  // Venda reembolsada dentro do próprio período não conta como faturamento. O lucro
+  // não muda: tirar a venda do faturamento e não descontar o reembolso dela dá o mesmo.
+  const faturamento_bruto = arred(e.faturamento_bruto - e.reembolsos_mesmo_periodo);
   const receita_liquida = arred(
     e.faturamento_bruto - e.reembolsos - e.taxas_gateway - e.parceiros - e.impostos,
   );
   const lucro = arred(receita_liquida - investimento);
+  const faturamento_recompra = arred(
+    e.faturamento_recompra - e.reembolsos_mesmo_periodo_recompra,
+  );
   return {
     investimento,
-    faturamento_bruto: arred(e.faturamento_bruto),
+    faturamento_bruto,
     receita_liquida,
     lucro,
-    roas: razao(e.faturamento_bruto, investimento),
+    roas: razao(faturamento_bruto, investimento),
     roi: razao(lucro, investimento),
     transacoes: e.transacoes,
-    ticket_medio: razao(e.faturamento_bruto, e.transacoes),
+    ticket_medio: razao(faturamento_bruto, e.transacoes),
     cac: razao(investimento, e.clientes_novos),
+    // Taxa sobre tudo o que foi vendido no período, antes de tirar as vendas reembolsadas.
     taxa_reembolso: razao(e.reembolsos, e.faturamento_bruto),
     clientes_unicos: e.clientes_unicos,
     clientes_novos: e.clientes_novos,
     clientes_recorrentes: e.clientes_recorrentes,
     itens: e.vendas,
     taxa_recompra: razao(e.clientes_recorrentes, e.clientes_unicos),
-    faturamento_recompra: arred(e.faturamento_recompra),
-    percentual_recompra: razao(e.faturamento_recompra, e.faturamento_bruto),
+    faturamento_recompra,
+    percentual_recompra: razao(faturamento_recompra, faturamento_bruto),
     itens_por_transacao: razao(e.vendas, e.transacoes),
     ciclo_recompra_dias: e.ciclo_recompra_dias,
-    ltv: razao(e.faturamento_bruto, e.clientes_unicos),
-    margem: razao(lucro, e.faturamento_bruto),
+    ltv: razao(faturamento_bruto, e.clientes_unicos),
+    margem: razao(lucro, faturamento_bruto),
     lucro_por_transacao: razao(lucro, e.transacoes),
   };
 }
@@ -111,6 +125,8 @@ export const ENTRADA_ZERADA: EntradaMetricas = {
   taxa_anuncios: 0,
   faturamento_bruto: 0,
   reembolsos: 0,
+  reembolsos_mesmo_periodo: 0,
+  reembolsos_mesmo_periodo_recompra: 0,
   taxas_gateway: 0,
   parceiros: 0,
   impostos: 0,
@@ -148,7 +164,7 @@ export const CARDS_HOME: {
     chave: "faturamento_bruto",
     nome: "Faturamento bruto",
     descricao:
-      "Vendas aprovadas no gateway pelo preço da oferta, incluindo as que depois foram reembolsadas. O reembolso é descontado na data em que acontece.",
+      "Vendas aprovadas no gateway pelo preço da oferta. Venda reembolsada dentro do período não conta; reembolso de venda anterior é descontado na data em que acontece.",
     formato: "moeda",
   },
   {
