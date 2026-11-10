@@ -56,11 +56,19 @@ type Filtros = {
   tipo: Tipo;
   /** Produtos comprados no período (qualquer um deles); vazio = qualquer produto. */
   produtos: string[];
+  /** Produtos que o cliente NÃO comprou no período (nenhum deles); vazio = sem restrição. */
+  naoComprou: string[];
   gastoMin: string;
   gastoMax: string;
 };
 
-const SEM_FILTROS: Filtros = { tipo: "todos", produtos: [], gastoMin: "", gastoMax: "" };
+const SEM_FILTROS: Filtros = {
+  tipo: "todos",
+  produtos: [],
+  naoComprou: [],
+  gastoMin: "",
+  gastoMax: "",
+};
 
 const ROTULO_TIPO: Record<Tipo, string> = {
   todos: "Todos",
@@ -111,7 +119,6 @@ export function ListaClientes({
   fuso: string;
 }) {
   const [busca, setBusca] = useState("");
-  const [buscaProduto, setBuscaProduto] = useState("");
   const [filtros, setFiltros] = useState<Filtros>(SEM_FILTROS);
   const [ordem, setOrdem] = useState<{ coluna: Coluna; desc: boolean }>({
     coluna: "gasto",
@@ -141,11 +148,9 @@ export function ListaClientes({
     const filtrados = clientes.filter((c) => {
       if (filtros.tipo === "novos" && !c.novo) return false;
       if (filtros.tipo === "recorrentes" && !c.recorrente) return false;
-      if (
-        filtros.produtos.length &&
-        !filtros.produtos.some((p) => c.transacoes.some((t) => t.produtos.includes(p)))
-      )
-        return false;
+      const comprou = (p: string) => c.transacoes.some((t) => t.produtos.includes(p));
+      if (filtros.produtos.length && !filtros.produtos.some(comprou)) return false;
+      if (filtros.naoComprou.length && filtros.naoComprou.some(comprou)) return false;
       if (min !== null && c.gasto < min) return false;
       if (max !== null && c.gasto > max) return false;
       if (!termo) return true;
@@ -179,6 +184,8 @@ export function ListaClientes({
   const chips: { chave: keyof Filtros; rotulo: string; produto?: string }[] = [];
   if (filtros.tipo !== "todos") chips.push({ chave: "tipo", rotulo: ROTULO_TIPO[filtros.tipo] });
   for (const p of filtros.produtos) chips.push({ chave: "produtos", rotulo: `Comprou ${p}`, produto: p });
+  for (const p of filtros.naoComprou)
+    chips.push({ chave: "naoComprou", rotulo: `Não comprou ${p}`, produto: p });
   if (numeroOuNulo(filtros.gastoMin) !== null)
     chips.push({
       chave: "gastoMin",
@@ -273,56 +280,20 @@ export function ListaClientes({
                   <option value="recorrentes">Só recorrentes (recompraram)</option>
                 </select>
               </div>
-              <fieldset className="min-w-0 space-y-1.5">
-                <legend className="text-sm font-medium">Comprou o produto</legend>
-                <p className="text-muted-foreground text-xs">
-                  Marque um ou mais; vale quem comprou qualquer um deles.
-                  {filtros.produtos.length ? ` ${filtros.produtos.length} marcado(s).` : ""}
-                </p>
-                {produtos.length === 0 ? (
-                  <p className="text-muted-foreground text-xs">Sem produtos no período.</p>
-                ) : (
-                  <>
-                    <Input
-                      type="search"
-                      value={buscaProduto}
-                      onChange={(e) => setBuscaProduto(e.target.value)}
-                      placeholder="Buscar produto"
-                      aria-label="Buscar produto"
-                    />
-                    <div className="max-h-48 w-full min-w-0 space-y-1 overflow-y-auto rounded-md border p-2">
-                      {produtos
-                        .filter((p) => p.toLowerCase().includes(buscaProduto.trim().toLowerCase()))
-                        .map((p) => (
-                          <label key={p} className="flex min-w-0 items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              className="size-4 shrink-0"
-                              checked={filtros.produtos.includes(p)}
-                              onChange={(e) =>
-                                setFiltros({
-                                  ...filtros,
-                                  produtos: e.target.checked
-                                    ? [...filtros.produtos, p]
-                                    : filtros.produtos.filter((x) => x !== p),
-                                })
-                              }
-                            />
-                            <span className="min-w-0 flex-1 truncate" title={p}>
-                              {p}
-                            </span>
-                          </label>
-                        ))}
-                      {buscaProduto.trim() &&
-                      !produtos.some((p) =>
-                        p.toLowerCase().includes(buscaProduto.trim().toLowerCase()),
-                      ) ? (
-                        <p className="text-muted-foreground text-xs">Nenhum produto com esse nome.</p>
-                      ) : null}
-                    </div>
-                  </>
-                )}
-              </fieldset>
+              <ListaProdutos
+                titulo="Comprou o produto"
+                ajuda="Marque um ou mais; vale quem comprou qualquer um deles."
+                produtos={produtos}
+                marcados={filtros.produtos}
+                aoMudar={(lista) => setFiltros({ ...filtros, produtos: lista })}
+              />
+              <ListaProdutos
+                titulo="Não comprou o produto"
+                ajuda="Marque um ou mais; fica quem não comprou nenhum deles no período."
+                produtos={produtos}
+                marcados={filtros.naoComprou}
+                aoMudar={(lista) => setFiltros({ ...filtros, naoComprou: lista })}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="filtro-gasto-min">Gastou a partir de</Label>
@@ -374,12 +345,15 @@ export function ListaClientes({
         <div className="flex flex-wrap gap-2">
           {chips.map((chip) => (
             <button
-              key={chip.produto ? `produto:${chip.produto}` : chip.chave}
+              key={chip.produto ? `${chip.chave}:${chip.produto}` : chip.chave}
               type="button"
               onClick={() =>
                 setFiltros(
-                  chip.produto
-                    ? { ...filtros, produtos: filtros.produtos.filter((p) => p !== chip.produto) }
+                  chip.produto && (chip.chave === "produtos" || chip.chave === "naoComprou")
+                    ? {
+                        ...filtros,
+                        [chip.chave]: filtros[chip.chave].filter((p) => p !== chip.produto),
+                      }
                     : { ...filtros, [chip.chave]: SEM_FILTROS[chip.chave] },
                 )
               }
@@ -473,5 +447,66 @@ export function ListaClientes({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Lista de produtos com busca e caixas de seleção, usada em "Comprou" e "Não comprou". */
+function ListaProdutos({
+  titulo,
+  ajuda,
+  produtos,
+  marcados,
+  aoMudar,
+}: {
+  titulo: string;
+  ajuda: string;
+  produtos: string[];
+  marcados: string[];
+  aoMudar: (lista: string[]) => void;
+}) {
+  const [busca, setBusca] = useState("");
+  const termo = busca.trim().toLowerCase();
+  const visiveis = produtos.filter((p) => p.toLowerCase().includes(termo));
+  return (
+    <fieldset className="min-w-0 space-y-1.5">
+      <legend className="text-sm font-medium">{titulo}</legend>
+      <p className="text-muted-foreground text-xs">
+        {ajuda}
+        {marcados.length ? ` ${marcados.length} marcado(s).` : ""}
+      </p>
+      {produtos.length === 0 ? (
+        <p className="text-muted-foreground text-xs">Sem produtos no período.</p>
+      ) : (
+        <>
+          <Input
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar produto"
+            aria-label={`Buscar produto em ${titulo}`}
+          />
+          <div className="max-h-40 w-full min-w-0 space-y-1 overflow-y-auto rounded-md border p-2">
+            {visiveis.map((p) => (
+              <label key={p} className="flex min-w-0 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4 shrink-0"
+                  checked={marcados.includes(p)}
+                  onChange={(e) =>
+                    aoMudar(e.target.checked ? [...marcados, p] : marcados.filter((x) => x !== p))
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate" title={p}>
+                  {p}
+                </span>
+              </label>
+            ))}
+            {termo && visiveis.length === 0 ? (
+              <p className="text-muted-foreground text-xs">Nenhum produto com esse nome.</p>
+            ) : null}
+          </div>
+        </>
+      )}
+    </fieldset>
   );
 }
