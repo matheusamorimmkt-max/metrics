@@ -24,6 +24,12 @@ import {
 } from "@/components/ui/table";
 import { formatarMetrica } from "@/dominio/metricas";
 import { dataCurta, dataHora, type ClienteResumido } from "@/dominio/clientes-periodo";
+import { hojeNoFuso } from "@/dominio/periodo";
+
+/** "2026-11-05" → "05/11/2026". */
+function dataBr(iso: string): string {
+  return iso.split("-").reverse().join("/");
+}
 import { BotaoFichaCliente } from "./ficha-cliente";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +64,9 @@ type Filtros = {
   produtos: string[];
   /** Produtos que o cliente NÃO comprou no período (nenhum deles); vazio = sem restrição. */
   naoComprou: string[];
+  /** Janela da compra (AAAA-MM-DD, dias no fuso da organização); vazio = o período todo. */
+  compraDe: string;
+  compraAte: string;
   gastoMin: string;
   gastoMax: string;
 };
@@ -66,6 +75,8 @@ const SEM_FILTROS: Filtros = {
   tipo: "todos",
   produtos: [],
   naoComprou: [],
+  compraDe: "",
+  compraAte: "",
   gastoMin: "",
   gastoMax: "",
 };
@@ -148,7 +159,14 @@ export function ListaClientes({
     const filtrados = clientes.filter((c) => {
       if (filtros.tipo === "novos" && !c.novo) return false;
       if (filtros.tipo === "recorrentes" && !c.recorrente) return false;
-      const comprou = (p: string) => c.transacoes.some((t) => t.produtos.includes(p));
+      // Janela da compra: só transações entre as datas (dias no fuso da organização).
+      const naJanela = (t: { inicio: string }) => {
+        const dia = hojeNoFuso(fuso, new Date(t.inicio));
+        return (!filtros.compraDe || dia >= filtros.compraDe) && (!filtros.compraAte || dia <= filtros.compraAte);
+      };
+      const transacoes = c.transacoes.filter(naJanela);
+      if ((filtros.compraDe || filtros.compraAte) && transacoes.length === 0) return false;
+      const comprou = (p: string) => transacoes.some((t) => t.produtos.includes(p));
       if (filtros.produtos.length && !filtros.produtos.some(comprou)) return false;
       if (filtros.naoComprou.length && filtros.naoComprou.some(comprou)) return false;
       if (min !== null && c.gasto < min) return false;
@@ -186,6 +204,10 @@ export function ListaClientes({
   for (const p of filtros.produtos) chips.push({ chave: "produtos", rotulo: `Comprou ${p}`, produto: p });
   for (const p of filtros.naoComprou)
     chips.push({ chave: "naoComprou", rotulo: `Não comprou ${p}`, produto: p });
+  if (filtros.compraDe)
+    chips.push({ chave: "compraDe", rotulo: `Comprou a partir de ${dataBr(filtros.compraDe)}` });
+  if (filtros.compraAte)
+    chips.push({ chave: "compraAte", rotulo: `Comprou até ${dataBr(filtros.compraAte)}` });
   if (numeroOuNulo(filtros.gastoMin) !== null)
     chips.push({
       chave: "gastoMin",
@@ -294,6 +316,33 @@ export function ListaClientes({
                 marcados={filtros.naoComprou}
                 aoMudar={(lista) => setFiltros({ ...filtros, naoComprou: lista })}
               />
+              <fieldset className="space-y-1.5">
+                <legend className="text-sm font-medium">Período da compra</legend>
+                <p className="text-muted-foreground text-xs">
+                  Só compras entre as datas; os filtros de produto passam a olhar só essas
+                  compras. Dentro do período selecionado no topo.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="filtro-compra-de">De</Label>
+                    <Input
+                      id="filtro-compra-de"
+                      type="date"
+                      value={filtros.compraDe}
+                      onChange={(e) => setFiltros({ ...filtros, compraDe: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="filtro-compra-ate">Até</Label>
+                    <Input
+                      id="filtro-compra-ate"
+                      type="date"
+                      value={filtros.compraAte}
+                      onChange={(e) => setFiltros({ ...filtros, compraAte: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </fieldset>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="filtro-gasto-min">Gastou a partir de</Label>
