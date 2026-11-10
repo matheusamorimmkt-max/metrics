@@ -111,6 +111,7 @@ export function ListaClientes({
   fuso: string;
 }) {
   const [busca, setBusca] = useState("");
+  const [buscaProduto, setBuscaProduto] = useState("");
   const [filtros, setFiltros] = useState<Filtros>(SEM_FILTROS);
   const [ordem, setOrdem] = useState<{ coluna: Coluna; desc: boolean }>({
     coluna: "gasto",
@@ -251,14 +252,14 @@ export function ListaClientes({
               </Badge>
             ) : null}
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Filtrar clientes</DialogTitle>
               <DialogDescription>
                 Os filtros valem para a lista, os totais e o CSV.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="filtro-tipo">Tipo de cliente</Label>
                 <select
@@ -272,39 +273,54 @@ export function ListaClientes({
                   <option value="recorrentes">Só recorrentes (recompraram)</option>
                 </select>
               </div>
-              <fieldset className="space-y-1.5">
-                <legend className="text-sm font-medium">
-                  Comprou o produto
-                  <span className="text-muted-foreground font-normal">
-                    {" "}
-                    (marque um ou mais; vale quem comprou qualquer um deles)
-                  </span>
-                </legend>
+              <fieldset className="min-w-0 space-y-1.5">
+                <legend className="text-sm font-medium">Comprou o produto</legend>
+                <p className="text-muted-foreground text-xs">
+                  Marque um ou mais; vale quem comprou qualquer um deles.
+                  {filtros.produtos.length ? ` ${filtros.produtos.length} marcado(s).` : ""}
+                </p>
                 {produtos.length === 0 ? (
                   <p className="text-muted-foreground text-xs">Sem produtos no período.</p>
                 ) : (
-                  <div className="max-h-56 space-y-1 overflow-y-auto rounded-md border p-2">
-                    {produtos.map((p) => (
-                      <label key={p} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="size-4 shrink-0"
-                          checked={filtros.produtos.includes(p)}
-                          onChange={(e) =>
-                            setFiltros({
-                              ...filtros,
-                              produtos: e.target.checked
-                                ? [...filtros.produtos, p]
-                                : filtros.produtos.filter((x) => x !== p),
-                            })
-                          }
-                        />
-                        <span className="truncate" title={p}>
-                          {p}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                  <>
+                    <Input
+                      type="search"
+                      value={buscaProduto}
+                      onChange={(e) => setBuscaProduto(e.target.value)}
+                      placeholder="Buscar produto"
+                      aria-label="Buscar produto"
+                    />
+                    <div className="max-h-48 w-full min-w-0 space-y-1 overflow-y-auto rounded-md border p-2">
+                      {produtos
+                        .filter((p) => p.toLowerCase().includes(buscaProduto.trim().toLowerCase()))
+                        .map((p) => (
+                          <label key={p} className="flex min-w-0 items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              className="size-4 shrink-0"
+                              checked={filtros.produtos.includes(p)}
+                              onChange={(e) =>
+                                setFiltros({
+                                  ...filtros,
+                                  produtos: e.target.checked
+                                    ? [...filtros.produtos, p]
+                                    : filtros.produtos.filter((x) => x !== p),
+                                })
+                              }
+                            />
+                            <span className="min-w-0 flex-1 truncate" title={p}>
+                              {p}
+                            </span>
+                          </label>
+                        ))}
+                      {buscaProduto.trim() &&
+                      !produtos.some((p) =>
+                        p.toLowerCase().includes(buscaProduto.trim().toLowerCase()),
+                      ) ? (
+                        <p className="text-muted-foreground text-xs">Nenhum produto com esse nome.</p>
+                      ) : null}
+                    </div>
+                  </>
                 )}
               </fieldset>
               <div className="grid grid-cols-2 gap-3">
