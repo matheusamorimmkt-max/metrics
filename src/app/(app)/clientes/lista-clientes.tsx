@@ -54,13 +54,13 @@ type Tipo = "todos" | "novos" | "recorrentes";
 
 type Filtros = {
   tipo: Tipo;
-  /** Nome do produto comprado no período; "" = qualquer. */
-  produto: string;
+  /** Produtos comprados no período (qualquer um deles); vazio = qualquer produto. */
+  produtos: string[];
   gastoMin: string;
   gastoMax: string;
 };
 
-const SEM_FILTROS: Filtros = { tipo: "todos", produto: "", gastoMin: "", gastoMax: "" };
+const SEM_FILTROS: Filtros = { tipo: "todos", produtos: [], gastoMin: "", gastoMax: "" };
 
 const ROTULO_TIPO: Record<Tipo, string> = {
   todos: "Todos",
@@ -140,7 +140,10 @@ export function ListaClientes({
     const filtrados = clientes.filter((c) => {
       if (filtros.tipo === "novos" && !c.novo) return false;
       if (filtros.tipo === "recorrentes" && !c.recorrente) return false;
-      if (filtros.produto && !c.transacoes.some((t) => t.produtos.includes(filtros.produto)))
+      if (
+        filtros.produtos.length &&
+        !filtros.produtos.some((p) => c.transacoes.some((t) => t.produtos.includes(p)))
+      )
         return false;
       if (min !== null && c.gasto < min) return false;
       if (max !== null && c.gasto > max) return false;
@@ -172,9 +175,9 @@ export function ListaClientes({
     { transacoes: 0, itens: 0, gasto: 0 },
   );
 
-  const chips: { chave: keyof Filtros; rotulo: string }[] = [];
+  const chips: { chave: keyof Filtros; rotulo: string; produto?: string }[] = [];
   if (filtros.tipo !== "todos") chips.push({ chave: "tipo", rotulo: ROTULO_TIPO[filtros.tipo] });
-  if (filtros.produto) chips.push({ chave: "produto", rotulo: `Comprou ${filtros.produto}` });
+  for (const p of filtros.produtos) chips.push({ chave: "produtos", rotulo: `Comprou ${p}`, produto: p });
   if (numeroOuNulo(filtros.gastoMin) !== null)
     chips.push({
       chave: "gastoMin",
@@ -269,22 +272,41 @@ export function ListaClientes({
                   <option value="recorrentes">Só recorrentes (recompraram)</option>
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="filtro-produto">Comprou o produto</Label>
-                <select
-                  id="filtro-produto"
-                  value={filtros.produto}
-                  onChange={(e) => setFiltros({ ...filtros, produto: e.target.value })}
-                  className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
-                >
-                  <option value="">Qualquer produto</option>
-                  {produtos.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <fieldset className="space-y-1.5">
+                <legend className="text-sm font-medium">
+                  Comprou o produto
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    (marque um ou mais; vale quem comprou qualquer um deles)
+                  </span>
+                </legend>
+                {produtos.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">Sem produtos no período.</p>
+                ) : (
+                  <div className="max-h-56 space-y-1 overflow-y-auto rounded-md border p-2">
+                    {produtos.map((p) => (
+                      <label key={p} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="size-4 shrink-0"
+                          checked={filtros.produtos.includes(p)}
+                          onChange={(e) =>
+                            setFiltros({
+                              ...filtros,
+                              produtos: e.target.checked
+                                ? [...filtros.produtos, p]
+                                : filtros.produtos.filter((x) => x !== p),
+                            })
+                          }
+                        />
+                        <span className="truncate" title={p}>
+                          {p}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </fieldset>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="filtro-gasto-min">Gastou a partir de</Label>
@@ -336,9 +358,15 @@ export function ListaClientes({
         <div className="flex flex-wrap gap-2">
           {chips.map((chip) => (
             <button
-              key={chip.chave}
+              key={chip.produto ? `produto:${chip.produto}` : chip.chave}
               type="button"
-              onClick={() => setFiltros({ ...filtros, [chip.chave]: SEM_FILTROS[chip.chave] })}
+              onClick={() =>
+                setFiltros(
+                  chip.produto
+                    ? { ...filtros, produtos: filtros.produtos.filter((p) => p !== chip.produto) }
+                    : { ...filtros, [chip.chave]: SEM_FILTROS[chip.chave] },
+                )
+              }
               className="bg-muted hover:bg-muted/70 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs"
               title="Remover este filtro"
             >

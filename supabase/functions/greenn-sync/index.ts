@@ -17,6 +17,7 @@ import {
   somarDias,
   traduzirOferta,
   traduzirProduto,
+  lerCliente,
   traduzirVenda,
   type OfertaGreenn,
   type ProdutoGreenn,
@@ -36,6 +37,10 @@ type Entrada = {
   origem: "login" | "botao" | "agendado" | "manual";
   ciclo_id?: string;
   corte?: string;
+  /** Ação avulsa, fora do ciclo: completa o telefone dos clientes sem telefone. */
+  acao?: "completar_telefones";
+  /** Quantos clientes por chamada (padrão 100, ~1 min pelo limite da API). */
+  limite?: number;
 };
 
 type Cursor = { pagina: number; paid_after: string | null };
@@ -75,7 +80,8 @@ Deno.serve(async (req) => {
   } catch {
     return json({ erro: "Corpo inválido." }, 400);
   }
-  if (!entrada.organizacao_id || !entrada.modo || !entrada.origem) {
+  if (!entrada.organizacao_id) return json({ erro: "Informe organizacao_id." }, 400);
+  if (!entrada.acao && (!entrada.modo || !entrada.origem)) {
     return json({ erro: "Informe organizacao_id, modo e origem." }, 400);
   }
 
@@ -84,6 +90,17 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false } },
   );
+
+  if (entrada.acao === "completar_telefones") {
+    try {
+      return json(await completarTelefones(supabase, entrada.organizacao_id, entrada.limite));
+    } catch (erro) {
+      return json(
+        { status: "falhou", erro: erro instanceof Error ? erro.message : String(erro) },
+        500,
+      );
+    }
+  }
 
   try {
     const resultado = await sincronizar(supabase, entrada);
@@ -538,4 +555,86 @@ async function gravarVenda(
     if (erroCom) throw new Error(`comissoes: ${erroCom.message}`);
   }
   return clienteId;
+}
+
+/**
+ * Completa `clientes.telefone` de quem ainda não tem: relê o detalhe da venda mais
+ * recente de cada cliente na Greenn (que passou a trazer `client.cellphone` em
+ * 2026-10-30). Fora do ciclo de sincronização; roda em lotes pelo limite de 100
+ * chamadas por minuto da API. Devolve quantos faltam para a próxima chamada.
+ */
+async function completarTelefones(
+  supabase: SupabaseClient,
+  organizacao_id: string,
+  limite = 100,
+) {
+  const inicio = Date.now();
+  const { data: integracao } = await supabase
+    .from("integracoes")
+    .select("id, status")
+    .eq("organizacao_id", organizacao_id)
+    .eq("tipo", PLATAFORMA)
+    .maybeSingle();
+  if (!integracao || integracao.status === "desconectada") {
+    return { status: "ignorado", motivo: "Greenn não configurada nesta organização." };
+  }
+  const { data: token, error: erroToken } = await supabase.rpc("ler_credencial_integracao", {
+    p_integracao_id: integracao.id,
+  });
+  if (erroToken || !token) throw new Error("Credencial da Greenn não encontrada no cofre.");
+  const greenn = new ClienteGreenn({ token });
+
+  const { data: clientes, error } = await supabase
+    .from("clientes")
+    .select("id, vendas(id_externo, vendida_em)")
+    .eq("organizacao_id", organizacao_id)
+    .is("telefone", null)
+    .order("id")
+    .limit(Math.max(1, Math.min(limite, 300)));
+  if (error) throw new Error(`clientes: ${error.message}`);
+
+  let processados = 0;
+  let atualizados = 0;
+  let semTelefone = 0;
+  const semTelefoneIds: string[] = [];
+  for (const c of clientes ?? []) {
+    if (Date.now() - inicio > ORCAMENTO_MS) break;
+    const vendas = (c.vendas ?? []) as { id_externo: string; vendida_em: string }[];
+    const ultima = [...vendas].sort((a, b) => b.vendida_em.localeCompare(a.vendida_em))[0];
+    processados += 1;
+    if (!ultima) {
+      semTelefone += 1;
+      semTelefoneIds.push(c.id);
+      continue;
+    }
+    const detalhe = await greenn.venda<VendaGreenn | { data?: VendaGreenn }>(ultima.id_externo);
+    const venda = "data" in detalhe && detalhe.data ? detalhe.data : (detalhe as VendaGreenn);
+    const telefone = lerCliente(venda).telefone;
+    if (telefone) {
+      const { error: erroUpd } = await supabase
+        .from("clientes")
+        .update({ telefone })
+        .eq("id", c.id);
+      if (erroUpd) throw new Error(`clientes: ${erroUpd.message}`);
+      atualizados += 1;
+    } else {
+      semTelefone += 1;
+      semTelefoneIds.push(c.id);
+    }
+  }
+  const { count } = await supabase
+    .from("clientes")
+    .select("id", { count: "exact", head: true })
+    .eq("organizacao_id", organizacao_id)
+    .is("telefone", null);
+  return {
+    status: "concluida",
+    processados,
+    atualizados,
+    sem_telefone: semTelefone,
+    restantes: count ?? null,
+    chamadas_api: greenn.chamadas,
+    /** Para o chamador pular na próxima rodada quem a Greenn não tem telefone. */
+    sem_telefone_ids: semTelefoneIds,
+  };
 }
