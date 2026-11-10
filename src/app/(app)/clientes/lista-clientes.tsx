@@ -188,7 +188,7 @@ export function ListaClientes({
           : String(va).localeCompare(String(vb), "pt-BR");
       return cmp * sinal || b.gasto - a.gasto;
     });
-  }, [clientes, busca, filtros, ordem]);
+  }, [clientes, busca, filtros, ordem, fuso]);
 
   const totais = visiveis.reduce(
     (s, c) => ({
