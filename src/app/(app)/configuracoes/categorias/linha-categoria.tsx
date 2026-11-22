@@ -8,13 +8,13 @@ import { Label } from "@/components/ui/label";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -93,7 +93,7 @@ export function LinhaCategoria({
             >
               <Pencil />
             </DialogTrigger>
-            <DialogContent>
+            <ConteudoDialogo>
               <FormAcao
                 acao={renomearCategoria}
                 aoConcluir={fecharAoSalvar}
@@ -128,7 +128,7 @@ export function LinhaCategoria({
                   <BotaoEnviar>Salvar</BotaoEnviar>
                 </DialogFooter>
               </FormAcao>
-            </DialogContent>
+            </ConteudoDialogo>
           </Dialog>
 
           <AlertDialog>

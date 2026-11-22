@@ -10,13 +10,13 @@ import { Label } from "@/components/ui/label";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import { BotaoEnviar } from "@/components/formulario/botao-enviar";
 import { OpcoesBaseImposto } from "@/components/formulario/opcoes-base-imposto";
 import {
@@ -87,7 +87,7 @@ export function LinhaProduto({
             <Pencil data-icon="inline-start" />
             Imposto
           </DialogTrigger>
-          <DialogContent>
+          <ConteudoDialogo>
             <form action={acao} className="space-y-4">
               <input type="hidden" name="produto_id" value={produto.id} />
               <input
@@ -155,7 +155,7 @@ export function LinhaProduto({
                 <BotaoEnviar>Salvar e aplicar ao histórico</BotaoEnviar>
               </DialogFooter>
             </form>
-          </DialogContent>
+          </ConteudoDialogo>
         </Dialog>
       </TableCell>
     </TableRow>

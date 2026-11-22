@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -281,7 +281,7 @@ export function ListaClientes({
               </Badge>
             ) : null}
           </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <ConteudoDialogo className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Filtrar clientes</DialogTitle>
               <DialogDescription>
@@ -375,7 +375,7 @@ export function ListaClientes({
                 Limpar filtros
               </Button>
             </div>
-          </DialogContent>
+          </ConteudoDialogo>
         </Dialog>
         <Button
           type="button"

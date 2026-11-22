@@ -4,12 +4,12 @@ import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import { formatarMetrica } from "@/dominio/metricas";
 import { rotuloMeioPagamento } from "@/dominio/pagamentos";
 import { dataCurta, dataHora } from "@/dominio/clientes-periodo";
@@ -67,7 +67,7 @@ export function BotaoFichaCliente({
       >
         {nome}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+      <ConteudoDialogo className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{ficha?.nome?.trim() || nome}</DialogTitle>
           <DialogDescription>
@@ -82,7 +82,7 @@ export function BotaoFichaCliente({
         ) : (
           <ConteudoFicha ficha={ficha} fuso={fuso} />
         )}
-      </DialogContent>
+      </ConteudoDialogo>
     </Dialog>
   );
 }

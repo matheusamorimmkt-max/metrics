@@ -5,13 +5,13 @@ import { GripVertical, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import {
   COLUNAS_PADRAO_TRAFEGO,
   METRICAS_TRAFEGO,
@@ -65,7 +65,7 @@ export function PersonalizarColunas({
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         Adicionar métricas
       </DialogTrigger>
-      <DialogContent className="sm:max-w-3xl">
+      <ConteudoDialogo className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Personalizar colunas</DialogTitle>
           <DialogDescription>
@@ -179,7 +179,7 @@ export function PersonalizarColunas({
             </Button>
           </div>
         </DialogFooter>
-      </DialogContent>
+      </ConteudoDialogo>
     </Dialog>
   );
 }

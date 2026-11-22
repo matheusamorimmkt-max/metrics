@@ -5,12 +5,12 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import { formatarMetrica } from "@/dominio/metricas";
 import type {
   DetalheMetrica,
@@ -45,7 +45,7 @@ export function BotaoDetalheMetrica({
       >
         <Eye aria-hidden />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-3xl">
+      <ConteudoDialogo className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{detalhe.titulo}</DialogTitle>
           <DialogDescription>{detalhe.descricao}</DialogDescription>
@@ -131,7 +131,7 @@ export function BotaoDetalheMetrica({
         {detalhe.nota ? (
           <p className="text-muted-foreground text-xs">{detalhe.nota}</p>
         ) : null}
-      </DialogContent>
+      </ConteudoDialogo>
     </Dialog>
   );
 }

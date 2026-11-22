@@ -7,13 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import {
   escreverSelecao,
   lerSelecao,
@@ -150,7 +150,7 @@ export function FiltroHome({
             </Badge>
           ) : null}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
+        <ConteudoDialogo className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>O que você quer ver</DialogTitle>
             <DialogDescription>
@@ -252,7 +252,7 @@ export function FiltroHome({
               Aplicar
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ConteudoDialogo>
       </Dialog>
       {chips.map((chip) => (
         <button

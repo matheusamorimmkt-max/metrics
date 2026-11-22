@@ -7,12 +7,12 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import { Label } from "@/components/ui/label";
 import { formatarMetrica } from "@/dominio/metricas";
 import { Button } from "@/components/ui/button";
@@ -204,7 +204,7 @@ export function TabelaOfertas({
               </Badge>
             ) : null}
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <ConteudoDialogo className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Filtrar ofertas</DialogTitle>
               <DialogDescription>Os filtros valem para a lista e para a seleção em lote.</DialogDescription>
@@ -307,7 +307,7 @@ export function TabelaOfertas({
                 Limpar filtros
               </Button>
             </div>
-          </DialogContent>
+          </ConteudoDialogo>
         </Dialog>
         {chips.map((chip) => (
           <button

@@ -4,12 +4,12 @@ import { ExternalLink, Image as ImagemIcone, Play, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConteudoDialogo } from "@/components/formulario/dialogo";
 import type { Criativo } from "@/servidor/consultas/trafego";
 
 /** Miniatura do criativo do anúncio; clicar abre a imagem ou o vídeo em tamanho maior. */
@@ -61,7 +61,7 @@ export function MiniaturaCriativo({
           </span>
         ) : null}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <ConteudoDialogo className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="truncate">{nome}</DialogTitle>
           <DialogDescription>
@@ -108,7 +108,7 @@ export function MiniaturaCriativo({
             Abrir no Meta <ExternalLink data-icon="inline-end" />
           </Button>
         ) : null}
-      </DialogContent>
+      </ConteudoDialogo>
     </Dialog>
   );
 }
