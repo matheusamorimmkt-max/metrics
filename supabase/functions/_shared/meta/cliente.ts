@@ -13,6 +13,11 @@ import type {
 export const VERSAO_GRAPH = "v23.0";
 const BASE = `https://graph.facebook.com/${VERSAO_GRAPH}`;
 
+/** Moeda → menor unidade (centavos), como a API do Meta espera em daily_budget/lifetime_budget. */
+export function paraCentavos(valor: number): number {
+  return Math.round(valor * 100);
+}
+
 /** Códigos de erro do Meta que significam "espere e tente de novo". */
 const CODIGOS_LIMITE = new Set([4, 17, 32, 613, 80000, 80004]);
 
@@ -201,6 +206,22 @@ export class ClienteMeta {
    */
   async alterarStatus(idExterno: string, status: "ACTIVE" | "PAUSED"): Promise<void> {
     await this.post<{ success?: boolean }>(`/${idExterno}`, { status });
+  }
+
+  /**
+   * Muda o orçamento diário ou total de uma campanha ou conjunto. O Meta recebe o valor
+   * na menor unidade da moeda (centavos): `paraCentavos` faz a conversão inversa de
+   * `traduzirVerba`. Exige a permissão ads_management.
+   */
+  async alterarVerba(
+    idExterno: string,
+    tipo: "diaria" | "total",
+    valor: number,
+  ): Promise<void> {
+    const campo = tipo === "diaria" ? "daily_budget" : "lifetime_budget";
+    await this.post<{ success?: boolean }>(`/${idExterno}`, {
+      [campo]: String(paraCentavos(valor)),
+    });
   }
 
   insights(

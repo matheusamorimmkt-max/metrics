@@ -6,6 +6,7 @@ import { obterContexto } from "@/servidor/sessao";
 import { criarClienteServidor } from "@/servidor/supabase/servidor";
 import { criarClienteAdmin } from "@/servidor/supabase/admin";
 import { falha, sucesso, type Resultado, semPermissao } from "./resultado";
+import { VERBA_MINIMA, type TipoVerba } from "@/dominio/verba";
 
 const CAMINHO = "/configuracoes/campanhas";
 /** Conectores que aceitam ações, por plataforma da campanha. */
@@ -67,6 +68,21 @@ export async function vincularCampanha(
 
 type RespostaAcao = { status: string; erro?: string; novo_status?: string };
 
+/** Lê a mensagem de erro que o conector devolveu no corpo, quando houver. */
+async function mensagemDoConector(error: { message: string; context?: unknown }) {
+  let mensagem = error.message;
+  const contexto = error.context as Response | undefined;
+  if (contexto && typeof contexto.json === "function") {
+    try {
+      const corpo = (await contexto.json()) as RespostaAcao;
+      mensagem = corpo.erro ?? mensagem;
+    } catch {
+      /* mantém a mensagem padrão */
+    }
+  }
+  return mensagem;
+}
+
 const schemaVeiculacao = z.object({
   nivel: z.enum(["campanha", "conjunto", "anuncio"]),
   id: z.uuid("Registro inválido."),
@@ -119,19 +135,7 @@ export async function alterarStatusVeiculacao(
       status: ativar ? "ACTIVE" : "PAUSED",
     },
   });
-  if (error) {
-    let mensagem = error.message;
-    const contexto = (error as { context?: Response }).context;
-    if (contexto && typeof contexto.json === "function") {
-      try {
-        const corpo = (await contexto.json()) as RespostaAcao;
-        mensagem = corpo.erro ?? mensagem;
-      } catch {
-        /* mantém a mensagem padrão */
-      }
-    }
-    return falha(mensagem);
-  }
+  if (error) return falha(await mensagemDoConector(error));
   if (data?.status !== "concluida")
     return falha(data?.erro ?? "A plataforma não confirmou.");
 
@@ -140,4 +144,63 @@ export async function alterarStatusVeiculacao(
   revalidatePath("/", "layout");
   const rotulo = ROTULO_NIVEL[parse.data.nivel];
   return sucesso(ativar ? `${rotulo} em veiculação.` : `${rotulo} pausado.`);
+}
+
+const schemaVerba = z.object({
+  nivel: z.enum(["campanha", "conjunto"]),
+  id: z.uuid("Registro inválido."),
+  tipo: z.enum(["diaria", "total"]),
+  valor: z
+    .number("Informe um valor.")
+    .finite("Informe um valor.")
+    .min(VERBA_MINIMA, "O orçamento precisa ser maior que zero."),
+});
+
+/**
+ * Muda o orçamento diário ou total de uma campanha ou conjunto na plataforma, pelo
+ * conector (mesmo caminho da chave liga/desliga). O valor vem na moeda da conta; o
+ * conector converte para centavos e, se o Meta aceitar, grava a verba nova no banco.
+ */
+export async function alterarVerbaVeiculacao(
+  nivel: "campanha" | "conjunto",
+  id: string,
+  tipo: TipoVerba,
+  valor: number,
+): Promise<Resultado> {
+  const contexto = await obterContexto();
+  if (!contexto.podeEditar) return semPermissao();
+  const { organizacao } = contexto;
+  const parse = schemaVerba.safeParse({ nivel, id, tipo, valor });
+  if (!parse.success) return falha(parse.error.issues[0]?.message ?? "Dados inválidos.");
+
+  const supabase = await criarClienteServidor();
+  const { data: linha, error: erroLinha } = await supabase
+    .from(TABELA_POR_NIVEL[parse.data.nivel])
+    .select("id, plataforma")
+    .eq("id", parse.data.id)
+    .eq("organizacao_id", organizacao.id)
+    .maybeSingle();
+  if (erroLinha) return falha(`Não foi possível localizar: ${erroLinha.message}`);
+  if (!linha) return falha(`${ROTULO_NIVEL[parse.data.nivel]} não encontrado.`);
+  const funcao = CONECTORES[linha.plataforma];
+  if (!funcao) return falha("Esta plataforma ainda não permite mudar o orçamento pelo painel.");
+
+  const admin = criarClienteAdmin();
+  const { data, error } = await admin.functions.invoke<RespostaAcao>(funcao, {
+    body: {
+      acao: "alterar_verba",
+      nivel: parse.data.nivel,
+      organizacao_id: organizacao.id,
+      id: parse.data.id,
+      tipo: parse.data.tipo,
+      valor: parse.data.valor,
+    },
+  });
+  if (error) return falha(await mensagemDoConector(error));
+  if (data?.status !== "concluida")
+    return falha(data?.erro ?? "A plataforma não confirmou.");
+
+  revalidatePath(CAMINHO);
+  revalidatePath("/trafego");
+  return sucesso("Orçamento atualizado.");
 }

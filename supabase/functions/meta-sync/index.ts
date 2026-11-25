@@ -41,15 +41,28 @@ type Entrada = {
   corte?: string;
 };
 
-/** Ação pontual pedida pelo app (não é um ciclo): ligar/pausar campanha, conjunto ou anúncio. */
-type EntradaAcao = {
-  acao: "alterar_status";
-  nivel: "campanha" | "conjunto" | "anuncio";
-  organizacao_id: string;
-  /** Id interno (uuid) da linha em campanhas, conjuntos ou anuncios. */
-  id: string;
-  status: "ACTIVE" | "PAUSED";
-};
+/**
+ * Ação pontual pedida pelo app (não é um ciclo): ligar/pausar campanha, conjunto ou
+ * anúncio, ou mudar o orçamento de campanha ou conjunto.
+ */
+type EntradaAcao =
+  | {
+      acao: "alterar_status";
+      nivel: "campanha" | "conjunto" | "anuncio";
+      organizacao_id: string;
+      /** Id interno (uuid) da linha em campanhas, conjuntos ou anuncios. */
+      id: string;
+      status: "ACTIVE" | "PAUSED";
+    }
+  | {
+      acao: "alterar_verba";
+      nivel: "campanha" | "conjunto";
+      organizacao_id: string;
+      id: string;
+      tipo: "diaria" | "total";
+      /** Valor na moeda da conta (ex.: 150.5); o conector converte para centavos. */
+      valor: number;
+    };
 
 /** Quantos vídeos por ciclo têm a URL de reprodução renovada. */
 const VIDEOS_POR_CICLO = 60;
@@ -550,27 +563,39 @@ const TABELA_POR_NIVEL = {
 } as const;
 
 /**
- * Liga ou pausa uma campanha, conjunto ou anúncio no Meta e reflete no banco. A linha
- * precisa pertencer à organização informada; o app já conferiu o usuário antes.
+ * Localiza a linha (campanha, conjunto ou anúncio) da organização e o token da
+ * integração dona dela. `campanhas` não tem coluna `campanha_id`: a própria linha é a
+ * campanha (o select antigo pedia a coluna em todos os níveis e a ação de pausar
+ * campanha falhava com "column campanhas.campanha_id does not exist").
  */
-async function executarAcao(supabase: SupabaseClient, entrada: EntradaAcao) {
-  if (entrada.acao !== "alterar_status") throw new Error("Ação desconhecida.");
-  if (entrada.status !== "ACTIVE" && entrada.status !== "PAUSED")
-    throw new Error("Status inválido.");
-  const tabela = TABELA_POR_NIVEL[entrada.nivel];
+async function localizarLinha(
+  supabase: SupabaseClient,
+  nivel: keyof typeof TABELA_POR_NIVEL,
+  id: string,
+  organizacaoId: string,
+) {
+  const tabela = TABELA_POR_NIVEL[nivel];
   if (!tabela) throw new Error("Nível inválido.");
-
+  const colunas =
+    nivel === "campanha"
+      ? "id, id_externo, plataforma"
+      : "id, id_externo, plataforma, campanha_id";
   const { data: linha, error } = await supabase
     .from(tabela)
-    .select("id, id_externo, plataforma, campanha_id")
-    .eq("id", entrada.id)
-    .eq("organizacao_id", entrada.organizacao_id)
+    .select(colunas)
+    .eq("id", id)
+    .eq("organizacao_id", organizacaoId)
     .maybeSingle();
   if (error) throw new Error(`${tabela}: ${error.message}`);
-  if (!linha || linha.plataforma !== "meta") throw new Error("Registro não encontrado.");
+  const registro = linha as unknown as {
+    id: string;
+    id_externo: string;
+    plataforma: string;
+    campanha_id?: string;
+  } | null;
+  if (!registro || registro.plataforma !== "meta") throw new Error("Registro não encontrado.");
 
-  const campanhaId =
-    entrada.nivel === "campanha" ? linha.id : (linha.campanha_id as string);
+  const campanhaId = nivel === "campanha" ? registro.id : (registro.campanha_id as string);
   const { data: campanha } = await supabase
     .from("campanhas")
     .select("id, contas_anuncio(integracao_id)")
@@ -587,16 +612,62 @@ async function executarAcao(supabase: SupabaseClient, entrada: EntradaAcao) {
     },
   );
   if (erroToken || !token) throw new Error("Credencial do Meta não encontrada no cofre.");
+  return { tabela, linha: registro, meta: new ClienteMeta({ token }) };
+}
 
-  const meta = new ClienteMeta({ token });
-  await meta.alterarStatus(linha.id_externo, entrada.status);
+/**
+ * Liga ou pausa uma campanha, conjunto ou anúncio no Meta e reflete no banco, ou muda
+ * o orçamento de campanha ou conjunto. A linha precisa pertencer à organização
+ * informada; o app já conferiu o usuário antes.
+ */
+async function executarAcao(supabase: SupabaseClient, entrada: EntradaAcao) {
+  if (entrada.acao === "alterar_status") {
+    if (entrada.status !== "ACTIVE" && entrada.status !== "PAUSED")
+      throw new Error("Status inválido.");
+    const { tabela, linha, meta } = await localizarLinha(
+      supabase,
+      entrada.nivel,
+      entrada.id,
+      entrada.organizacao_id,
+    );
+    await meta.alterarStatus(linha.id_externo, entrada.status);
 
-  const { error: erroUpdate } = await supabase
-    .from(tabela)
-    .update({ status: entrada.status, ativo: entrada.status === "ACTIVE" })
-    .eq("id", linha.id);
-  if (erroUpdate) throw new Error(`${tabela}: ${erroUpdate.message}`);
-  return { status: "concluida", novo_status: entrada.status };
+    const { error: erroUpdate } = await supabase
+      .from(tabela)
+      .update({ status: entrada.status, ativo: entrada.status === "ACTIVE" })
+      .eq("id", linha.id);
+    if (erroUpdate) throw new Error(`${tabela}: ${erroUpdate.message}`);
+    return { status: "concluida", novo_status: entrada.status };
+  }
+
+  if (entrada.acao === "alterar_verba") {
+    if (entrada.nivel !== "campanha" && entrada.nivel !== "conjunto")
+      throw new Error("Só campanhas e conjuntos têm orçamento.");
+    if (entrada.tipo !== "diaria" && entrada.tipo !== "total")
+      throw new Error("Tipo de orçamento inválido.");
+    const valor = Number(entrada.valor);
+    if (!Number.isFinite(valor) || valor <= 0) throw new Error("Valor inválido.");
+    const { tabela, linha, meta } = await localizarLinha(
+      supabase,
+      entrada.nivel,
+      entrada.id,
+      entrada.organizacao_id,
+    );
+    await meta.alterarVerba(linha.id_externo, entrada.tipo, valor);
+
+    const { error: erroUpdate } = await supabase
+      .from(tabela)
+      .update(
+        entrada.tipo === "diaria"
+          ? { verba_diaria: valor, verba_total: null }
+          : { verba_diaria: null, verba_total: valor },
+      )
+      .eq("id", linha.id);
+    if (erroUpdate) throw new Error(`${tabela}: ${erroUpdate.message}`);
+    return { status: "concluida", tipo: entrada.tipo, valor };
+  }
+
+  throw new Error("Ação desconhecida.");
 }
 
 function linhaMetrica(

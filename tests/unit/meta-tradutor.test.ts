@@ -220,6 +220,18 @@ describe("ClienteMeta", () => {
     expect(chamadas[1]).toBe("https://graph.facebook.com/x?after=1&access_token=t");
   });
 
+  it("muda o orçamento em centavos pelo campo certo", async () => {
+    const corpos: string[] = [];
+    const fn = (async (_url: string, init?: RequestInit) => {
+      corpos.push(String(init?.body ?? ""));
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const cliente = new ClienteMeta({ token: "t", fetch: fn, esperar: async () => {} });
+    await cliente.alterarVerba("123", "diaria", 150.5);
+    await cliente.alterarVerba("123", "total", 1250);
+    expect(corpos).toEqual(["daily_budget=15050", "lifetime_budget=125000"]);
+  });
+
   it("espera e repete em limite de uso; falha de credencial não repete", async () => {
     const limite = fetchFalso([
       { status: 400, corpo: { error: { message: "limite", code: 17 } } },

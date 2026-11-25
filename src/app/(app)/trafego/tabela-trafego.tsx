@@ -22,6 +22,7 @@ import { CLASSE_COR_STATUS, traduzirStatusCampanha } from "@/dominio/status-camp
 import type { LinhaTrafego, Verba } from "@/servidor/consultas/trafego";
 import { cn } from "@/lib/utils";
 import { ChaveVeiculacao } from "../configuracoes/campanhas/chave-campanha";
+import { EditorVerba } from "./editor-verba";
 import { CaixaSelecao } from "./selecao";
 import { useColunasTrafego, useLargurasTrafego } from "./colunas";
 import { PersonalizarColunas } from "./personalizar-colunas";
@@ -331,7 +332,20 @@ export function TabelaTrafego({
                     </div>
                   </TableCell>
                   <TableCell className="truncate text-right tabular-nums">
-                    <CelulaVerba verba={l.verba} moeda={moeda} />
+                    {podeEditar &&
+                    l.veiculacao &&
+                    l.nivel !== "anuncio" &&
+                    l.verba?.tipo !== "da_campanha" ? (
+                      <EditorVerba
+                        nivel={l.nivel}
+                        id={l.veiculacao.id}
+                        nome={l.nome}
+                        verba={l.verba}
+                        moeda={moeda}
+                      />
+                    ) : (
+                      <CelulaVerba verba={l.verba} moeda={moeda} />
+                    )}
                   </TableCell>
                   {metricas.map((m) => (
                     <TableCell key={m.chave} className="truncate text-right tabular-nums">
